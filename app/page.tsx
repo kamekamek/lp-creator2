@@ -30,7 +30,7 @@ const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialVie
   <div className="flex flex-col items-center justify-center h-full bg-gray-50">
     <div className="w-full max-w-2xl p-8 text-center">
       <h1 className="text-4xl font-bold text-gray-800 mb-4">今日は何をデザインしますか？</h1>
-      <p className="text-lg text-gray-600 mb-8">作成したいページについて、スタイル、機能、目的などを詳しく教えてください。</p>
+            <p className="text-lg text-gray-800 mb-8">作成したいページについて、スタイル、機能、目的などを詳しく教えてください。</p>
       <form onSubmit={handleSubmit} className="w-full flex">
         <input
           className="flex-grow p-4 border border-gray-300 rounded-l-lg text-black text-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
@@ -79,7 +79,16 @@ const MainView = ({
         </button>
       </header>
       <div className="flex-grow overflow-y-auto pr-2 space-y-4">
-        {messages.map((message) => (
+        {messages.filter(message => {
+          // `message.display` がReact要素であり、かつ `message.role` が 'assistant' の場合に
+          // その内容がLPプレビューであるか簡易的に判定します。
+          // より堅牢な判定のためには、messageオブジェクトの構造に依存したチェックが必要です。
+          // ここでは、message.displayの内容がオブジェクトで、htmlContentプロパティを持つかで判定します。
+          if (message.role === 'assistant' && message.display && typeof message.display === 'object' && 'props' in message.display && message.display.props.lpObject) {
+            return false; // LPプレビューは表示しない
+          }
+          return true; // それ以外のメッセージは表示
+        }).map((message) => (
           <div key={message.id}>{message.display}</div>
         ))}
       </div>
@@ -126,7 +135,7 @@ export default function Page() {
         {
             id: Date.now(),
             role: 'user',
-            display: <div className="p-2 text-right"><strong>あなた:</strong> {inputValue}</div>
+            display: <div className="p-2 text-right text-black"><strong>あなた:</strong> {inputValue}</div>
         }
     ]);
 

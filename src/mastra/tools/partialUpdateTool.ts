@@ -57,9 +57,11 @@ export async function partialUpdateLP({
 
   // 1. Identify which section the selected element belongs to.
   const match = selectedElementId.match(/section-(\d+)-element-\d+/);
-  if (!match) {
-    throw new Error('Could not determine the section to update from the selected element ID.');
+  if (!match || match.length < 2) { // matchがnull、または期待するキャプチャグループがない場合
+    console.error('Invalid selectedElementId format:', selectedElementId);
+    throw new Error(`Invalid selectedElementId format: ${selectedElementId}. Expected format like 'section-X-element-Y'.`);
   }
+  // 要素IDのパース処理を継続
   const sectionIndexToUpdate = parseInt(match[1], 10);
   const sectionToUpdate = currentLP.sections[sectionIndexToUpdate];
 

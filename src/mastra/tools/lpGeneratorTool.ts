@@ -42,7 +42,10 @@ async function generateSectionHtml(section: LPSection, sectionIndex: number) {
     schema: sectionHtmlSchema,
     prompt: `Generate the HTML for a landing page section based on the following prompt. Use Tailwind CSS for styling. Make it visually appealing and responsive. 
 
-    *** IMPORTANT INSTRUCTION ***
+    *** IMAGE INSTRUCTION ***
+    If the section requires an image, embed a relevant, high-quality image from Unsplash. Use the format 'https://source.unsplash.com/1600x900/?<KEYWORDS>', where <KEYWORDS> are 1-3 comma-separated search terms directly related to the section's content or theme. For example, if the prompt is about 'modern kitchen appliances', suitable keywords could be 'modern,kitchen,appliances'. Ensure the image is contextually appropriate.
+
+    *** EDITABLE ELEMENT INSTRUCTION ***
     For every editable element (like headings, paragraphs, buttons, list items), add a unique 'data-editable-id' attribute. The ID should be structured as 'section-${sectionIndex}-element-ELEMENT_INDEX', where ELEMENT_INDEX starts from 0 for each section. For example: 'data-editable-id="section-${sectionIndex}-element-0"', 'data-editable-id="section-${sectionIndex}-element-1"'.
 
     Do not include <html>, <head>, or <body> tags. Only generate the content for this specific section.

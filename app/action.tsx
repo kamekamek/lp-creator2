@@ -31,7 +31,7 @@ async function submitUserMessage(userInput: string, selectedElementId: string | 
 
   const uiStream = createStreamableUI(
     <div className="p-4 bg-gray-100 rounded-lg text-center">
-      <p className="font-semibold">Generating...</p>
+      <p className="font-semibold text-gray-900">Generating...</p>
     </div>
   );
 
