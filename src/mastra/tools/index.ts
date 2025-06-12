@@ -1,1 +1,1 @@
-export { lpGeneratorTool } from './lpGeneratorTool';
+export { generateUnifiedLP } from './lpGeneratorTool';

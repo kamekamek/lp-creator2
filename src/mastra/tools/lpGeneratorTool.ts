@@ -1,4 +1,4 @@
-import { tool } from '@mastra/core';
+
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateObject } from 'ai';
 import { z } from 'zod';
@@ -45,17 +45,8 @@ async function generateSectionHtml(section: LPSection) {
   return object.html;
 }
 
-export const lpGeneratorTool = tool({
-  id: 'lp-generator',
-  description: 'Generates a complete landing page based on a topic',
-  inputSchema: z.object({
-    topic: z.string().describe('The topic for the landing page'),
-  }),
-  outputSchema: z.object({
-    htmlContent: z.string().describe('The complete HTML content for the landing page'),
-    cssContent: z.string().optional().describe('Any additional CSS required'),
-  }),
-  execute: async ({ topic }) => {
+export async function generateUnifiedLP({ topic }: { topic: string }) {
+
     console.log(`Generating LP for topic: ${topic}`);
 
     // Step 1: Generate the structure
@@ -77,6 +68,6 @@ export const lpGeneratorTool = tool({
     return {
       htmlContent: fullHtmlContent,
       cssContent: '', // Kept for compatibility
+      structure,
     };
-  },
-});
+}
