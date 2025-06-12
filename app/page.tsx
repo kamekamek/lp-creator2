@@ -62,8 +62,22 @@ const MainView = ({
   selectElement,
   getPlaceholder
 }: MainViewProps) => {
-  // 最新のLPメッセージを取得
-  const latestLpMessage = [...messages]
+  // 最新のプレビュー対象メッセージを取得（LP生成結果または構成案）
+  const latestPreviewMessage = [...messages]
+    .reverse()
+    .find(message => 
+      message.role === 'assistant' && 
+      message.display && 
+      typeof message.display === 'object' && 
+      'props' in message.display && (
+        message.display.props?.className?.includes('lp-preview-message') ||
+        message.display.props?.lpObject ||
+        message.display.props?.structure  // 構成案も含める
+      )
+    );
+  
+  // 実際のLPが生成されているかチェック
+  const hasActualLp = [...messages]
     .reverse()
     .find(message => 
       message.role === 'assistant' && 
@@ -139,15 +153,15 @@ const MainView = ({
           <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
         </div>
         <div className="flex-1 overflow-hidden">
-          {latestLpMessage ? (
+          {latestPreviewMessage ? (
             <div className="h-full overflow-y-auto p-4">
-              {latestLpMessage.display}
+              {latestPreviewMessage.display}
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
                 <p className="text-lg mb-2">プレビューエリア</p>
-                <p className="text-sm">LPを生成すると、こちらに表示されます</p>
+                <p className="text-sm">構成案またはLPを生成すると、こちらに表示されます</p>
               </div>
             </div>
           )}
@@ -165,7 +179,8 @@ export default function Page() {
   const { submitUserMessage } = useActions<typeof AI>();
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
 
-  const isLpGenerated = messages.some(msg => msg.role === 'assistant' && msg.display);
+  // メッセージが存在すればMainViewを表示（構成案も含む）
+  const showMainView = messages.length > 0;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -205,7 +220,7 @@ export default function Page() {
 
   return (
     <div className="h-screen">
-      {isLpGenerated ? (
+      {showMainView ? (
         <MainView 
           messages={messages}
           inputValue={inputValue}
