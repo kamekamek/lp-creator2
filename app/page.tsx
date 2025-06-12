@@ -1,9 +1,11 @@
 'use client';
 
-import { useUIState, useActions } from 'ai/rsc';
-import { AI } from './action';
-import React, { useState, FormEvent, ChangeEvent, useMemo } from 'react';
+import { useChat } from '@ai-sdk/react';
+import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect } from 'react';
 import { useEditMode } from './contexts/EditModeContext';
+import type { Message } from 'ai';
+import { LPTool } from './components/LPTool';
+import { LPViewer } from './components/LPViewer';
 
 // --- Prop Types ---
 interface InitialViewProps {
@@ -51,6 +53,14 @@ const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialVie
   </div>
 );
 
+// LP Tool 状態管理
+interface LPToolState {
+  isActive: boolean;
+  htmlContent: string;
+  title: string;
+  forcePanelOpen?: boolean;
+}
+
 const MainView = ({
   messages,
   inputValue,
@@ -62,39 +72,85 @@ const MainView = ({
   selectElement,
   getPlaceholder
 }: MainViewProps) => {
-  // --- util: プレビュー判定関数 ---
-  const isPreviewMessage = (msg: any) =>
-    msg.role === 'assistant' &&
-    msg.display &&
-    typeof msg.display === 'object' &&
-    'props' in msg.display &&
-    (
-      // lpObject が存在
-      msg.display.props?.lpObject ||
-      // structure (構成案)
-      msg.display.props?.structure ||
-      // 明示的な className フラグ
-      (typeof msg.display.props?.className === 'string' &&
-        msg.display.props.className.includes('lp-preview-message'))
+  const [lpToolState, setLpToolState] = useState<LPToolState>({
+    isActive: false,
+    htmlContent: '',
+    title: '生成されたランディングページ',
+    forcePanelOpen: false
+  });
+
+  // LPツール検出とコンテンツ抽出
+  useEffect(() => {
+    if (messages.length === 0) {
+      setLpToolState({
+        isActive: false,
+        htmlContent: '',
+        title: '生成されたランディングページ',
+        forcePanelOpen: false
+      });
+      return;
+    }
+
+    // メッセージからLP生成結果を検出
+    const lpMessages = messages.filter(message => 
+      message.role === 'assistant' && 
+      message.content && 
+      typeof message.content === 'string' &&
+      (message.content.includes('htmlLPTool') || 
+       message.content.includes('<section') ||
+       message.content.includes('lpPreviewTool'))
     );
 
-  // 最新のプレビュー対象メッセージを取得（findLast があれば使用）
-  const latestPreviewMessage = useMemo(() => {
-    // Node/TS の型に存在しない環境でも安全に判定
-    if (typeof (Array.prototype as any).findLast === 'function') {
-      // 型未対応のため any キャスト
-      return (messages as any).findLast(isPreviewMessage);
+    if (lpMessages.length > 0) {
+      const latestLpMessage = lpMessages[lpMessages.length - 1];
+      let htmlContent = '';
+      let title = 'ランディングページ';
+
+      // HTMLコンテンツを抽出
+      if (typeof latestLpMessage.content === 'string') {
+        // ツール結果からHTMLを抽出する簡単なパーシング
+        const htmlMatch = latestLpMessage.content.match(/<section[\s\S]*?<\/section>/g);
+        if (htmlMatch) {
+          htmlContent = htmlMatch.join('\n\n');
+        } else if (latestLpMessage.content.includes('<div') || latestLpMessage.content.includes('<main')) {
+          // フォールバック: div や main タグを含む場合
+          htmlContent = latestLpMessage.content.replace(/```html\n?/g, '').replace(/```\n?/g, '');
+        }
+      }
+
+      if (htmlContent) {
+        setLpToolState({
+          isActive: true,
+          htmlContent: htmlContent,
+          title: title,
+          forcePanelOpen: true
+        });
+      }
     }
-    return [...messages].reverse().find(isPreviewMessage);
   }, [messages]);
 
-  // 実際のLPが生成されているかチェック
-  const hasActualLp = useMemo(() => messages.some(isPreviewMessage), [messages]);
+  // プレビュー判定（レガシー互換性）
+  const isPreviewMessage = (msg: any) => false; // 新システムでは使用しない
+  const latestPreviewMessage = null; // 新システムでは使用しない
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* 左側: チャットエリア */}
       <main className="w-1/2 flex flex-col overflow-hidden bg-white border-r border-gray-200">
+        {/* LPツールがアクティブな場合に表示 */}
+        {lpToolState.isActive && (
+          <LPTool 
+            htmlContent={lpToolState.htmlContent}
+            title={lpToolState.title}
+            autoOpenPreview={lpToolState.htmlContent !== ''} // HTMLコンテンツがある場合に自動的に開く
+            forcePanelOpen={lpToolState.forcePanelOpen} // 強制的にパネルを開くフラグ
+            onCreateLP={() => {
+              // LP編集機能を開く
+              console.log("Edit LP clicked");
+            }}
+          />
+        )}
+
         <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-bold text-gray-800">LPクリエーター</h1>
@@ -113,8 +169,27 @@ const MainView = ({
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.filter((message) => !isPreviewMessage(message)).map((message) => (
-            <div key={message.id}>{message.display}</div>
+          {messages.map((message) => (
+            <div key={message.id} className="mb-4">
+              <div className={`p-3 rounded-lg ${
+                message.role === 'user' 
+                  ? 'bg-blue-50 border border-blue-200 ml-8' 
+                  : 'bg-gray-50 border border-gray-200 mr-8'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
+                    message.role === 'user' ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}>
+                    {message.role === 'user' ? 'U' : 'AI'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                      {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
         
@@ -143,15 +218,20 @@ const MainView = ({
           <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
         </div>
         <div className="flex-1 overflow-hidden">
-          {latestPreviewMessage ? (
-            <div className="h-full overflow-y-auto p-4">
-              {latestPreviewMessage.display}
+          {lpToolState.isActive && lpToolState.htmlContent ? (
+            <div className="h-full overflow-y-auto">
+              <LPViewer htmlContent={lpToolState.htmlContent} />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
                 <p className="text-lg mb-2">プレビューエリア</p>
-                <p className="text-sm">構成案またはLPを生成すると、こちらに表示されます</p>
+                <p className="text-sm">LPを生成すると、こちらに表示されます</p>
+                <div className="mt-4 text-xs text-gray-400">
+                  <div>• フルスクリーン表示対応</div>
+                  <div>• HTML/PDF出力機能</div>
+                  <div>• リアルタイムプレビュー</div>
+                </div>
               </div>
             </div>
           )}
@@ -165,33 +245,45 @@ const MainView = ({
 
 export default function Page() {
   const [inputValue, setInputValue] = useState('');
-  const [messages, setMessages] = useUIState<typeof AI>();
-  const { submitUserMessage } = useActions();
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
 
-  // メッセージが存在すればMainViewを表示（構成案も含む）
+  // 新しいMastraベースのチャットシステムを使用
+  const { 
+    messages, 
+    input, 
+    handleInputChange: originalHandleInputChange, 
+    handleSubmit: originalHandleSubmit, 
+    isLoading, 
+    error,
+    setInput
+  } = useChat({
+    api: '/api/lp-creator/chat', // 新しいMastraベースのAPI
+    onFinish: (message) => {
+      console.log('[Page] LP Creation completed:', message);
+    },
+    onResponse: (response) => {
+      console.log('[Page] Response status:', response.status);
+    },
+    onError: (error) => {
+      console.error('[Page] LP Creation error:', error);
+    }
+  });
+
+  // メッセージが存在すればMainViewを表示
   const showMainView = messages.length > 0;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
-    setMessages(currentMessages => [
-        ...currentMessages,
-        {
-            id: Date.now(),
-            role: 'user',
-            display: <div className="p-2 text-right text-black"><strong>あなた:</strong> {inputValue}</div>
-        }
-    ]);
-
-    const message = await submitUserMessage(inputValue, selectedElementId);
-    
-    setMessages(currentMessages => [...currentMessages, message]);
+    // useChatの入力を更新
+    setInput(inputValue);
     setInputValue('');
-    if (selectedElementId) {
-        selectElement(null);
-    }
+    
+    // 少し遅らせてからsubmitを実行（入力が更新されるのを待つ）
+    setTimeout(() => {
+      originalHandleSubmit(e);
+    }, 0);
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
