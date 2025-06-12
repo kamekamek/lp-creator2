@@ -22,7 +22,7 @@ interface StructureConfirmationClientProps {
 export function StructureConfirmationClient({ structure }: StructureConfirmationClientProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedStructure, setEditedStructure] = useState<LPStructure>(structure);
-  const { submitUserMessage } = useActions<typeof AI>();
+  const { submitUserMessage } = useActions<typeof AI>() as { submitUserMessage: (userInput: string, selectedElementId: string | null) => Promise<any> };
 
   const handleConfirm = async () => {
     // 重複実行を防ぐため、一度だけ実行されるようにする

@@ -27,31 +27,35 @@ type LPSection = z.infer<typeof sectionSchema>;
 async function generateLPStructure(topic: string) {
   try {
     const { object: structure } = await generateObject({
-      model: createAnthropic()('claude-3-5-sonnet-20240620'),
+      model: createAnthropic()('claude-3-5-sonnet-20241022'),
       schema: lpStructureSchema,
-      maxTokens: 1500,
+      maxTokens: 1200,
       temperature: 0.7,
-      prompt: `You must create a JSON object with a "sections" array for a landing page about: "${topic}".
+      prompt: `Create a JSON object with a "sections" array for a landing page about: "${topic}".
 
-Each section must have:
-- "type": one of ["hero", "features", "testimonials", "cta", "faq", "footer"]
-- "prompt": a detailed description (at least 20 words) of what this section should contain
+REQUIREMENTS:
+- Return ONLY valid JSON format
+- Each section needs "type" and "prompt" fields
+- Types: "hero", "features", "testimonials", "cta", "faq", "footer"
+- Include 4-5 sections total
 
-Example structure:
+EXAMPLE:
 {
   "sections": [
     {
       "type": "hero",
-      "prompt": "Create a compelling hero section with headline, subheading, and call-to-action button for ${topic}"
+      "prompt": "Create compelling hero section for ${topic} with headline and CTA"
     },
     {
       "type": "features", 
-      "prompt": "Design a features section highlighting the key benefits and features of ${topic}"
+      "prompt": "Design features section highlighting key benefits of ${topic}"
+    },
+    {
+      "type": "cta",
+      "prompt": "Create call-to-action section for ${topic}"
     }
   ]
-}
-
-Create a complete landing page structure with 4-6 sections including hero, features, testimonials, and cta sections.`,
+}`,
     });
     
     console.log('✅ Structure generated successfully:', structure);
@@ -84,30 +88,34 @@ Create a complete landing page structure with 4-6 sections including hero, featu
 async function generateSectionHtml(section: LPSection, sectionIndex: number) {
   try {
     const { object } = await generateObject({
-      model: createAnthropic()('claude-3-5-sonnet-20240620'),
+      model: createAnthropic()('claude-3-5-sonnet-20241022'),  // 最新モデルに更新
       schema: sectionHtmlSchema,
-      maxTokens: 4000,
-      temperature: 0.8,
-      prompt: `You must generate a JSON object with an "html" field containing valid HTML for a landing page section.
+      maxTokens: 3000,  // トークン数を少し減らす
+      temperature: 0.7,  // 温度を下げて安定性を向上
+      prompt: `Generate ONLY a JSON object with an "html" field containing valid HTML for a landing page section.
 
 Section Type: ${section.type}
 Section Index: ${sectionIndex}
+Prompt: ${section.prompt}
 
-Requirements:
-- Return ONLY a JSON object with "html" field
-- HTML must be valid and styled with Tailwind CSS
-- Do NOT include <html>, <head>, or <body> tags
-- Use responsive design (sm:, md:, lg: prefixes)
-- Add data-editable-id="section-${sectionIndex}-element-X" to editable elements
-- Include proper Tailwind styling for ${section.type} sections
+REQUIREMENTS:
+1. Return ONLY JSON format: {"html": "your-html-here"}
+2. HTML must be complete and valid
+3. Use Tailwind CSS classes
+4. NO <html>, <head>, or <body> tags
+5. Add data-editable-id="section-${sectionIndex}-element-X" to key elements
+6. Make it responsive
 
-Example response format:
+EXAMPLE OUTPUT:
 {
-  "html": "<section class='py-16 bg-gray-50'>...</section>"
-}
-
-Generate HTML for: ${section.prompt}`,
+  "html": "<section class='py-16 bg-white'><div class='container mx-auto px-4'><h2 class='text-3xl font-bold' data-editable-id='section-${sectionIndex}-element-1'>Title</h2></div></section>"
+}`,
     });
+    
+    // HTMLコンテンツの検証
+    if (!object.html || typeof object.html !== 'string' || object.html.trim().length < 10) {
+      throw new Error('Generated HTML is invalid or too short');
+    }
     
     console.log(`✅ Section ${sectionIndex} (${section.type}) HTML generated`);
     return object.html;

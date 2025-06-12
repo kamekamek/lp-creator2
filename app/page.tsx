@@ -2,7 +2,7 @@
 
 import { useUIState, useActions } from 'ai/rsc';
 import { AI } from './action';
-import { useState, FormEvent, ChangeEvent } from 'react';
+import React, { useState, FormEvent, ChangeEvent, useMemo } from 'react';
 import { useEditMode } from './contexts/EditModeContext';
 
 // --- Prop Types ---
@@ -62,32 +62,34 @@ const MainView = ({
   selectElement,
   getPlaceholder
 }: MainViewProps) => {
-  // 最新のプレビュー対象メッセージを取得（LP生成結果または構成案）
-  const latestPreviewMessage = [...messages]
-    .reverse()
-    .find(message => 
-      message.role === 'assistant' && 
-      message.display && 
-      typeof message.display === 'object' && 
-      'props' in message.display && (
-        message.display.props?.className?.includes('lp-preview-message') ||
-        message.display.props?.lpObject ||
-        message.display.props?.structure  // 構成案も含める
-      )
+  // --- util: プレビュー判定関数 ---
+  const isPreviewMessage = (msg: any) =>
+    msg.role === 'assistant' &&
+    msg.display &&
+    typeof msg.display === 'object' &&
+    'props' in msg.display &&
+    (
+      // lpObject が存在
+      msg.display.props?.lpObject ||
+      // structure (構成案)
+      msg.display.props?.structure ||
+      // 明示的な className フラグ
+      (typeof msg.display.props?.className === 'string' &&
+        msg.display.props.className.includes('lp-preview-message'))
     );
-  
+
+  // 最新のプレビュー対象メッセージを取得（findLast があれば使用）
+  const latestPreviewMessage = useMemo(() => {
+    // Node/TS の型に存在しない環境でも安全に判定
+    if (typeof (Array.prototype as any).findLast === 'function') {
+      // 型未対応のため any キャスト
+      return (messages as any).findLast(isPreviewMessage);
+    }
+    return [...messages].reverse().find(isPreviewMessage);
+  }, [messages]);
+
   // 実際のLPが生成されているかチェック
-  const hasActualLp = [...messages]
-    .reverse()
-    .find(message => 
-      message.role === 'assistant' && 
-      message.display && 
-      typeof message.display === 'object' && 
-      'props' in message.display && (
-        message.display.props?.className?.includes('lp-preview-message') ||
-        message.display.props?.lpObject
-      )
-    );
+  const hasActualLp = useMemo(() => messages.some(isPreviewMessage), [messages]);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -111,19 +113,7 @@ const MainView = ({
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.filter(message => {
-            // LPプレビューはチャットエリアに表示しない
-            if (message.role === 'assistant' && 
-                message.display && 
-                typeof message.display === 'object' && 
-                'props' in message.display && (
-                  message.display.props?.className?.includes('lp-preview-message') ||
-                  message.display.props?.lpObject
-                )) {
-              return false;
-            }
-            return true;
-          }).map((message) => (
+          {messages.filter((message) => !isPreviewMessage(message)).map((message) => (
             <div key={message.id}>{message.display}</div>
           ))}
         </div>
@@ -176,7 +166,7 @@ const MainView = ({
 export default function Page() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useUIState<typeof AI>();
-  const { submitUserMessage } = useActions<typeof AI>();
+  const { submitUserMessage } = useActions();
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
 
   // メッセージが存在すればMainViewを表示（構成案も含む）
