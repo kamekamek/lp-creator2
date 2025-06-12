@@ -16,7 +16,7 @@ async function displayGeneratedLp({ topic }: { topic: string }) {
     system: `You are an AI assistant that helps users create landing pages.
     When the user provides a topic or a description for a landing page, you must call the 'generate_lp_ui' tool with the inferred topic.
     Do not ask for confirmation. Call the tool directly.`,
-    messages: [...aiState.get().messages],
+    messages: aiState.get(),
     text: `Generating a landing page for ${topic}...`,
     tools: {
       generate_lp_ui: {
@@ -30,7 +30,7 @@ async function displayGeneratedLp({ topic }: { topic: string }) {
           const lpObject = await generateUnifiedLP(topic);
 
           aiState.done([
-            ...aiState.get().messages,
+            ...aiState.get(),
             {
               role: 'assistant',
               content: `Generated a landing page for "${topic}".`,

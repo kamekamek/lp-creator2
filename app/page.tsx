@@ -2,9 +2,9 @@
 
 import { useActions, useUIState } from 'ai/rsc';
 import { AI } from './action';
-import { useState, ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-// Define message types for better type safety
+// Define a more specific type for UI messages
 interface Message {
   id: number;
   role: 'user' | 'assistant';
@@ -19,7 +19,7 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <header className="p-4 border-b w-full shadow-sm bg-white">
-        <h1 className="text-2xl font-bold text-gray-800 text-center">LP Creator</h1>
+        <h1 className="text-2xl font-bold text-gray-800 text-center">AI-Powered LP Creator</h1>
       </header>
 
       <main className="flex-grow p-6 overflow-auto">
@@ -27,7 +27,8 @@ export default function Home() {
           {messages.map((message: Message) => (
             <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
-                className={`max-w-3xl p-4 rounded-2xl shadow-md break-words ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'}`}>
+                className={`max-w-3xl p-4 rounded-2xl shadow-md break-words ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'}`}
+              >
                 {message.display}
               </div>
             </div>
@@ -60,13 +61,13 @@ export default function Home() {
               setMessages((currentMessages: Message[]) => [...currentMessages, responseMessage]);
             } catch (error) {
               console.error('Error generating LP:', error);
-              // Optionally, display an error message to the user in the UI
-               setMessages((currentMessages: Message[]) => [
+              // Display an error message to the user in the UI
+              setMessages((currentMessages: Message[]) => [
                 ...currentMessages,
                 {
                   id: Date.now(),
                   role: 'assistant',
-                  display: <div className="text-red-500">Sorry, an error occurred. Please try again.</div>,
+                  display: <div className="text-red-500">Sorry, an error occurred while generating the page. Please try again.</div>,
                 },
               ]);
             }
