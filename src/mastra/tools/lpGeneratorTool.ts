@@ -1,17 +1,27 @@
 
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { generateObject } from 'ai';
+import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 
 // Define the schema for a single section of the LP
 const sectionSchema = z.object({
-  type: z.enum(['hero', 'features', 'testimonials', 'cta', 'faq', 'footer']).describe('The type of section'),
+  type: z.enum(['hero', 'features', 'testimonials', 'cta', 'faq', 'footer', 'about', 'pricing', 'contact']).describe('The type of section'),
   prompt: z.string().min(10).describe('A detailed prompt for the AI to generate this specific section.'),
+  layoutType: z.enum(['default', 'image-left', 'image-right', 'full-graphic', 'quote', 'comparison', 'timeline', 'list', 'title', 'section-break', 'data-visualization', 'photo-with-caption']).optional().default('default').describe('The desired layout type for this section.'),
 });
 
 // Define the schema for the overall LP structure
 const lpStructureSchema = z.object({
-  sections: z.array(sectionSchema).min(1).max(8).describe('An array of sections that make up the landing page.'),
+  title: z.string().describe('The main title of the landing page'),
+  description: z.string().describe('A brief description of the landing page purpose'),
+  sections: z.array(sectionSchema).min(3).max(10).describe('An array of sections that make up the landing page.'),
+  colorScheme: z.object({
+    primaryColor: z.string().default('#0056B1'),
+    accentColor: z.string().default('#FFB400'),
+    bgColor: z.string().default('#F5F7FA'),
+    textColor: z.string().default('#333333'),
+  }).describe('Color scheme for the landing page'),
+  designStyle: z.enum(['modern', 'minimalist', 'corporate', 'creative', 'tech', 'startup']).default('modern').describe('Overall design style'),
 });
 
 // Define the schema for the generated HTML of a single section
@@ -29,110 +39,291 @@ async function generateLPStructure(topic: string) {
     const { object: structure } = await generateObject({
       model: createAnthropic()('claude-3-5-sonnet-20241022'),
       schema: lpStructureSchema,
-      maxTokens: 1200,
+      maxTokens: 2000,
       temperature: 0.7,
-      prompt: `Create a JSON object with a "sections" array for a landing page about: "${topic}".
+      prompt: `あなたはプロフェッショナルなランディングページ戦略コンサルタントです。
+「${topic}」についての高品質なランディングページ構造を設計してください。
 
-REQUIREMENTS:
-- Return ONLY valid JSON format
-- Each section needs "type" and "prompt" fields
-- Types: "hero", "features", "testimonials", "cta", "faq", "footer"
-- Include 4-5 sections total
+# 設計要件
+1. **title**: SEO最適化されたページタイトル
+2. **description**: 魅力的なページ説明文（120文字以内）
+3. **sections**: 3-8個の効果的なセクション構成
+4. **colorScheme**: ブランドに適したカラーパレット
+5. **designStyle**: ターゲット層に適したデザインスタイル
 
-EXAMPLE:
-{
-  "sections": [
-    {
-      "type": "hero",
-      "prompt": "Create compelling hero section for ${topic} with headline and CTA"
-    },
-    {
-      "type": "features", 
-      "prompt": "Design features section highlighting key benefits of ${topic}"
-    },
-    {
-      "type": "cta",
-      "prompt": "Create call-to-action section for ${topic}"
-    }
-  ]
-}`,
+# セクション設計原則
+- Hero: インパクトのあるファーストインプレッション
+- Features: 具体的な価値提案と利益
+- Social Proof: 信頼性とケーススタディ
+- CTA: 明確なアクション誘導
+- FAQ: 疑問解消とオブジェクション処理
+
+# 利用可能なセクションタイプ
+- hero, features, testimonials, cta, faq, footer, about, pricing, contact
+
+# 利用可能なレイアウトタイプ  
+- default, image-left, image-right, full-graphic, quote, comparison, timeline, list, title, section-break, data-visualization, photo-with-caption
+
+各セクションには：
+- type: セクションタイプ
+- prompt: 具体的で詳細なセクション生成指示（50文字以上）
+- layoutType: 最適なレイアウトタイプ
+
+コンバージョン最適化を重視し、ユーザージャーニーを考慮した構成にしてください。`,
     });
     
-    console.log('✅ Structure generated successfully:', structure);
+    console.log('✅ LP Structure generated successfully:', structure.title);
     return structure;
   } catch (error) {
     console.error('❌ Structure generation failed:', error);
-    // Fallback structure
+    // Enhanced fallback structure
     return {
+      title: `${topic} - プロフェッショナルランディングページ`,
+      description: `${topic}の魅力を最大限に伝える高品質なランディングページ`,
       sections: [
         {
           type: 'hero' as const,
-          prompt: `Create a compelling hero section for ${topic} with headline, subheading, and call-to-action button`
+          prompt: `${topic}のためのインパクトのあるヒーローセクションを作成。強力なヘッドライン、価値提案、明確なCTAボタンを含める。視覚的に魅力的で信頼性を演出する`,
+          layoutType: 'full-graphic' as const
         },
         {
           type: 'features' as const,
-          prompt: `Design a features section highlighting the key benefits and features of ${topic}`
+          prompt: `${topic}の主要な特徴と利益を3-6個のポイントで紹介。各特徴にはアイコンと簡潔な説明文を付ける。ユーザーの問題解決に焦点を当てる`,
+          layoutType: 'default' as const
+        },
+        {
+          type: 'testimonials' as const,
+          prompt: `${topic}の顧客体験談セクション。3-4個の信頼できる証言、顧客写真、評価スター、具体的な成果を含める。信頼性を高める要素を追加`,
+          layoutType: 'quote' as const
         },
         {
           type: 'cta' as const,
-          prompt: `Create a call-to-action section encouraging users to take action related to ${topic}`
+          prompt: `${topic}のための強力なコールトゥアクションセクション。緊急性を演出し、行動を促す明確なメッセージとボタンを配置。背景にコントラストを効かせる`,
+          layoutType: 'full-graphic' as const
         }
-      ]
+      ],
+      colorScheme: {
+        primaryColor: '#0056B1',
+        accentColor: '#FFB400', 
+        bgColor: '#F5F7FA',
+        textColor: '#333333'
+      },
+      designStyle: 'modern' as const
     };
   }
 }
 
 /**
- * Generates the HTML for a single section based on its definition.
+ * Generates the HTML for a single section based on its definition using enhanced prompts from Open_SuperAgent style.
  */
-async function generateSectionHtml(section: LPSection, sectionIndex: number) {
+async function generateSectionHtml(section: LPSection, sectionIndex: number, structure: any) {
+  const uniqueSectionClass = `lp-section-${section.type}-${Math.random().toString(36).substring(7)}`;
+  
+  // Enhanced prompt based on Open_SuperAgent's htmlSlideTool approach
+  const enhancedPrompt = `あなたはプロフェッショナルな「ランディングページデザイナー」です。
+企業レベルの高品質なランディングページセクションを作成してください。
+
+【重要】出力形式の絶対的ルール
+必ず以下の形式で出力してください：
+{"html": "完全なHTMLコンテンツ"}
+
+【入力パラメータ】
+・セクションタイプ: ${section.type}
+・レイアウトタイプ: ${section.layoutType || 'default'}
+・セクション指示: ${section.prompt}
+・セクション番号: ${sectionIndex}
+・プライマリーカラー: ${structure.colorScheme?.primaryColor || '#0056B1'}
+・アクセントカラー: ${structure.colorScheme?.accentColor || '#FFB400'}
+・背景色: ${structure.colorScheme?.bgColor || '#F5F7FA'}
+・テキストカラー: ${structure.colorScheme?.textColor || '#333333'}
+・デザインスタイル: ${structure.designStyle || 'modern'}
+
+【最優先事項】
+1. **プロ品質のLPデザイン** - AppleやGoogleのランディングページに匹敵する美しさ
+2. **コンバージョン最適化** - CTAボタン、視線誘導、行動喚起を重視
+3. **モバイルファーストレスポンシブ** - 全デバイスで美しく表示
+4. **視覚的情報伝達** - アイコン、図解、視覚要素を効果的に配置
+
+【出力要件】
+1. **JSON形式で出力**: {"html": "HTMLコンテンツ"}
+2. **Tailwind CSSクラスのみ使用**
+3. **data-editable-id属性を主要要素に付与**: data-editable-id="section-${sectionIndex}-element-X"
+4. **レスポンシブデザイン**: sm:, md:, lg:, xl: プレフィックスを活用
+5. **アクセシビリティ**: aria-label、alt属性、適切なheading構造
+6. **ユニーククラス**: ${uniqueSectionClass} をルート要素に追加
+
+【レイアウト別要件】
+${getLayoutSpecificRequirements(section.layoutType || 'default')}
+
+【セクション別デザインガイドライン】
+${getSectionDesignGuidelines(section.type)}
+
+【モダンデザイン要素（必須）】
+- 洗練されたグラデーション背景
+- 適切なホワイトスペース活用
+- ドロップシャドウ・borders効果
+- ホバーアニメーション
+- 視覚的階層の明確化
+
+【絶対禁止事項】
+- <html>, <head>, <body>タグの使用
+- インラインスタイルの使用
+- 外部画像URL（SVGアイコンは可）
+- 説明文、コメント、マークダウンの出力
+- JSON以外の形式での出力`;
+
   try {
-    const { object } = await generateObject({
-      model: createAnthropic()('claude-3-5-sonnet-20241022'),  // 最新モデルに更新
-      schema: sectionHtmlSchema,
-      maxTokens: 3000,  // トークン数を少し減らす
-      temperature: 0.7,  // 温度を下げて安定性を向上
-      prompt: `Generate ONLY a JSON object with an "html" field containing valid HTML for a landing page section.
-
-Section Type: ${section.type}
-Section Index: ${sectionIndex}
-Prompt: ${section.prompt}
-
-REQUIREMENTS:
-1. Return ONLY JSON format: {"html": "your-html-here"}
-2. HTML must be complete and valid
-3. Use Tailwind CSS classes
-4. NO <html>, <head>, or <body> tags
-5. Add data-editable-id="section-${sectionIndex}-element-X" to key elements
-6. Make it responsive
-
-EXAMPLE OUTPUT:
-{
-  "html": "<section class='py-16 bg-white'><div class='container mx-auto px-4'><h2 class='text-3xl font-bold' data-editable-id='section-${sectionIndex}-element-1'>Title</h2></div></section>"
-}`,
+    const { text } = await generateText({
+      model: createAnthropic()('claude-3-5-sonnet-20241022'),
+      prompt: enhancedPrompt,
+      maxTokens: 4000,
+      temperature: 0.7,
     });
     
-    // HTMLコンテンツの検証
-    if (!object.html || typeof object.html !== 'string' || object.html.trim().length < 10) {
-      throw new Error('Generated HTML is invalid or too short');
+    // Parse JSON response
+    let htmlContent = '';
+    try {
+      const jsonResponse = JSON.parse(text.trim());
+      htmlContent = jsonResponse.html || text;
+    } catch {
+      // If not JSON, treat as direct HTML
+      htmlContent = text.trim();
     }
     
-    console.log(`✅ Section ${sectionIndex} (${section.type}) HTML generated`);
-    return object.html;
+    // HTMLコンテンツの検証と清理
+    if (!htmlContent || htmlContent.length < 50) {
+      throw new Error('Generated HTML is too short or invalid');
+    }
+    
+    // Ensure proper section wrapper
+    if (!htmlContent.includes('<section')) {
+      htmlContent = `<section class="${uniqueSectionClass} py-16" data-editable-id="section-${sectionIndex}-root">\n${htmlContent}\n</section>`;
+    }
+    
+    console.log(`✅ Section ${sectionIndex} (${section.type}) HTML generated successfully`);
+    return htmlContent;
   } catch (error) {
     console.error(`❌ Section ${sectionIndex} generation failed:`, error);
-    // Fallback HTML
-    return `<section class="py-16 bg-gray-50" data-editable-id="section-${sectionIndex}-element-0">
-      <div class="container mx-auto px-4 text-center">
-        <h2 class="text-3xl font-bold text-gray-800 mb-4" data-editable-id="section-${sectionIndex}-element-1">
+    
+    // Enhanced fallback HTML with better design
+    return generateEnhancedFallbackHtml(section, sectionIndex, uniqueSectionClass, structure);
+  }
+}
+
+// Layout-specific requirements
+function getLayoutSpecificRequirements(layoutType: string): string {
+  switch (layoutType) {
+    case 'image-left':
+      return '- 左側に視覚要素（SVGアイコン、図解）、右側にテキストコンテンツ\n- 2カラムレスポンシブレイアウト';
+    case 'image-right':
+      return '- 右側に視覚要素（SVGアイコン、図解）、左側にテキストコンテンツ\n- 2カラムレスポンシブレイアウト';
+    case 'full-graphic':
+      return '- 背景全体にグラデーションまたは図解パターン\n- 中央にメインメッセージを配置';
+    case 'quote':
+      return '- 引用文を中央に大きく表示\n- 引用者情報を右下に小さく配置';
+    case 'comparison':
+      return '- 左右または上下で項目を比較する2カラム構成\n- 対比を明確にする視覚的要素';
+    case 'timeline':
+      return '- 水平または垂直のタイムライン表示\n- 各ステップに番号とアイコンを配置';
+    case 'list':
+      return '- 箇条書きを中心とした構成（最大6項目）\n- 各項目にアイコンまたは番号を付与';
+    default:
+      return '- 大きな見出し、簡潔な本文、視覚的要素をバランス良く配置\n- 3カラムまたはグリッドレイアウト';
+  }
+}
+
+// Section-specific design guidelines
+function getSectionDesignGuidelines(sectionType: string): string {
+  switch (sectionType) {
+    case 'hero':
+      return `
+## Hero Section専用ガイドライン
+- インパクトのあるヘッドライン（32-48px）
+- サブタイトル（18-24px）
+- 目立つCTAボタン（プライマリーカラー）
+- 背景グラデーションまたはパターン
+- スクロール誘導アイコン
+- ソーシャルプルーフ要素`;
+    case 'features':
+      return `
+## Features Section専用ガイドライン
+- 3-6個の主要機能を3カラムグリッドで配置
+- 各機能にSVGアイコン（24x24px以上）
+- 機能名（20-24px太字）+ 説明文（16-18px）
+- ホバーエフェクト（transform、shadow）
+- カード形式のデザイン`;
+    case 'testimonials':
+      return `
+## Testimonials Section専用ガイドライン
+- 3-4個の顧客証言をカード形式で表示
+- 各証言に顧客アバター（円形、64x64px）
+- 星評価（★★★★★）
+- 会社名・役職情報
+- 引用符アイコン
+- カルーセルまたはグリッド表示`;
+    case 'cta':
+      return `
+## CTA Section専用ガイドライン
+- 強力なアクション促進文言
+- 大きなCTAボタン（アクセントカラー）
+- 緊急性を演出する要素
+- コントラストの強い背景
+- シンプルで焦点を絞った構成`;
+    case 'faq':
+      return `
+## FAQ Section専用ガイドライン
+- アコーディオン形式（5-8個の質問）
+- 質問は太字、回答は通常フォント
+- 開閉アイコン（+/-または矢印）
+- ホバー・アクティブ状態のスタイリング`;
+    default:
+      return `
+## ${sectionType} Section専用ガイドライン
+- セクションの目的に応じた適切な構成
+- 視覚的階層の明確化
+- コンバージョンを促進する要素の配置`;
+  }
+}
+
+// Enhanced fallback HTML generator
+function generateEnhancedFallbackHtml(section: LPSection, sectionIndex: number, uniqueClass: string, structure: any): string {
+  const colors = structure.colorScheme || {
+    primaryColor: '#0056B1',
+    accentColor: '#FFB400',
+    bgColor: '#F5F7FA',
+    textColor: '#333333'
+  };
+  
+  return `<section class="${uniqueClass} py-16 bg-gradient-to-br from-blue-50 to-white" data-editable-id="section-${sectionIndex}-root">
+    <div class="container mx-auto px-4 text-center">
+      <div class="max-w-3xl mx-auto">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6" data-editable-id="section-${sectionIndex}-icon">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h2 class="text-4xl font-bold text-gray-800 mb-6" data-editable-id="section-${sectionIndex}-title">
           ${section.type.charAt(0).toUpperCase() + section.type.slice(1)} Section
         </h2>
-        <p class="text-gray-600" data-editable-id="section-${sectionIndex}-element-2">
-          This section is currently being generated. Please try again.
+        <p class="text-xl text-gray-600 mb-8 leading-relaxed" data-editable-id="section-${sectionIndex}-description">
+          このセクションは現在生成中です。高品質なコンテンツをお届けするため、少々お待ちください。
         </p>
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500" data-editable-id="section-${sectionIndex}-content">
+          <p class="text-gray-700 text-left">
+            <strong>セクションタイプ:</strong> ${section.type}<br>
+            <strong>レイアウト:</strong> ${section.layoutType || 'default'}<br>
+            <strong>生成指示:</strong> ${section.prompt}
+          </p>
+        </div>
+        <button class="mt-8 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200" data-editable-id="section-${sectionIndex}-cta">
+          再生成する
+          <svg class="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+        </button>
       </div>
-    </section>`;
-  }
+    </div>
+  </section>`;
 }
 
 export async function generateUnifiedLP({ topic }: { topic: string }) {
@@ -157,7 +348,7 @@ export async function generateUnifiedLP({ topic }: { topic: string }) {
         for (let i = 0; i < structure.sections.length; i += batchSize) {
             const batch = structure.sections.slice(i, i + batchSize);
             const batchPromises = batch.map((section, batchIndex) => 
-                generateSectionHtml(section, i + batchIndex)
+                generateSectionHtml(section, i + batchIndex, structure)
             );
             
             console.log(`⚡ Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(structure.sections.length/batchSize)}`);

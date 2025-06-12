@@ -7,3 +7,4 @@ export { partialUpdateLP } from './partialUpdateTool';
 export { htmlLPTool } from './htmlLPTool';
 export { lpStructureTool } from './lpStructureTool';
 export { lpPreviewTool } from './lpPreviewTool';
+export { enhancedLPGeneratorTool } from './enhancedLPGeneratorTool';

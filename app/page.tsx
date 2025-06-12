@@ -24,6 +24,7 @@ interface MainViewProps {
   selectedElementId: string | null;
   selectElement: (id: string | null) => void;
   getPlaceholder: () => string;
+  setInputValue: (value: string) => void;
 }
 
 // --- Standalone Components ---
@@ -70,7 +71,8 @@ const MainView = ({
   toggleEditMode,
   selectedElementId,
   selectElement,
-  getPlaceholder
+  getPlaceholder,
+  setInputValue
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
@@ -81,6 +83,9 @@ const MainView = ({
 
   // LPツール検出とコンテンツ抽出
   useEffect(() => {
+    console.log('[LP Detection] Messages array:', messages);
+    console.log('[LP Detection] Messages length:', messages.length);
+    
     if (messages.length === 0) {
       setLpToolState({
         isActive: false,
@@ -91,41 +96,100 @@ const MainView = ({
       return;
     }
 
-    // メッセージからLP生成結果を検出
-    const lpMessages = messages.filter(message => 
-      message.role === 'assistant' && 
-      message.content && 
-      typeof message.content === 'string' &&
-      (message.content.includes('htmlLPTool') || 
-       message.content.includes('<section') ||
-       message.content.includes('lpPreviewTool'))
-    );
+    // メッセージからLP生成結果を検出（ツール結果を含む）
+    const assistantMessages = messages.filter(m => m.role === 'assistant');
+    
+    // すべてのassistantメッセージの構造をログ出力
+    assistantMessages.forEach((msg, index) => {
+      console.log(`[LP Detection] Assistant message ${index}:`, {
+        role: msg.role,
+        contentType: typeof msg.content,
+        contentSnippet: typeof msg.content === 'string' ? msg.content.substring(0, 200) + '...' : msg.content,
+        hasToolCalls: !!msg.toolInvocations,
+        toolCallsCount: msg.toolInvocations?.length || 0,
+        toolInvocations: msg.toolInvocations
+      });
+    });
 
-    if (lpMessages.length > 0) {
-      const latestLpMessage = lpMessages[lpMessages.length - 1];
-      let htmlContent = '';
-      let title = 'ランディングページ';
+    // ツール結果からLP生成結果を検出
+    let htmlContent = '';
+    let title = 'ランディングページ';
+    let foundLPResult = false;
 
-      // HTMLコンテンツを抽出
-      if (typeof latestLpMessage.content === 'string') {
-        // ツール結果からHTMLを抽出する簡単なパーシング
-        const htmlMatch = latestLpMessage.content.match(/<section[\s\S]*?<\/section>/g);
-        if (htmlMatch) {
-          htmlContent = htmlMatch.join('\n\n');
-        } else if (latestLpMessage.content.includes('<div') || latestLpMessage.content.includes('<main')) {
-          // フォールバック: div や main タグを含む場合
-          htmlContent = latestLpMessage.content.replace(/```html\n?/g, '').replace(/```\n?/g, '');
+    // 最新のassistantメッセージから逆順で検索
+    for (let i = assistantMessages.length - 1; i >= 0; i--) {
+      const message = assistantMessages[i];
+      
+      // ツール結果を確認
+      if (message.toolInvocations && message.toolInvocations.length > 0) {
+        for (const toolInvocation of message.toolInvocations) {
+          console.log('[LP Detection] Tool invocation:', {
+            toolName: toolInvocation.toolName,
+            state: toolInvocation.state,
+            hasResult: !!toolInvocation.result
+          });
+          
+          // enhancedLPGeneratorToolまたはhtmlLPToolの結果を検索
+          if ((toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
+               toolInvocation.toolName === 'htmlLPTool') && 
+              toolInvocation.state === 'result' && 
+              toolInvocation.result) {
+            
+            console.log('[LP Detection] Found LP tool result:', toolInvocation.result);
+            
+            // enhancedLPGeneratorToolの結果からHTMLを抽出
+            if (toolInvocation.result.htmlContent) {
+              htmlContent = toolInvocation.result.htmlContent;
+              title = toolInvocation.result.title || title;
+              foundLPResult = true;
+              console.log('[LP Detection] Extracted HTML content length:', htmlContent.length);
+              break;
+            }
+          }
+        }
+        
+        if (foundLPResult) break;
+      }
+      
+      // フォールバック: メッセージコンテンツからHTMLを検索
+      if (!foundLPResult && message.content && typeof message.content === 'string') {
+        const content = message.content;
+        
+        // 完全なHTMLドキュメントを検索
+        const fullHtmlMatch = content.match(/<!DOCTYPE html>[\s\S]*?<\/html>/);
+        if (fullHtmlMatch) {
+          htmlContent = fullHtmlMatch[0];
+          const titleMatch = htmlContent.match(/<title>(.*?)<\/title>/);
+          if (titleMatch) {
+            title = titleMatch[1];
+          }
+          foundLPResult = true;
+          console.log('[LP Detection] Found HTML in message content');
+          break;
+        }
+        
+        // セクション単位のHTMLを検索
+        const sectionMatches = content.match(/<section[\s\S]*?<\/section>/g);
+        if (sectionMatches && sectionMatches.length > 0) {
+          htmlContent = sectionMatches.join('\n\n');
+          foundLPResult = true;
+          console.log('[LP Detection] Found sections in message content');
+          break;
         }
       }
+    }
 
-      if (htmlContent) {
-        setLpToolState({
-          isActive: true,
-          htmlContent: htmlContent,
-          title: title,
-          forcePanelOpen: true
-        });
-      }
+    // LP結果が見つかった場合は状態を更新
+    if (foundLPResult && htmlContent) {
+      console.log('[LP Detection] Setting LP tool state with HTML content');
+      setLpToolState({
+        isActive: true,
+        htmlContent: htmlContent,
+        title: title,
+        forcePanelOpen: true
+      });
+    } else {
+      console.log('[LP Detection] No LP result found, keeping current state');
     }
   }, [messages]);
 
@@ -169,28 +233,72 @@ const MainView = ({
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
-            <div key={message.id} className="mb-4">
-              <div className={`p-3 rounded-lg ${
-                message.role === 'user' 
-                  ? 'bg-blue-50 border border-blue-200 ml-8' 
-                  : 'bg-gray-50 border border-gray-200 mr-8'
-              }`}>
-                <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
-                    message.role === 'user' ? 'bg-blue-600' : 'bg-gray-600'
-                  }`}>
-                    {message.role === 'user' ? 'U' : 'AI'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                      {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+          {messages.map((message) => {
+            // 構造提案メッセージかどうかを判定
+            const isStructureProposal = message.role === 'assistant' && 
+              typeof message.content === 'string' && 
+              (message.content.includes('lpStructureTool') || 
+               message.content.includes('構造を提案させていただきます') ||
+               message.content.includes('**全体的なデザインコンセプト**'));
+
+            return (
+              <div key={message.id} className="mb-4">
+                <div className={`p-3 rounded-lg ${
+                  message.role === 'user' 
+                    ? 'bg-blue-50 border border-blue-200 ml-8' 
+                    : 'bg-gray-50 border border-gray-200 mr-8'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
+                      message.role === 'user' ? 'bg-blue-600' : 'bg-gray-600'
+                    }`}>
+                      {message.role === 'user' ? 'U' : 'AI'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                        {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                      </div>
+                      
+                      {/* 構造提案の場合、確認ボタンを表示 */}
+                      {isStructureProposal && (
+                        <div className="mt-4 flex gap-3">
+                          <button
+                            onClick={() => {
+                              // 構造を編集する機能（今回は簡単に実装）
+                              console.log('Edit structure clicked');
+                            }}
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                          >
+                            編集
+                          </button>
+                          <button
+                            onClick={async () => {
+                              // LP生成を開始
+                              console.log('Create LP clicked');
+                              // 直接handleSubmitを呼び出す
+                              const fakeEvent = {
+                                preventDefault: () => {},
+                                target: { value: 'この構造でランディングページを作成してください' }
+                              } as any;
+                              
+                              // 入力値を設定してから送信
+                              setInputValue('この構造でランディングページを作成してください');
+                              setTimeout(() => {
+                                handleSubmit(fakeEvent);
+                              }, 100);
+                            }}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                          >
+                            作成開始
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         
         <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
@@ -208,6 +316,10 @@ const MainView = ({
               onChange={handleInputChange}
               disabled={isEditMode && !selectedElementId}
             />
+            {/* デバッグ情報 */}
+            <div className="text-xs text-gray-500 mt-1">
+              Debug: EditMode={isEditMode ? 'ON' : 'OFF'}, SelectedElement={selectedElementId || 'none'}, Disabled={isEditMode && !selectedElementId ? 'YES' : 'NO'}
+            </div>
           </form>
         </div>
       </main>
@@ -255,7 +367,8 @@ export default function Page() {
     handleSubmit: originalHandleSubmit, 
     isLoading, 
     error,
-    setInput
+    setInput,
+    append
   } = useChat({
     api: '/api/lp-creator/chat', // 新しいMastraベースのAPI
     onFinish: (message) => {
@@ -271,19 +384,33 @@ export default function Page() {
 
   // メッセージが存在すればMainViewを表示
   const showMainView = messages.length > 0;
+  
+  // デバッグ: メッセージの状態をログ出力
+  console.log('[Page] Messages length:', messages.length);
+  console.log('[Page] Messages:', messages);
+  console.log('[Page] Show main view:', showMainView);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
-    // useChatの入力を更新
-    setInput(inputValue);
-    setInputValue('');
+    console.log('[Page] Submitting message:', inputValue);
+    console.log('[Page] Messages before submit:', messages.length);
     
-    // 少し遅らせてからsubmitを実行（入力が更新されるのを待つ）
-    setTimeout(() => {
-      originalHandleSubmit(e);
-    }, 0);
+    // useChatのappendメソッドを使って直接メッセージを送信
+    const messageToSend = inputValue;
+    setInputValue(''); // 入力フィールドをクリア
+    
+    try {
+      console.log('[Page] Using append method to send message');
+      await append({ role: 'user', content: messageToSend });
+      console.log('[Page] Message sent successfully');
+    } catch (error) {
+      console.error('[Page] Error sending message:', error);
+      // フォールバック: setInput + originalHandleSubmit
+      setInput(messageToSend);
+      setTimeout(() => originalHandleSubmit(e), 0);
+    }
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -313,6 +440,7 @@ export default function Page() {
           selectedElementId={selectedElementId}
           selectElement={selectElement}
           getPlaceholder={getPlaceholder}
+          setInputValue={setInputValue}
         />
       ) : (
         <InitialView 

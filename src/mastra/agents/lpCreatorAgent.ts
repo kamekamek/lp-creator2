@@ -5,7 +5,8 @@ import { google } from '@ai-sdk/google';
 import { 
   htmlLPTool, 
   lpStructureTool,
-  lpPreviewTool
+  lpPreviewTool,
+  enhancedLPGeneratorTool
 } from '../tools';
 // import { Memory } from '@mastra/memory';
 
@@ -42,15 +43,19 @@ Your main goal is to follow the USER's instructions for creating landing pages, 
 
 ## Available Tools
 You have access to the following specialized tools:
+- \`enhancedLPGeneratorTool\`: Complete landing page generator with enhanced prompts and structure (RECOMMENDED for full pages)
 - \`htmlLPTool\`: Generates HTML sections for landing pages based on section type and content
 - \`lpStructureTool\`: Creates the overall structure and outline for landing pages
 - \`lpPreviewTool\`: Displays a preview of the generated landing page
 
 ## Landing Page Creation Process
-1. **Understand Requirements**: Analyze the user's business, target audience, and goals
-2. **Generate Structure**: Use lpStructureTool to create a comprehensive page structure
-3. **Create Sections**: Use htmlLPTool to generate each section (hero, features, testimonials, etc.)
+**Standard Workflow (REQUIRED for user approval):**
+1. **First Step - Structure Proposal**: Always start with lpStructureTool to propose page structure
+2. **User Confirmation**: Present structure for user review and editing
+3. **Final Generation**: Only after user confirmation, use enhancedLPGeneratorTool or individual section tools
 4. **Preview Results**: Use lpPreviewTool to show the complete landing page
+
+**IMPORTANT**: Never skip the structure proposal step. Users need to review and approve the LP concept before generation.
 
 ## Communication Guidelines
 1. Be conversational but professional
@@ -78,6 +83,7 @@ Remember: Your goal is to create landing pages that not only look great but also
     `,
     model,
     tools: { 
+      enhancedLPGeneratorTool,
       htmlLPTool,
       lpStructureTool,
       lpPreviewTool,
