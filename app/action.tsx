@@ -30,15 +30,31 @@ async function submitUserMessage(userInput: string, selectedElementId: string | 
   ]);
 
   const uiStream = createStreamableUI(
-    <div className="p-4 bg-gray-100 rounded-lg text-center">
-      <p className="font-semibold text-gray-900">Generating...</p>
+    <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      <div>
+        <p className="font-semibold text-blue-900">LPを生成中...</p>
+        <p className="text-sm text-blue-700">構造を分析しています</p>
+      </div>
     </div>
   );
 
   (async () => {
     try {
       let lpObject;
+      
       if (selectedElementId) {
+        // 更新の場合
+        uiStream.update(
+          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <div>
+              <p className="font-semibold text-blue-900">要素を更新中...</p>
+              <p className="text-sm text-blue-700">{selectedElementId}を編集しています</p>
+            </div>
+          </div>
+        );
+        
         const lastLpState = [...aiState.get()]
           .reverse()
           .find(msg => msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.startsWith('{'));
@@ -55,7 +71,19 @@ async function submitUserMessage(userInput: string, selectedElementId: string | 
         });
 
       } else {
+        // 新規生成の場合
+        uiStream.update(
+          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <div>
+              <p className="font-semibold text-blue-900">LPを生成中...</p>
+              <p className="text-sm text-blue-700">セクション構造を設計しています</p>
+            </div>
+          </div>
+        );
+        
         const topic = userInput;
+        
         lpObject = await generateUnifiedLP({ topic });
       }
 
@@ -70,7 +98,12 @@ async function submitUserMessage(userInput: string, selectedElementId: string | 
       uiStream.done(<LpDisplay lpObject={lpObject} />);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
-      uiStream.done(<div className="p-4 bg-red-100 text-red-700 rounded-lg">Error: {errorMessage}</div>);
+      uiStream.done(
+        <div className="p-4 bg-red-100 border border-red-300 rounded-lg">
+          <p className="font-semibold text-red-800">エラーが発生しました</p>
+          <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+        </div>
+      );
       aiState.done([
         ...aiState.get(),
         {

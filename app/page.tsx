@@ -74,25 +74,27 @@ const MainView = ({
     );
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full overflow-hidden">
       {/* 左側: チャットエリア */}
-      <div className="w-1/3 flex flex-col p-4 border-r border-gray-200 bg-gray-50">
-        <header className="flex justify-between items-center mb-4 pb-4 border-b">
-          <h1 className="text-2xl font-bold text-gray-800">LPクリエーター</h1>
-          <button
-            onClick={() => {
-              toggleEditMode();
-              selectElement(null);
-            }}
-            className={`px-4 py-2 rounded-md font-semibold text-white transition-colors ${
-              isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
-            }`}
-          >
-            {isEditMode ? '編集モード: ON' : '編集モード: OFF'}
-          </button>
-        </header>
+      <main className="w-1/2 flex flex-col overflow-hidden bg-white border-r border-gray-200">
+        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-bold text-gray-800">LPクリエーター</h1>
+            <button
+              onClick={() => {
+                toggleEditMode();
+                selectElement(null);
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-semibold text-white transition-colors ${
+                isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
+              }`}
+            >
+              {isEditMode ? '編集モード: ON' : '編集モード: OFF'}
+            </button>
+          </div>
+        </div>
         
-        <div className="flex-grow overflow-y-auto pr-2 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.filter(message => {
             // LPプレビューはチャットエリアに表示しない
             if (message.role === 'assistant' && 
@@ -108,31 +110,33 @@ const MainView = ({
           ))}
         </div>
         
-        <form onSubmit={handleSubmit} className="mt-4">
-          {selectedElementId && isEditMode && (
-            <div className="mb-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex justify-between items-center shadow-sm">
-              <span>編集中: <strong className="font-mono">{selectedElementId}</strong></span>
-              <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800">&times;</button>
-            </div>
-          )}
-          <input
-            className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-            placeholder={getPlaceholder()}
-            value={inputValue}
-            onChange={handleInputChange}
-            disabled={isEditMode && !selectedElementId}
-          />
-        </form>
-      </div>
+        <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {selectedElementId && isEditMode && (
+              <div className="p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex justify-between items-center">
+                <span>編集中: <strong className="font-mono">{selectedElementId}</strong></span>
+                <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800">&times;</button>
+              </div>
+            )}
+            <input
+              className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+              placeholder={getPlaceholder()}
+              value={inputValue}
+              onChange={handleInputChange}
+              disabled={isEditMode && !selectedElementId}
+            />
+          </form>
+        </div>
+      </main>
       
       {/* 右側: LPプレビューエリア */}
-      <div className="w-2/3 flex flex-col bg-white">
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
+      <div className="w-1/2 flex flex-col bg-white">
+        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
           <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
         </div>
-        <div className="flex-grow p-4 overflow-y-auto">
+        <div className="flex-1 overflow-hidden">
           {latestLpMessage ? (
-            <div className="h-full">
+            <div className="h-full overflow-y-auto p-4">
               {latestLpMessage.display}
             </div>
           ) : (

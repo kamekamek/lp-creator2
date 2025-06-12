@@ -4,14 +4,19 @@ import { LPViewer } from './LPViewer';
 
 export function LpDisplay({ lpObject }: { lpObject: any }) {
   if (!lpObject || !lpObject.htmlContent) {
-    return <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg">Waiting for LP data...</div>;
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="text-center">
+          <p className="text-lg mb-2">LPを準備中...</p>
+          <p className="text-sm">しばらくお待ちください</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md">
-      <div className="prose max-w-none">
-          <LPViewer htmlContent={lpObject.htmlContent} />
-      </div>
+    <div className="h-full w-full bg-white rounded-lg overflow-hidden">
+      <LPViewer htmlContent={lpObject.htmlContent} />
     </div>
   );
 }
