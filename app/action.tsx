@@ -1,9 +1,10 @@
 'use server';
 
 import { createAI, getMutableAIState, streamUI } from 'ai/rsc';
+import type { CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { generateUnifiedLP } from '@/ai/unified-lp-generator';
+import { generateUnifiedLP } from '@/src/tools/lp_generator';
 import type { ReactNode } from 'react';
 
 async function displayGeneratedLp({ topic }: { topic: string }) {
@@ -17,7 +18,6 @@ async function displayGeneratedLp({ topic }: { topic: string }) {
     When the user provides a topic or a description for a landing page, you must call the 'generate_lp_ui' tool with the inferred topic.
     Do not ask for confirmation. Call the tool directly.`,
     messages: aiState.get(),
-    text: `Generating a landing page for ${topic}...`,
     tools: {
       generate_lp_ui: {
         description: 'Generates and displays a landing page component based on a given topic.',
@@ -64,12 +64,7 @@ async function displayGeneratedLp({ topic }: { topic: string }) {
 // UI State: The 'UI' part, a list of React nodes to display
 export const AI = createAI<
   // AI State
-  {
-    role: 'user' | 'assistant' | 'system' | 'function' | 'tool';
-    content: string;
-    id?: string;
-    name?: string;
-  }[],
+  CoreMessage[],
   // UI State
   {
     id: number;
