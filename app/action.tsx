@@ -95,7 +95,11 @@ async function submitUserMessage(userInput: string, selectedElementId: string | 
         },
       ]);
 
-      uiStream.done(<LpDisplay lpObject={lpObject} />);
+      uiStream.done(
+        <div className="lp-preview-message">
+          <LpDisplay lpObject={lpObject} />
+        </div>
+      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
       uiStream.done(

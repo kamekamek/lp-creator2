@@ -86,7 +86,7 @@ async function generateSectionHtml(section: LPSection, sectionIndex: number) {
     const { object } = await generateObject({
       model: createAnthropic()('claude-3-5-sonnet-20240620'),
       schema: sectionHtmlSchema,
-      maxTokens: 2000,
+      maxTokens: 4000,
       temperature: 0.8,
       prompt: `You must generate a JSON object with an "html" field containing valid HTML for a landing page section.
 
@@ -143,7 +143,7 @@ export async function generateUnifiedLP({ topic }: { topic: string }) {
         const htmlStart = Date.now();
         
         // Process in smaller batches to avoid API rate limits
-        const batchSize = 3;
+        const batchSize = 2;
         const sectionHtmls: string[] = [];
         
         for (let i = 0; i < structure.sections.length; i += batchSize) {

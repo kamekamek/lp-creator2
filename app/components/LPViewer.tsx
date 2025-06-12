@@ -10,6 +10,13 @@ interface LPViewerProps {
 export function LPViewer({ htmlContent }: LPViewerProps) {
   const { isEditMode, selectedElementId, selectElement } = useEditMode();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  
+  // デバッグ用ログ
+  console.log('[LPViewer] Received htmlContent:', {
+    length: htmlContent.length,
+    preview: htmlContent.substring(0, 200),
+    isFallback: htmlContent.includes('This section is currently being generated')
+  });
 
   // Editモードの状態に応じて、iframeに注入するHTMLを動的に生成します。
   const processedHtml = useMemo(() => {

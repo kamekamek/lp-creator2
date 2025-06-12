@@ -69,8 +69,10 @@ const MainView = ({
       message.role === 'assistant' && 
       message.display && 
       typeof message.display === 'object' && 
-      'props' in message.display && 
-      message.display.props?.lpObject
+      'props' in message.display && (
+        message.display.props?.className?.includes('lp-preview-message') ||
+        message.display.props?.lpObject
+      )
     );
 
   return (
@@ -100,8 +102,10 @@ const MainView = ({
             if (message.role === 'assistant' && 
                 message.display && 
                 typeof message.display === 'object' && 
-                'props' in message.display && 
-                message.display.props?.lpObject) {
+                'props' in message.display && (
+                  message.display.props?.className?.includes('lp-preview-message') ||
+                  message.display.props?.lpObject
+                )) {
               return false;
             }
             return true;
