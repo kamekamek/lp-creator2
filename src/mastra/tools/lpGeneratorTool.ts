@@ -36,11 +36,18 @@ async function generateLPStructure(topic: string) {
 /**
  * Generates the HTML for a single section based on its definition.
  */
-async function generateSectionHtml(section: LPSection) {
+async function generateSectionHtml(section: LPSection, sectionIndex: number) {
   const { object } = await generateObject({
     model: createAnthropic()('claude-3-5-sonnet-20240620'),
     schema: sectionHtmlSchema,
-    prompt: `Generate the HTML for a landing page section based on the following prompt. Use Tailwind CSS for styling. Make it visually appealing and responsive. Do not include <html>, <head>, or <body> tags. Only generate the content for this specific section.\n\nPrompt: ${section.prompt}`,
+    prompt: `Generate the HTML for a landing page section based on the following prompt. Use Tailwind CSS for styling. Make it visually appealing and responsive. 
+
+    *** IMPORTANT INSTRUCTION ***
+    For every editable element (like headings, paragraphs, buttons, list items), add a unique 'data-editable-id' attribute. The ID should be structured as 'section-${sectionIndex}-element-ELEMENT_INDEX', where ELEMENT_INDEX starts from 0 for each section. For example: 'data-editable-id="section-${sectionIndex}-element-0"', 'data-editable-id="section-${sectionIndex}-element-1"'.
+
+    Do not include <html>, <head>, or <body> tags. Only generate the content for this specific section.
+
+    Prompt: ${section.prompt}`,
   });
   return object.html;
 }
@@ -56,7 +63,7 @@ export async function generateUnifiedLP({ topic }: { topic: string }) {
 
     // Step 2: Generate HTML for each section in parallel
     console.log('Step 2: Generating HTML for each section...');
-    const sectionHtmlPromises = structure.sections.map(section => generateSectionHtml(section));
+        const sectionHtmlPromises = structure.sections.map((section, index) => generateSectionHtml(section, index));
     const sectionHtmls = await Promise.all(sectionHtmlPromises);
     console.log('All sections HTML generated.');
 

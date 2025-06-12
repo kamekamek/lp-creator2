@@ -1,100 +1,179 @@
 'use client';
 
-import { useActions, useUIState } from 'ai/rsc';
+import { useUIState, useActions } from 'ai/rsc';
 import { AI } from './action';
-import { useState, type ReactNode } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
+import { useEditMode } from './contexts/EditModeContext';
 
-// Define a more specific type for UI messages
-interface Message {
-  id: number;
-  role: 'user' | 'assistant';
-  display: ReactNode;
+// --- Prop Types ---
+interface InitialViewProps {
+  inputValue: string;
+  handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
 }
 
-export default function Home() {
-    const [inputValue, setInputValue] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+interface MainViewProps {
+  messages: any[]; // Consider a more specific type if available from useUIState
+  inputValue: string;
+  handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  isEditMode: boolean;
+  toggleEditMode: () => void;
+  selectedElementId: string | null;
+  selectElement: (id: string | null) => void;
+  getPlaceholder: () => string;
+}
+
+// --- Standalone Components ---
+
+const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialViewProps) => (
+  <div className="flex flex-col items-center justify-center h-full bg-gray-50">
+    <div className="w-full max-w-2xl p-8 text-center">
+      <h1 className="text-4xl font-bold text-gray-800 mb-4">今日は何をデザインしますか？</h1>
+      <p className="text-lg text-gray-600 mb-8">作成したいページについて、スタイル、機能、目的などを詳しく教えてください。</p>
+      <form onSubmit={handleSubmit} className="w-full flex">
+        <input
+          className="flex-grow p-4 border border-gray-300 rounded-l-lg text-black text-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+          placeholder="例：AI写真編集アプリのランディングページ..."
+          value={inputValue}
+          onChange={handleInputChange}
+          autoFocus
+        />
+        <button
+          type="submit"
+          className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400"
+          disabled={!inputValue.trim()}
+        >
+          生成
+        </button>
+      </form>
+    </div>
+  </div>
+);
+
+const MainView = ({
+  messages,
+  inputValue,
+  handleInputChange,
+  handleSubmit,
+  isEditMode,
+  toggleEditMode,
+  selectedElementId,
+  selectElement,
+  getPlaceholder
+}: MainViewProps) => (
+  <div className="flex h-full bg-white">
+    <div className="w-1/3 flex flex-col p-4 border-r border-gray-200 bg-gray-50">
+      <header className="flex justify-between items-center mb-4 pb-4 border-b">
+        <h1 className="text-2xl font-bold text-gray-800">LPクリエーター</h1>
+        <button
+          onClick={() => {
+            toggleEditMode();
+            selectElement(null);
+          }}
+          className={`px-4 py-2 rounded-md font-semibold text-white transition-colors ${
+            isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
+          }`}
+        >
+          {isEditMode ? '編集モード: ON' : '編集モード: OFF'}
+        </button>
+      </header>
+      <div className="flex-grow overflow-y-auto pr-2 space-y-4">
+        {messages.map((message) => (
+          <div key={message.id}>{message.display}</div>
+        ))}
+      </div>
+      <form onSubmit={handleSubmit} className="mt-4">
+          {selectedElementId && isEditMode && (
+              <div className="mb-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex justify-between items-center shadow-sm">
+                  <span>編集中: <strong className="font-mono">{selectedElementId}</strong></span>
+                  <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800">&times;</button>
+              </div>
+          )}
+        <input
+          className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+          placeholder={getPlaceholder()}
+          value={inputValue}
+          onChange={handleInputChange}
+          disabled={isEditMode && !selectedElementId}
+        />
+      </form>
+    </div>
+    <div className="w-2/3 flex-grow p-4 overflow-y-auto">
+      {messages.slice(-1).map((message) => (
+        message.role === 'assistant' && <div key={message.id}>{message.display}</div>
+      ))}
+    </div>
+  </div>
+);
+
+// --- Main Page Component ---
+
+export default function Page() {
+  const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useUIState<typeof AI>();
-  const { displayGeneratedLp } = useActions<typeof AI>();
+  const { submitUserMessage } = useActions<typeof AI>();
+  const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
+
+  const isLpGenerated = messages.some(msg => msg.role === 'assistant' && msg.display);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+
+    setMessages(currentMessages => [
+        ...currentMessages,
+        {
+            id: Date.now(),
+            role: 'user',
+            display: <div className="p-2 text-right"><strong>あなた:</strong> {inputValue}</div>
+        }
+    ]);
+
+    const message = await submitUserMessage(inputValue, selectedElementId);
+    
+    setMessages(currentMessages => [...currentMessages, message]);
+    setInputValue('');
+    if (selectedElementId) {
+        selectElement(null);
+    }
+  };
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const getPlaceholder = () => {
+    if (!isEditMode) {
+        return '新しいLPのテーマを入力...';
+    }
+    if (selectedElementId) {
+        return `${selectedElementId} への変更内容を記述...`;
+    }
+    return '編集する要素を選択してください...';
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <header className="p-4 border-b w-full shadow-sm bg-white">
-        <h1 className="text-2xl font-bold text-gray-800 text-center">AI-Powered LP Creator</h1>
-      </header>
-
-      <main className="flex-grow p-6 overflow-auto">
-        <div className="space-y-6 max-w-4xl mx-auto">
-          {messages.map((message: Message) => (
-            <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-3xl p-4 rounded-2xl shadow-md break-words ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'}`}
-              >
-                {message.display}
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
-
-      <footer className="p-4 border-t w-full bg-white">
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const topic = inputValue.trim();
-            if (!topic) return;
-
-            setInputValue('');
-
-            // Add user message to UI state
-            setMessages((currentMessages: Message[]) => [
-              ...currentMessages,
-              {
-                id: Date.now(),
-                role: 'user',
-                display: <div>{topic}</div>,
-              },
-            ]);
-
-            setIsGenerating(true);
-            try {
-              // Submit and get response
-              const responseMessage = await displayGeneratedLp({ topic });
-              setMessages((currentMessages: Message[]) => [...currentMessages, responseMessage]);
-            } catch (error) {
-              console.error('Error generating LP:', error);
-              // Display an error message to the user in the UI
-              setMessages((currentMessages: Message[]) => [
-                ...currentMessages,
-                {
-                  id: Date.now(),
-                  role: 'assistant',
-                  display: <div className="text-red-500">Sorry, an error occurred while generating the page. Please try again.</div>,
-                },
-              ]);
-            } finally {
-              setIsGenerating(false);
-            }
-          }}
-          className="flex max-w-4xl mx-auto"
-        >
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="e.g., A landing page for a new AI-powered fitness app"
-            className="flex-grow p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow text-gray-900"
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-r-lg hover:bg-blue-600 active:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400"
-            disabled={isGenerating || !inputValue.trim()}
-          >
-            {isGenerating ? 'Generating...' : 'Generate'}
-          </button>
-        </form>
-      </footer>
+    <div className="h-screen">
+      {isLpGenerated ? (
+        <MainView 
+          messages={messages}
+          inputValue={inputValue}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+          isEditMode={isEditMode}
+          toggleEditMode={toggleEditMode}
+          selectedElementId={selectedElementId}
+          selectElement={selectElement}
+          getPlaceholder={getPlaceholder}
+        />
+      ) : (
+        <InitialView 
+          inputValue={inputValue}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }
