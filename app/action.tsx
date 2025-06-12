@@ -4,7 +4,7 @@ import { createAI, getMutableAIState, streamUI } from 'ai/rsc';
 import type { CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { generateUnifiedLP } from '@/src/tools/lp_generator';
+import { mastra, lpGeneratorTool } from '@/src/mastra';
 import type { ReactNode } from 'react';
 
 async function displayGeneratedLp({ topic }: { topic: string }) {
@@ -27,7 +27,7 @@ async function displayGeneratedLp({ topic }: { topic: string }) {
         generate: async function* ({ topic }) {
           yield <div>Generating your landing page for "{topic}"... Please wait.</div>;
 
-          const lpObject = await generateUnifiedLP(topic);
+          const lpObject = await lpGeneratorTool.execute({ topic });
 
           aiState.done([
             ...aiState.get(),

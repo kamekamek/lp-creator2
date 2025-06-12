@@ -12,7 +12,8 @@ interface Message {
 }
 
 export default function Home() {
-  const [inputValue, setInputValue] = useState('');
+    const [inputValue, setInputValue] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const [messages, setMessages] = useUIState<typeof AI>();
   const { displayGeneratedLp } = useActions<typeof AI>();
 
@@ -55,6 +56,7 @@ export default function Home() {
               },
             ]);
 
+            setIsGenerating(true);
             try {
               // Submit and get response
               const responseMessage = await displayGeneratedLp({ topic });
@@ -70,6 +72,8 @@ export default function Home() {
                   display: <div className="text-red-500">Sorry, an error occurred while generating the page. Please try again.</div>,
                 },
               ]);
+            } finally {
+              setIsGenerating(false);
             }
           }}
           className="flex max-w-4xl mx-auto"
@@ -79,15 +83,15 @@ export default function Home() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder="e.g., A landing page for a new AI-powered fitness app"
-            className="flex-grow p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+            className="flex-grow p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow text-gray-900"
             autoFocus
           />
           <button
             type="submit"
             className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-r-lg hover:bg-blue-600 active:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400"
-            disabled={!inputValue.trim()}
+            disabled={isGenerating || !inputValue.trim()}
           >
-            Generate
+            {isGenerating ? 'Generating...' : 'Generate'}
           </button>
         </form>
       </footer>
