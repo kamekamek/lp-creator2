@@ -61,60 +61,93 @@ const MainView = ({
   selectedElementId,
   selectElement,
   getPlaceholder
-}: MainViewProps) => (
-  <div className="flex h-full bg-white">
-    <div className="w-1/3 flex flex-col p-4 border-r border-gray-200 bg-gray-50">
-      <header className="flex justify-between items-center mb-4 pb-4 border-b">
-        <h1 className="text-2xl font-bold text-gray-800">LPクリエーター</h1>
-        <button
-          onClick={() => {
-            toggleEditMode();
-            selectElement(null);
-          }}
-          className={`px-4 py-2 rounded-md font-semibold text-white transition-colors ${
-            isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
-          }`}
-        >
-          {isEditMode ? '編集モード: ON' : '編集モード: OFF'}
-        </button>
-      </header>
-      <div className="flex-grow overflow-y-auto pr-2 space-y-4">
-        {messages.filter(message => {
-          // `message.display` がReact要素であり、かつ `message.role` が 'assistant' の場合に
-          // その内容がLPプレビューであるか簡易的に判定します。
-          // より堅牢な判定のためには、messageオブジェクトの構造に依存したチェックが必要です。
-          // ここでは、message.displayの内容がオブジェクトで、htmlContentプロパティを持つかで判定します。
-          if (message.role === 'assistant' && message.display && typeof message.display === 'object' && 'props' in message.display && message.display.props.lpObject) {
-            return false; // LPプレビューは表示しない
-          }
-          return true; // それ以外のメッセージは表示
-        }).map((message) => (
-          <div key={message.id}>{message.display}</div>
-        ))}
-      </div>
-      <form onSubmit={handleSubmit} className="mt-4">
+}: MainViewProps) => {
+  // 最新のLPメッセージを取得
+  const latestLpMessage = [...messages]
+    .reverse()
+    .find(message => 
+      message.role === 'assistant' && 
+      message.display && 
+      typeof message.display === 'object' && 
+      'props' in message.display && 
+      message.display.props?.lpObject
+    );
+
+  return (
+    <div className="flex h-full bg-white">
+      {/* 左側: チャットエリア */}
+      <div className="w-1/3 flex flex-col p-4 border-r border-gray-200 bg-gray-50">
+        <header className="flex justify-between items-center mb-4 pb-4 border-b">
+          <h1 className="text-2xl font-bold text-gray-800">LPクリエーター</h1>
+          <button
+            onClick={() => {
+              toggleEditMode();
+              selectElement(null);
+            }}
+            className={`px-4 py-2 rounded-md font-semibold text-white transition-colors ${
+              isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
+            }`}
+          >
+            {isEditMode ? '編集モード: ON' : '編集モード: OFF'}
+          </button>
+        </header>
+        
+        <div className="flex-grow overflow-y-auto pr-2 space-y-4">
+          {messages.filter(message => {
+            // LPプレビューはチャットエリアに表示しない
+            if (message.role === 'assistant' && 
+                message.display && 
+                typeof message.display === 'object' && 
+                'props' in message.display && 
+                message.display.props?.lpObject) {
+              return false;
+            }
+            return true;
+          }).map((message) => (
+            <div key={message.id}>{message.display}</div>
+          ))}
+        </div>
+        
+        <form onSubmit={handleSubmit} className="mt-4">
           {selectedElementId && isEditMode && (
-              <div className="mb-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex justify-between items-center shadow-sm">
-                  <span>編集中: <strong className="font-mono">{selectedElementId}</strong></span>
-                  <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800">&times;</button>
-              </div>
+            <div className="mb-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex justify-between items-center shadow-sm">
+              <span>編集中: <strong className="font-mono">{selectedElementId}</strong></span>
+              <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800">&times;</button>
+            </div>
           )}
-        <input
-          className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-          placeholder={getPlaceholder()}
-          value={inputValue}
-          onChange={handleInputChange}
-          disabled={isEditMode && !selectedElementId}
-        />
-      </form>
+          <input
+            className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+            placeholder={getPlaceholder()}
+            value={inputValue}
+            onChange={handleInputChange}
+            disabled={isEditMode && !selectedElementId}
+          />
+        </form>
+      </div>
+      
+      {/* 右側: LPプレビューエリア */}
+      <div className="w-2/3 flex flex-col bg-white">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
+        </div>
+        <div className="flex-grow p-4 overflow-y-auto">
+          {latestLpMessage ? (
+            <div className="h-full">
+              {latestLpMessage.display}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="text-center">
+                <p className="text-lg mb-2">プレビューエリア</p>
+                <p className="text-sm">LPを生成すると、こちらに表示されます</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
-    <div className="w-2/3 flex-grow p-4 overflow-y-auto">
-      {messages.slice(-1).map((message) => (
-        message.role === 'assistant' && <div key={message.id}>{message.display}</div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 // --- Main Page Component ---
 

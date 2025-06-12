@@ -13,53 +13,53 @@ export function LPViewer({ htmlContent }: LPViewerProps) {
 
   // Editモードの状態に応じて、iframeに注入するHTMLを動的に生成します。
   const processedHtml = useMemo(() => {
-    // 編集可能な要素を視覚的に示すためのスタイル
-    const style = `
-      <style>
-        /* 編集モード時に data-editable-id を持つ要素をハイライト */
-        body.edit-mode [data-editable-id] {
-          outline: 2px dashed #3b82f6; /* Tailwind blue-500 */
-          outline-offset: 2px;
-          cursor: pointer;
-          transition: outline 0.2s ease-in-out;
-        }
-        body.edit-mode [data-editable-id]:hover {
-          outline-color: #1d4ed8; /* Tailwind blue-700 */
-          background-color: rgba(59, 130, 246, 0.1);
-        }
-        /* 選択された要素のスタイル */
-        body.edit-mode [data-editable-id="${selectedElementId}"] {
-            outline: 3px solid #2563eb; /* Tailwind blue-600 */
-            background-color: rgba(59, 130, 246, 0.2);
-        }
-      </style>
+    // Tailwind CSSとカスタムスタイルを含む完全なhead
+    const head = `
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Landing Page Preview</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          /* 編集モード時に data-editable-id を持つ要素をハイライト */
+          body.edit-mode [data-editable-id] {
+            outline: 2px dashed #3b82f6; /* Tailwind blue-500 */
+            outline-offset: 2px;
+            cursor: pointer;
+            transition: outline 0.2s ease-in-out;
+          }
+          body.edit-mode [data-editable-id]:hover {
+            outline-color: #1d4ed8; /* Tailwind blue-700 */
+            background-color: rgba(59, 130, 246, 0.1);
+          }
+          /* 選択された要素のスタイル */
+          body.edit-mode [data-editable-id="${selectedElementId}"] {
+              outline: 3px solid #2563eb; /* Tailwind blue-600 */
+              background-color: rgba(59, 130, 246, 0.2);
+          }
+          /* 基本的なリセットとフォント設定 */
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+          }
+        </style>
+      </head>
     `;
 
     // 編集モードなら<body>タグに 'edit-mode' クラスを追加
     const bodyClass = isEditMode ? ' class="edit-mode"' : '';
-    const bodyRegex = /<body(.*?)>/i;
-
-    let finalHtml = htmlContent;
-
-    // 既存のbodyタグにクラスを挿入、またはbodyタグでラップ
-    if (bodyRegex.test(finalHtml)) {
-      finalHtml = finalHtml.replace(bodyRegex, `<body$1${bodyClass}>`);
-    } else {
-      finalHtml = `<body${bodyClass}>${finalHtml}</body>`;
-    }
-
-    // headタグにスタイルを挿入、またはheadタグでラップ
-    const headRegex = /<head(.*?)>/i;
-    if (headRegex.test(finalHtml)) {
-      finalHtml = finalHtml.replace(headRegex, `<head$1>${style}`);
-    } else {
-      finalHtml = `<head>${style}</head>${finalHtml}`;
-    }
-
-    // htmlタグがなければ全体をラップ
-    if (!/<html/i.test(finalHtml)) {
-      finalHtml = `<!DOCTYPE html><html>${finalHtml}</html>`;
-    }
+    
+    // HTMLコンテンツをbodyタグでラップ
+    const bodyContent = `<body${bodyClass}>${htmlContent}</body>`;
+    
+    // 完全なHTMLドキュメントを構築
+    const finalHtml = `<!DOCTYPE html><html lang="ja">${head}${bodyContent}</html>`;
 
     return finalHtml;
   }, [htmlContent, isEditMode, selectedElementId]);
