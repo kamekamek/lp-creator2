@@ -34,7 +34,7 @@ export function LpDisplay({ lpObject }: { lpObject: any }) {
   console.log('[LpDisplay] Rendering LP with htmlContent length:', lpObject.htmlContent.length);
   
   return (
-    <div className="h-full w-full bg-white rounded-lg overflow-hidden">
+    <div className="flex-1 h-full w-full bg-white rounded-lg overflow-hidden">
       <LPViewer htmlContent={lpObject.htmlContent} />
     </div>
   );

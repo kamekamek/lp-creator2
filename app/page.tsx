@@ -136,7 +136,7 @@ const MainView = ({
         <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
           <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
         </div>
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 flex flex-col">
           {latestLpMessage ? (
             <div className="flex-1 h-full flex flex-col overflow-y-auto p-4">
               {/* プレビューラッパー: 高さを flex で埋める */}
