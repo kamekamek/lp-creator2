@@ -12,6 +12,7 @@ interface SmartHoverMenuProps {
   onStyleEdit?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -24,6 +25,7 @@ export const SmartHoverMenu: React.FC<SmartHoverMenuProps> = ({
   onStyleEdit,
   onDuplicate,
   onDelete,
+  onClose,
   className = ''
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -32,35 +34,47 @@ export const SmartHoverMenu: React.FC<SmartHoverMenuProps> = ({
   // 画面外に出ないように位置調整
   useEffect(() => {
     if (isVisible && menuRef.current) {
-      const menu = menuRef.current;
-      const rect = menu.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      try {
+        const menu = menuRef.current;
+        const rect = menu.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
 
-      let newX = position.x;
-      let newY = position.y;
+        // 安全性チェック
+        if (!rect || rect.width === 0 || rect.height === 0) {
+          console.warn('⚠️ Invalid menu rect, skipping position adjustment');
+          return;
+        }
 
-      // 右端チェック
-      if (position.x + rect.width > viewportWidth) {
-        newX = viewportWidth - rect.width - 10;
+        let newX = position.x;
+        let newY = position.y;
+
+        // 右端チェック
+        if (position.x + rect.width > viewportWidth) {
+          newX = viewportWidth - rect.width - 10;
+        }
+
+        // 下端チェック
+        if (position.y + rect.height > viewportHeight) {
+          newY = position.y - rect.height - 10;
+        }
+
+        // 左端チェック
+        if (newX < 10) {
+          newX = 10;
+        }
+
+        // 上端チェック
+        if (newY < 10) {
+          newY = 10;
+        }
+
+        setAdjustedPosition({ x: newX, y: newY });
+      } catch (error) {
+        console.error('❌ Error adjusting menu position:', error);
+        // エラー時は元の位置を使用
+        setAdjustedPosition(position);
       }
-
-      // 下端チェック
-      if (position.y + rect.height > viewportHeight) {
-        newY = position.y - rect.height - 10;
-      }
-
-      // 左端チェック
-      if (newX < 10) {
-        newX = 10;
-      }
-
-      // 上端チェック
-      if (newY < 10) {
-        newY = 10;
-      }
-
-      setAdjustedPosition({ x: newX, y: newY });
     }
   }, [isVisible, position]);
 
@@ -119,6 +133,7 @@ export const SmartHoverMenu: React.FC<SmartHoverMenuProps> = ({
           left: adjustedPosition.x,
           top: adjustedPosition.y
         }}
+        onMouseLeave={onClose}
       >
         {/* ヘッダー */}
         <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">

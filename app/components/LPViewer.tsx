@@ -170,34 +170,45 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       };
 
       // ホバーでスマートメニュー表示
-      const handleMouseEnter = (e: MouseEvent) => {
+      const handleMouseEnter = (e: Event) => {
         if (!isEditMode || inlineEditingId) return;
         
-        const rect = element.getBoundingClientRect();
-        const iframeRect = iframe.getBoundingClientRect();
-        
-        setHoveredElementId(editableId);
-        setHoverMenuPosition({
-          x: iframeRect.left + rect.right + 10,
-          y: iframeRect.top + rect.top
-        });
-        setHoverMenuVisible(true);
-        
-        // ホバー効果
-        element.classList.add('edit-hover');
+        try {
+          const rect = element.getBoundingClientRect();
+          const iframeRect = iframe.getBoundingClientRect();
+          
+          // 位置計算の安全性確認
+          if (rect && iframeRect) {
+            setHoveredElementId(editableId);
+            setHoverMenuPosition({
+              x: iframeRect.left + rect.right + 10,
+              y: iframeRect.top + rect.top
+            });
+            setHoverMenuVisible(true);
+            
+            // ホバー効果
+            element.classList.add('edit-hover');
+          }
+        } catch (error) {
+          console.error('❌ Error in handleMouseEnter:', error);
+        }
       };
 
       // ホバー終了
-      const handleMouseLeave = () => {
-        element.classList.remove('edit-hover');
-        
-        // 少し遅延してメニューを隠す（メニューに移動する時間を確保）
-        setTimeout(() => {
-          if (hoveredElementId === editableId) {
-            setHoverMenuVisible(false);
-            setHoveredElementId(null);
-          }
-        }, 100);
+      const handleMouseLeave = (e: Event) => {
+        try {
+          element.classList.remove('edit-hover');
+          
+          // 少し遅延してメニューを隠す（メニューに移動する時間を確保）
+          setTimeout(() => {
+            if (hoveredElementId === editableId) {
+              setHoverMenuVisible(false);
+              setHoveredElementId(null);
+            }
+          }, 100);
+        } catch (error) {
+          console.error('❌ Error in handleMouseLeave:', error);
+        }
       };
 
       element.addEventListener('dblclick', handleDoubleClick);
@@ -612,11 +623,34 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     handleEditModeChange();
   }, [isEditMode, htmlContent, setupEditableElements, selectElement]);
 
+  // コンテナからマウスが離れた時の処理
+  const handleContainerMouseLeave = useCallback(() => {
+    if (isEditMode) {
+      console.log('🖱️ Mouse left container, cleaning up hover effects');
+      
+      // ホバーメニューを隠す
+      setHoverMenuVisible(false);
+      setHoveredElementId(null);
+      
+      // iframe内の全てのhover効果を削除
+      if (iframeRef.current) {
+        const doc = iframeRef.current.contentDocument;
+        if (doc) {
+          const hoveredElements = doc.querySelectorAll('.edit-hover');
+          hoveredElements.forEach(el => {
+            el.classList.remove('edit-hover');
+          });
+        }
+      }
+    }
+  }, [isEditMode]);
+
   return (
     <div 
       ref={containerRef}
       className={`relative w-full h-full ${isFullscreen ? 'bg-black' : 'bg-white'}`}
       style={{ width, height }}
+      onMouseLeave={handleContainerMouseLeave}
     >
       {/* 編集モードインジケーター */}
       {isEditMode && (
@@ -660,6 +694,10 @@ export const LPViewer: React.FC<LPViewerProps> = ({
         position={hoverMenuPosition}
         onEdit={() => hoveredElementId && startInlineEdit(hoveredElementId)}
         onAIImprove={() => hoveredElementId && handleAIImprove(hoveredElementId)}
+        onClose={() => {
+          setHoverMenuVisible(false);
+          setHoveredElementId(null);
+        }}
       />
 
       {/* インライン編集エディター */}
