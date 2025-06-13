@@ -69,8 +69,39 @@ The agent supports multiple AI providers:
 - Tool results and agent responses are logged extensively
 - Preview detection system has detailed debugging output
 
+## Natural Inline Editing System
+
+### Overview
+The LP Creator features a Notion/Word-like natural editing interface for non-technical users:
+
+### Core Components
+- **InlineTextEditor**: Handles double-click inline editing with Enter/Esc controls
+- **SmartHoverMenu**: Context menu with ✏️編集, 🤖AI改善, 🎨スタイル options
+- **AIChatPanel**: Natural language AI improvement requests
+
+### Editing Interactions
+1. **Double-click**: Immediate inline text editing (Notion-style)
+2. **Hover**: Smart menu appears after 300ms delay
+3. **Single-click**: Element selection (traditional mode)
+4. **AI requests**: Natural language improvements via chat panel
+
+### Technical Implementation
+- **Immediate reflection**: Text changes update iframe content instantly via `onContentUpdate`
+- **No chat delays**: Direct DOM manipulation for instant feedback
+- **Visual feedback**: Subtle hover effects, smooth scaling (1.01x hover, 1.02x selection)
+- **Text styling**: All editing text uses `text-gray-900` for proper contrast (never gray)
+
+### Development Guidelines
+- Always ensure text is readable with `text-gray-900` class
+- Implement immediate DOM updates for editing changes
+- Use natural language patterns in AI interaction prompts
+- Test editing flow without requiring chat submission
+- Maintain visual polish with smooth transitions and micro-interactions
+
 ## Important Notes
 - Always test LP generation workflow end-to-end when making changes
 - Tool schema must match exactly between tool definitions and agent calls
 - Preview detection relies on specific tool result formats
 - HTML download functionality expects complete HTML documents
+- **Editing must reflect immediately** - no chat requests for simple text changes
+- **All editing UI text must be black/dark gray** - never use light gray for readability

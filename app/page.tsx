@@ -27,6 +27,8 @@ interface MainViewProps {
   getPlaceholder: () => string;
   setInputValue: (value: string) => void;
   sendPrompt: (prompt: string) => void;
+  onContentUpdate: (content: string) => void;
+  onAIRequest: (message: string) => Promise<void>;
 }
 
 // --- Standalone Components ---
@@ -77,6 +79,8 @@ const MainView = ({
   getPlaceholder,
   setInputValue,
   sendPrompt,
+  onContentUpdate,
+  onAIRequest,
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
@@ -445,7 +449,12 @@ const MainView = ({
         <div className="flex-1 overflow-hidden">
           {lpToolState.isActive && lpToolState.htmlContent ? (
             <div className="h-full overflow-y-auto">
-              <LPViewer htmlContent={lpToolState.htmlContent} cssContent={lpToolState.cssContent} />
+              <LPViewer 
+                htmlContent={lpToolState.htmlContent} 
+                cssContent={lpToolState.cssContent}
+                onContentUpdate={onContentUpdate}
+                onAIRequest={onAIRequest}
+              />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
@@ -554,6 +563,21 @@ export default function Page() {
     }, 0);
   };
 
+  // 即時編集のコンテンツ更新ハンドラー
+  const handleContentUpdate = (updatedContent: string) => {
+    console.log('🔄 Immediate content update received');
+    setLpToolState(prev => ({
+      ...prev,
+      htmlContent: updatedContent
+    }));
+  };
+
+  // AI改善リクエストのハンドラー
+  const handleAIRequest = async (message: string) => {
+    console.log('🤖 AI improvement request:', message);
+    await sendPrompt(message);
+  };
+
   return (
     <div className="h-screen">
       {showMainView ? (
@@ -569,6 +593,8 @@ export default function Page() {
           getPlaceholder={getPlaceholder}
           setInputValue={setInputValue}
           sendPrompt={sendPrompt}
+          onContentUpdate={handleContentUpdate}
+          onAIRequest={handleAIRequest}
         />
       ) : (
         <InitialView 
