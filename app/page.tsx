@@ -25,6 +25,7 @@ interface MainViewProps {
   selectElement: (id: string | null) => void;
   getPlaceholder: () => string;
   setInputValue: (value: string) => void;
+  sendPrompt: (prompt: string) => void;
 }
 
 // --- Standalone Components ---
@@ -73,7 +74,8 @@ const MainView = ({
   selectedElementId,
   selectElement,
   getPlaceholder,
-  setInputValue
+  setInputValue,
+  sendPrompt,
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
@@ -285,19 +287,9 @@ const MainView = ({
                           </button>
                           <button
                             onClick={async () => {
-                              // LP生成を開始
                               console.log('Create LP clicked');
-                              // 直接handleSubmitを呼び出す
-                              const fakeEvent = {
-                                preventDefault: () => {},
-                                target: { value: 'この構造でランディングページを作成してください' }
-                              } as any;
-                              
-                              // 入力値を設定してから送信
-                              setInputValue('この構造でランディングページを作成してください');
-                              setTimeout(() => {
-                                handleSubmit(fakeEvent);
-                              }, 100);
+                              const prompt = 'この構造でランディングページを作成してください';
+                              sendPrompt(prompt);
                             }}
                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                           >
@@ -405,7 +397,6 @@ export default function Page() {
     isLoading, 
     error,
     setInput,
-    append
   } = useChat({
     api: '/api/lp-creator/chat', // 新しいMastraベースのAPI
     onFinish: (message) => {
@@ -434,20 +425,9 @@ export default function Page() {
     console.log('[Page] Submitting message:', inputValue);
     console.log('[Page] Messages before submit:', messages.length);
     
-    // useChatのappendメソッドを使って直接メッセージを送信
-    const messageToSend = inputValue;
-    setInputValue(''); // 入力フィールドをクリア
-    
-    try {
-      console.log('[Page] Using append method to send message');
-      await append({ role: 'user', content: messageToSend });
-      console.log('[Page] Message sent successfully');
-    } catch (error) {
-      console.error('[Page] Error sending message:', error);
-      // フォールバック: setInput + originalHandleSubmit
-      setInput(messageToSend);
-      setTimeout(() => originalHandleSubmit(e), 0);
-    }
+    setInput(inputValue);
+    setInputValue('');
+    originalHandleSubmit(e);
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -464,6 +444,17 @@ export default function Page() {
     return '編集する要素を選択してください...';
   }
 
+  // 任意のプロンプトを即座に送信するユーティリティ
+  const sendPrompt = (prompt: string) => {
+    // Chat input を直接設定し、そのまま submit
+    setInput(prompt);
+    setTimeout(() => {
+      // originalHandleSubmit は current form event が必要ない実装なのでダミーを渡す
+      const fakeEvt = { preventDefault: () => {} } as any;
+      originalHandleSubmit(fakeEvt);
+    }, 0);
+  };
+
   return (
     <div className="h-screen">
       {showMainView ? (
@@ -478,6 +469,7 @@ export default function Page() {
           selectElement={selectElement}
           getPlaceholder={getPlaceholder}
           setInputValue={setInputValue}
+          sendPrompt={sendPrompt}
         />
       ) : (
         <InitialView 
