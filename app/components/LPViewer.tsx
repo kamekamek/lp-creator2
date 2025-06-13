@@ -3,6 +3,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEditMode } from '../contexts/EditModeContext';
+import { InlineTextEditor } from './InlineTextEditor';
+import { SmartHoverMenu } from './SmartHoverMenu';
 
 interface LPViewerProps {
   htmlContent: string;
@@ -10,6 +12,8 @@ interface LPViewerProps {
   width?: string;
   height?: string;
   enableFullscreen?: boolean;
+  onTextUpdate?: (elementId: string, newText: string) => void;
+  onAIImprove?: (elementId: string, currentText: string) => void;
 }
 
 export const LPViewer: React.FC<LPViewerProps> = ({ 
@@ -17,12 +21,20 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   cssContent = '',
   width = '100%',
   height = '100%',
-  enableFullscreen = true
+  enableFullscreen = true,
+  onTextUpdate,
+  onAIImprove
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { isEditMode, selectedElementId, selectElement } = useEditMode();
+  
+  // インライン編集の状態管理
+  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
+  const [hoverMenuVisible, setHoverMenuVisible] = useState(false);
+  const [hoverMenuPosition, setHoverMenuPosition] = useState({ x: 0, y: 0 });
+  const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
 
   // フルスクリーン切り替え
   const toggleFullscreen = useCallback(async () => {
@@ -75,106 +87,210 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     };
   }, []);
 
-  // iframe内要素のクリック検出とハイライト機能
+  // テキスト抽出ヘルパー
+  const extractTextFromElement = useCallback((elementId: string): string => {
+    if (!iframeRef.current) return '';
+    
+    const doc = iframeRef.current.contentDocument;
+    if (!doc) return '';
+    
+    const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
+    return element?.textContent?.trim() || '';
+  }, []);
+
+  // インライン編集開始
+  const startInlineEdit = useCallback((elementId: string) => {
+    setInlineEditingId(elementId);
+    setHoverMenuVisible(false);
+    selectElement(elementId);
+  }, [selectElement]);
+
+  // インライン編集保存
+  const saveInlineEdit = useCallback((elementId: string, newText: string) => {
+    if (onTextUpdate) {
+      onTextUpdate(elementId, newText);
+    }
+    setInlineEditingId(null);
+    selectElement(null);
+  }, [onTextUpdate, selectElement]);
+
+  // インライン編集キャンセル
+  const cancelInlineEdit = useCallback(() => {
+    setInlineEditingId(null);
+    selectElement(null);
+  }, [selectElement]);
+
+  // AI改善処理
+  const handleAIImprove = useCallback((elementId: string) => {
+    const currentText = extractTextFromElement(elementId);
+    if (onAIImprove && currentText) {
+      onAIImprove(elementId, currentText);
+    }
+    setHoverMenuVisible(false);
+  }, [extractTextFromElement, onAIImprove]);
+
+  // iframe内要素のイベント設定（新しいインライン編集対応）
   const setupEditableElements = useCallback(() => {
-    if (!iframeRef.current || !isEditMode) return;
+    if (!iframeRef.current) return;
 
     const iframe = iframeRef.current;
     const doc = iframe.contentDocument;
     if (!doc) return;
 
-    console.log('🎯 Setting up editable elements...');
+    // コンテンツが読み込まれていない場合は処理をスキップ
+    if (!doc.body || doc.body.children.length === 0) {
+      console.log('⚠️ iframe content not ready, skipping setup');
+      return;
+    }
 
-    // 既存のイベントリスナーを削除
-    const existingListeners = doc.querySelectorAll('[data-edit-listener]');
-    existingListeners.forEach(el => {
-      el.removeAttribute('data-edit-listener');
-    });
+    try {
+      console.log('🎯 Setting up inline editable elements...');
 
-    // 編集可能な要素を取得
-    const editableElements = doc.querySelectorAll('[data-editable-id]');
-    console.log(`📝 Found ${editableElements.length} editable elements`);
+      // 既存のイベントリスナーを削除
+      const existingListeners = doc.querySelectorAll('[data-edit-listener]');
+      existingListeners.forEach(el => {
+        el.removeAttribute('data-edit-listener');
+      });
+
+      // 編集可能な要素を取得
+      const editableElements = doc.querySelectorAll('[data-editable-id]');
+      console.log(`📝 Found ${editableElements.length} editable elements`);
 
     editableElements.forEach((element) => {
       const editableId = element.getAttribute('data-editable-id');
       if (!editableId) return;
 
-      // クリックイベントリスナーを追加
-      const handleClick = (e: Event) => {
+      // ダブルクリックでインライン編集開始
+      const handleDoubleClick = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log(`🖱️ Clicked element: ${editableId}`);
-        selectElement(editableId);
-        
-        // 他の要素のハイライトを削除
-        editableElements.forEach(el => {
-          el.classList.remove('edit-highlight');
-        });
-        
-        // クリックされた要素をハイライト
-        element.classList.add('edit-highlight');
+        console.log(`✏️ Double-clicked element: ${editableId}`);
+        startInlineEdit(editableId);
       };
 
-      element.addEventListener('click', handleClick);
-      element.setAttribute('data-edit-listener', 'true');
-      
-      // ホバー効果も追加
-      const handleMouseEnter = () => {
-        if (selectedElementId !== editableId) {
-          element.classList.add('edit-hover');
-        }
+      // ホバーでスマートメニュー表示
+      const handleMouseEnter = (e: MouseEvent) => {
+        if (!isEditMode || inlineEditingId) return;
+        
+        const rect = element.getBoundingClientRect();
+        const iframeRect = iframe.getBoundingClientRect();
+        
+        setHoveredElementId(editableId);
+        setHoverMenuPosition({
+          x: iframeRect.left + rect.right + 10,
+          y: iframeRect.top + rect.top
+        });
+        setHoverMenuVisible(true);
+        
+        // ホバー効果
+        element.classList.add('edit-hover');
       };
-      
+
+      // ホバー終了
       const handleMouseLeave = () => {
         element.classList.remove('edit-hover');
+        
+        // 少し遅延してメニューを隠す（メニューに移動する時間を確保）
+        setTimeout(() => {
+          if (hoveredElementId === editableId) {
+            setHoverMenuVisible(false);
+            setHoveredElementId(null);
+          }
+        }, 100);
       };
 
+      element.addEventListener('dblclick', handleDoubleClick);
       element.addEventListener('mouseenter', handleMouseEnter);
       element.addEventListener('mouseleave', handleMouseLeave);
+      element.setAttribute('data-edit-listener', 'true');
     });
 
-    // 編集スタイルをiframe内に注入
+    // 編集モードのスタイル管理
     const existingStyle = doc.getElementById('edit-mode-styles');
-    if (!existingStyle) {
-      const style = doc.createElement('style');
-      style.id = 'edit-mode-styles';
-      style.textContent = `
-        [data-editable-id] {
-          cursor: pointer;
-          transition: all 0.2s ease;
-          position: relative;
-        }
-        
-        [data-editable-id]:hover.edit-hover {
-          outline: 2px dashed #3b82f6;
-          outline-offset: 2px;
-        }
-        
-        [data-editable-id].edit-highlight {
-          outline: 3px solid #3b82f6;
-          outline-offset: 2px;
-          background-color: rgba(59, 130, 246, 0.1);
-        }
-        
-        [data-editable-id].edit-highlight:before {
-          content: "✏️ " attr(data-editable-id);
-          position: absolute;
-          top: -25px;
-          left: 0;
-          background: #3b82f6;
-          color: white;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-family: monospace;
-          z-index: 1000;
-          white-space: nowrap;
-        }
-      `;
-      doc.head.appendChild(style);
+    
+    if (isEditMode) {
+      // 編集モードON: スタイルを注入
+      if (!existingStyle) {
+        const style = doc.createElement('style');
+        style.id = 'edit-mode-styles';
+        style.textContent = `
+          /* 基本的な編集可能要素のスタイル */
+          [data-editable-id] {
+            transition: all 0.15s ease;
+            position: relative;
+            border-radius: 4px;
+          }
+          
+          /* ホバー時の自然なハイライト */
+          [data-editable-id]:hover.edit-hover {
+            background-color: rgba(59, 130, 246, 0.05);
+            outline: 1px solid rgba(59, 130, 246, 0.2);
+            outline-offset: 1px;
+            cursor: text;
+          }
+          
+          /* ダブルクリックのヒント */
+          [data-editable-id].edit-hover:after {
+            content: "ダブルクリックで編集";
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            white-space: nowrap;
+            z-index: 1000;
+            opacity: 0;
+            animation: fadeInTooltip 0.3s ease 0.5s forwards;
+          }
+          
+          @keyframes fadeInTooltip {
+            to { opacity: 1; }
+          }
+          
+          /* インライン編集中の要素 */
+          [data-editable-id].editing {
+            background-color: rgba(59, 130, 246, 0.1);
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+          }
+          
+          /* テキスト色を明確に黒に設定 */
+          [data-editable-id] {
+            color: #000000 !important;
+          }
+          
+          /* 見出し要素の色も確実に黒に */
+          [data-editable-id] h1,
+          [data-editable-id] h2,
+          [data-editable-id] h3,
+          [data-editable-id] h4,
+          [data-editable-id] h5,
+          [data-editable-id] h6,
+          [data-editable-id] p,
+          [data-editable-id] span,
+          [data-editable-id] div {
+            color: #000000 !important;
+          }
+        `;
+        doc.head.appendChild(style);
+      }
+    } else {
+      // 編集モードOFF: スタイルを削除
+      if (existingStyle) {
+        existingStyle.remove();
+      }
     }
-  }, [isEditMode, selectElement, selectedElementId]);
+    } catch (error) {
+      console.error('❌ Error setting up editable elements:', error);
+      // エラーが発生しても続行できるようにする
+    }
+  }, [isEditMode, selectElement, selectedElementId, hoveredElementId, inlineEditingId, startInlineEdit]);
 
   // 選択された要素のハイライトを更新
   useEffect(() => {
@@ -434,22 +550,67 @@ export const LPViewer: React.FC<LPViewerProps> = ({
           doc.close();
         }
         
-        // HTML更新後に編集可能要素を設定
+        // HTML更新後に編集可能要素を設定（安全な遅延）
         setTimeout(() => {
-          setupEditableElements();
-        }, 100);
+          // iframeがまだ存在し、コンテンツがロードされていることを確認
+          if (iframeRef.current && iframeRef.current.contentDocument?.body) {
+            setupEditableElements();
+          }
+        }, 200);
       }
     }
   }, [htmlContent, cssContent, isFullscreen, setupEditableElements]);
 
-  // 編集モードが変更された時も編集可能要素を再設定
+  // 編集モードが変更された時の処理
   useEffect(() => {
-    if (htmlContent) {
+    if (!htmlContent) return;
+    
+    const handleEditModeChange = () => {
+      if (!iframeRef.current) return;
+      
+      const iframe = iframeRef.current;
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.body) return;
+      
+      console.log(`🔄 Edit mode changed: ${isEditMode ? 'ON' : 'OFF'}`);
+      
+      // 編集モードOFF時の清理
+      if (!isEditMode) {
+        // ホバーメニューを隠す
+        setHoverMenuVisible(false);
+        setHoveredElementId(null);
+        
+        // インライン編集を終了
+        setInlineEditingId(null);
+        
+        // 選択を解除
+        selectElement(null);
+        
+        // 全ての編集クラスを削除
+        const editableElements = doc.querySelectorAll('[data-editable-id]');
+        editableElements.forEach(el => {
+          el.classList.remove('edit-hover', 'edit-highlight', 'editing');
+        });
+        
+        // イベントリスナーを削除
+        const elementsWithListeners = doc.querySelectorAll('[data-edit-listener]');
+        elementsWithListeners.forEach(el => {
+          el.removeAttribute('data-edit-listener');
+        });
+      }
+      
+      // 少し遅延を入れてスタイルとイベントを設定
       setTimeout(() => {
-        setupEditableElements();
-      }, 100);
-    }
-  }, [isEditMode, setupEditableElements, htmlContent]);
+        try {
+          setupEditableElements();
+        } catch (error) {
+          console.error('❌ Error in edit mode setup:', error);
+        }
+      }, 50);
+    };
+    
+    handleEditModeChange();
+  }, [isEditMode, htmlContent, setupEditableElements, selectElement]);
 
   return (
     <div 
@@ -490,6 +651,36 @@ export const LPViewer: React.FC<LPViewerProps> = ({
             <Maximize2 className="h-5 w-5" />
           )}
         </button>
+      )}
+
+      {/* スマートホバーメニュー */}
+      <SmartHoverMenu
+        elementId={hoveredElementId || ''}
+        isVisible={hoverMenuVisible && !!hoveredElementId && isEditMode}
+        position={hoverMenuPosition}
+        onEdit={() => hoveredElementId && startInlineEdit(hoveredElementId)}
+        onAIImprove={() => hoveredElementId && handleAIImprove(hoveredElementId)}
+      />
+
+      {/* インライン編集エディター */}
+      {inlineEditingId && (
+        <div className="absolute inset-0 z-30 bg-black bg-opacity-20 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-black mb-2">テキストを編集</h3>
+              <p className="text-sm text-gray-600">要素: {inlineEditingId}</p>
+            </div>
+            <InlineTextEditor
+              initialText={extractTextFromElement(inlineEditingId)}
+              elementId={inlineEditingId}
+              isActive={true}
+              onSave={(newText) => saveInlineEdit(inlineEditingId, newText)}
+              onCancel={cancelInlineEdit}
+              onAIImprove={onAIImprove ? (text) => onAIImprove(inlineEditingId, text) : undefined}
+              placeholder="新しいテキストを入力してください..."
+            />
+          </div>
+        </div>
       )}
 
       {/* メインのiframe */}

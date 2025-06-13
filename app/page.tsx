@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useEditMode } from './contexts/EditModeContext';
 import type { Message } from 'ai';
 import { LPTool } from './components/LPTool';
@@ -445,7 +446,15 @@ const MainView = ({
         <div className="flex-1 overflow-hidden">
           {lpToolState.isActive && lpToolState.htmlContent ? (
             <div className="h-full overflow-y-auto">
-              <LPViewer htmlContent={lpToolState.htmlContent} cssContent={lpToolState.cssContent} />
+              <LPViewer 
+                htmlContent={lpToolState.htmlContent} 
+                cssContent={lpToolState.cssContent}
+                onTextUpdate={handleTextUpdate}
+                onAIImprove={(elementId, currentText) => {
+                  const prompt = `要素「${elementId}」のテキスト「${currentText}」をAIで改善してください。`;
+                  sendPrompt(prompt);
+                }}
+              />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
@@ -517,16 +526,16 @@ export default function Page() {
   console.log('[Page] Messages:', messages);
   console.log('[Page] Show main view:', showMainView);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
-    console.log('[Page] Submitting message:', inputValue);
+    console.log('[Page] Submitting message via sendPrompt:', inputValue);
     console.log('[Page] Messages before submit:', messages.length);
-    
-    setInput(inputValue);
+
+    // sendPrompt ensures setInput is committed before triggering originalHandleSubmit
+    sendPrompt(inputValue);
     setInputValue('');
-    originalHandleSubmit(e);
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -545,13 +554,12 @@ export default function Page() {
 
   // 任意のプロンプトを即座に送信するユーティリティ
   const sendPrompt = (prompt: string) => {
-    // Chat input を直接設定し、そのまま submit
-    setInput(prompt);
-    setTimeout(() => {
-      // originalHandleSubmit は current form event が必要ない実装なのでダミーを渡す
-      const fakeEvt = { preventDefault: () => {} } as any;
-      originalHandleSubmit(fakeEvt);
-    }, 0);
+    // flushSync で setInput を同期的に反映させてから submit を実行する
+    flushSync(() => {
+      setInput(prompt);
+    });
+    const fakeEvt = { preventDefault: () => {} } as any;
+    originalHandleSubmit(fakeEvt);
   };
 
   return (
