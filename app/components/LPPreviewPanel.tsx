@@ -14,6 +14,7 @@ import { Separator } from '@/app/components/ui/separator';
 
 interface LPPreviewPanelProps {
   htmlContent: string;
+  cssContent?: string;
   title: string;
   isOpen: boolean;
   onClose: () => void;
@@ -22,6 +23,7 @@ interface LPPreviewPanelProps {
 
 export const LPPreviewPanel: React.FC<LPPreviewPanelProps> = ({
   htmlContent,
+  cssContent = '',
   title,
   isOpen,
   onClose,
@@ -268,7 +270,7 @@ ${previewHtml}
           <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)}>
             <TabsContent value="preview" className="h-full m-0">
               <div ref={lpContainerRef} className="h-full">
-                <LPViewer htmlContent={previewHtml} />
+                <LPViewer htmlContent={previewHtml} cssContent={cssContent} />
               </div>
             </TabsContent>
 

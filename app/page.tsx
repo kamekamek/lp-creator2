@@ -58,6 +58,7 @@ const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialVie
 interface LPToolState {
   isActive: boolean;
   htmlContent: string;
+  cssContent: string;
   title: string;
   forcePanelOpen?: boolean;
 }
@@ -77,6 +78,7 @@ const MainView = ({
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
     htmlContent: '',
+    cssContent: '',
     title: '生成されたランディングページ',
     forcePanelOpen: false
   });
@@ -90,6 +92,7 @@ const MainView = ({
       setLpToolState({
         isActive: false,
         htmlContent: '',
+        cssContent: '',
         title: '生成されたランディングページ',
         forcePanelOpen: false
       });
@@ -113,6 +116,7 @@ const MainView = ({
 
     // ツール結果からLP生成結果を検出
     let htmlContent = '';
+    let cssContent = '';
     let title = 'ランディングページ';
     let foundLPResult = false;
 
@@ -137,12 +141,14 @@ const MainView = ({
             
             console.log('[LP Detection] Found LP tool result:', toolInvocation.result);
             
-            // enhancedLPGeneratorToolの結果からHTMLを抽出
+            // enhancedLPGeneratorToolの結果からHTMLとCSSを抽出
             if (toolInvocation.result.htmlContent) {
               htmlContent = toolInvocation.result.htmlContent;
+              cssContent = toolInvocation.result.cssContent || '';
               title = toolInvocation.result.title || title;
               foundLPResult = true;
               console.log('[LP Detection] Extracted HTML content length:', htmlContent.length);
+              console.log('[LP Detection] Extracted CSS content length:', cssContent.length);
               break;
             }
           }
@@ -187,6 +193,7 @@ const MainView = ({
       setLpToolState({
         isActive: true,
         htmlContent: htmlContent,
+        cssContent: cssContent,
         title: title,
         forcePanelOpen: true
       });
@@ -209,6 +216,7 @@ const MainView = ({
         {lpToolState.isActive && !lpToolState.htmlContent && (
           <LPTool 
             htmlContent={lpToolState.htmlContent}
+            cssContent={lpToolState.cssContent}
             title={lpToolState.title}
             autoOpenPreview={false}
             forcePanelOpen={false}
@@ -356,7 +364,7 @@ const MainView = ({
         <div className="flex-1 overflow-hidden">
           {lpToolState.isActive && lpToolState.htmlContent ? (
             <div className="h-full overflow-y-auto">
-              <LPViewer htmlContent={lpToolState.htmlContent} />
+              <LPViewer htmlContent={lpToolState.htmlContent} cssContent={lpToolState.cssContent} />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">

@@ -6,6 +6,7 @@ import { DocumentTextIcon, PlayIcon, EyeIcon } from '@heroicons/react/24/outline
 
 interface LPToolProps {
   htmlContent?: string;
+  cssContent?: string;
   title?: string;
   onCreateLP?: () => void;
   autoOpenPreview?: boolean; // 自動的にプレビューを開くためのフラグ
@@ -16,6 +17,7 @@ interface LPToolProps {
 
 export const LPTool: React.FC<LPToolProps> = ({
   htmlContent = '',
+  cssContent = '',
   title = '生成されたランディングページ',
   onCreateLP,
   autoOpenPreview = false,
@@ -25,6 +27,7 @@ export const LPTool: React.FC<LPToolProps> = ({
 }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [currentContent, setCurrentContent] = useState(htmlContent);
+  const [currentCss, setCurrentCss] = useState(cssContent);
   const [currentTitle, setCurrentTitle] = useState(title);
 
   // 新しいhtmlContentを設定
@@ -159,6 +162,7 @@ export const LPTool: React.FC<LPToolProps> = ({
       {isPanelOpen && (
         <LPPreviewPanel
           htmlContent={currentContent}
+          cssContent={currentCss}
           title={currentTitle}
           isOpen={isPanelOpen}
           onClose={closePreviewPanel}

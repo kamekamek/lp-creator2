@@ -114,6 +114,115 @@ async function generateLPStructure(topic: string) {
 }
 
 /**
+ * Generate CSS custom properties for dynamic color scheme
+ */
+function generateColorVariables(colorScheme: any): string {
+  const colors = colorScheme || {
+    primaryColor: '#0056B1',
+    accentColor: '#FFB400',
+    bgColor: '#F5F7FA',
+    textColor: '#333333'
+  };
+  
+  return `
+    --primary-color: ${colors.primaryColor};
+    --accent-color: ${colors.accentColor};
+    --bg-color: ${colors.bgColor};
+    --text-color: ${colors.textColor};
+    --primary-rgb: ${hexToRgb(colors.primaryColor)};
+    --accent-rgb: ${hexToRgb(colors.accentColor)};
+    --bg-rgb: ${hexToRgb(colors.bgColor)};
+  `;
+}
+
+/**
+ * Convert hex color to RGB values
+ */
+function hexToRgb(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result 
+    ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`
+    : '0, 86, 177';
+}
+
+/**
+ * Generate custom CSS content for the LP
+ */
+function generateCustomCSS(colorScheme: any, designStyle: string): string {
+  const colorVars = generateColorVariables(colorScheme);
+  
+  return `
+<style>
+  :root {
+    ${colorVars}
+  }
+  
+  /* Dynamic color classes */
+  .bg-primary { background-color: var(--primary-color) !important; }
+  .bg-accent { background-color: var(--accent-color) !important; }
+  .bg-custom { background-color: var(--bg-color) !important; }
+  .text-primary { color: var(--primary-color) !important; }
+  .text-accent { color: var(--accent-color) !important; }
+  .text-custom { color: var(--text-color) !important; }
+  .border-primary { border-color: var(--primary-color) !important; }
+  .border-accent { border-color: var(--accent-color) !important; }
+  
+  /* Gradient backgrounds */
+  .bg-primary-gradient {
+    background: linear-gradient(135deg, var(--primary-color), rgba(var(--primary-rgb), 0.8)) !important;
+  }
+  .bg-accent-gradient {
+    background: linear-gradient(135deg, var(--accent-color), rgba(var(--accent-rgb), 0.8)) !important;
+  }
+  
+  /* Enhanced hover effects */
+  .hover-primary:hover {
+    background-color: var(--primary-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(var(--primary-rgb), 0.3);
+  }
+  .hover-accent:hover {
+    background-color: var(--accent-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(var(--accent-rgb), 0.3);
+  }
+  
+  /* Modern design enhancements */
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .floating-animation {
+    animation: floating 3s ease-in-out infinite;
+  }
+  
+  @keyframes floating {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  /* Section-specific enhancements */
+  .hero-gradient {
+    background: linear-gradient(135deg, var(--bg-color), rgba(var(--primary-rgb), 0.1));
+  }
+  
+  .feature-card {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(var(--primary-rgb), 0.1);
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(var(--primary-rgb), 0.15);
+    border-color: var(--accent-color);
+  }
+</style>
+  `;
+}
+
+/**
  * Generates the HTML for a single section based on its definition using enhanced prompts from Open_SuperAgent style.
  */
 async function generateSectionHtml(section: LPSection, sectionIndex: number, structure: any) {
@@ -137,6 +246,19 @@ async function generateSectionHtml(section: LPSection, sectionIndex: number, str
 ・背景色: ${structure.colorScheme?.bgColor || '#F5F7FA'}
 ・テキストカラー: ${structure.colorScheme?.textColor || '#333333'}
 ・デザインスタイル: ${structure.designStyle || 'modern'}
+
+【カラースキーム適用ルール】
+- プライマリーカラーは主要なCTAボタン、ヘッダー、重要な要素に使用
+- アクセントカラーはハイライト、ホバー効果、アクションを促すアクセントに使用
+- 背景色は全体の背景やカードの背景に使用
+- 以下のクラスを積極的に使用してください：
+  * bg-primary, bg-accent, bg-custom (背景色)
+  * text-primary, text-accent, text-custom (テキスト色)
+  * border-primary, border-accent (ボーダー色)
+  * bg-primary-gradient, bg-accent-gradient (グラデーション背景)
+  * hover-primary, hover-accent (ホバー効果)
+  * hero-gradient (ヒーローセクション用)
+  * feature-card (フィーチャーカード用)
 
 【最優先事項】
 1. **プロ品質のLPデザイン** - AppleやGoogleのランディングページに匹敵する美しさ
@@ -186,8 +308,15 @@ ${getSectionDesignGuidelines(section.type)}
       const jsonResponse = JSON.parse(text.trim());
       htmlContent = jsonResponse.html || text;
     } catch {
-      // If not JSON, treat as direct HTML
-      htmlContent = text.trim();
+      // If JSON.parse fails, attempt to extract the HTML value manually
+      const regexMatch = text.trim().match(/"html"\s*:\s*"([\s\S]*?)"\s*\}?$/);
+      if (regexMatch && regexMatch[1]) {
+        // Unescape any escaped quotes
+        htmlContent = regexMatch[1].replace(/\\"/g, '"');
+      } else {
+        // Fallback: treat entire text as HTML
+        htmlContent = text.trim();
+      }
     }
     
     // HTMLコンテンツの検証と清理
@@ -206,7 +335,7 @@ ${getSectionDesignGuidelines(section.type)}
     console.error(`❌ Section ${sectionIndex} generation failed:`, error);
     
     // Enhanced fallback HTML with better design
-    return generateEnhancedFallbackHtml(section, sectionIndex, uniqueSectionClass, structure);
+    return generateEnhancedFallbackHtml(section, sectionIndex, uniqueSectionClass);
   }
 }
 
@@ -285,37 +414,31 @@ function getSectionDesignGuidelines(sectionType: string): string {
   }
 }
 
-// Enhanced fallback HTML generator
-function generateEnhancedFallbackHtml(section: LPSection, sectionIndex: number, uniqueClass: string, structure: any): string {
-  const colors = structure.colorScheme || {
-    primaryColor: '#0056B1',
-    accentColor: '#FFB400',
-    bgColor: '#F5F7FA',
-    textColor: '#333333'
-  };
+// Enhanced fallback HTML generator with dynamic colors
+function generateEnhancedFallbackHtml(section: LPSection, sectionIndex: number, uniqueClass: string): string {
   
-  return `<section class="${uniqueClass} py-16 bg-gradient-to-br from-blue-50 to-white" data-editable-id="section-${sectionIndex}-root">
+  return `<section class="${uniqueClass} py-16 hero-gradient" data-editable-id="section-${sectionIndex}-root">
     <div class="container mx-auto px-4 text-center">
       <div class="max-w-3xl mx-auto">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6" data-editable-id="section-${sectionIndex}-icon">
-          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-primary bg-opacity-10 rounded-full mb-6 floating-animation" data-editable-id="section-${sectionIndex}-icon">
+          <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
         </div>
-        <h2 class="text-4xl font-bold text-gray-800 mb-6" data-editable-id="section-${sectionIndex}-title">
+        <h2 class="text-4xl font-bold text-custom mb-6" data-editable-id="section-${sectionIndex}-title">
           ${section.type.charAt(0).toUpperCase() + section.type.slice(1)} Section
         </h2>
-        <p class="text-xl text-gray-600 mb-8 leading-relaxed" data-editable-id="section-${sectionIndex}-description">
+        <p class="text-xl text-custom opacity-80 mb-8 leading-relaxed" data-editable-id="section-${sectionIndex}-description">
           このセクションは現在生成中です。高品質なコンテンツをお届けするため、少々お待ちください。
         </p>
-        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500" data-editable-id="section-${sectionIndex}-content">
-          <p class="text-gray-700 text-left">
+        <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-accent feature-card" data-editable-id="section-${sectionIndex}-content">
+          <p class="text-custom text-left">
             <strong>セクションタイプ:</strong> ${section.type}<br>
             <strong>レイアウト:</strong> ${section.layoutType || 'default'}<br>
             <strong>生成指示:</strong> ${section.prompt}
           </p>
         </div>
-        <button class="mt-8 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200" data-editable-id="section-${sectionIndex}-cta">
+        <button class="mt-8 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover-primary transition-all duration-200" data-editable-id="section-${sectionIndex}-cta">
           再生成する
           <svg class="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -367,10 +490,16 @@ export async function generateUnifiedLP({ topic }: { topic: string }) {
         const totalTime = Date.now() - startTime;
         console.log(`🎉 LP generation completed in ${totalTime}ms (${(totalTime/1000).toFixed(2)}s)`);
 
+        // Step 4: Generate custom CSS for dynamic colors
+        console.log('🎨 Step 4: Generating custom CSS...');
+        const cssStart = Date.now();
+        const customCSS = generateCustomCSS(structure.colorScheme, structure.designStyle);
+        console.log(`✅ Custom CSS generated in ${Date.now() - cssStart}ms`);
+
         // Return the final object
         return {
             htmlContent: fullHtmlContent,
-            cssContent: '', // Kept for compatibility
+            cssContent: customCSS,
             structure,
             metadata: {
                 generationTime: totalTime,

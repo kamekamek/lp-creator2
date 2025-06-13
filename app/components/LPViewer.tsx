@@ -5,6 +5,7 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 
 interface LPViewerProps {
   htmlContent: string;
+  cssContent?: string;
   width?: string;
   height?: string;
   enableFullscreen?: boolean;
@@ -12,6 +13,7 @@ interface LPViewerProps {
 
 export const LPViewer: React.FC<LPViewerProps> = ({ 
   htmlContent, 
+  cssContent = '',
   width = '100%',
   height = '100%',
   enableFullscreen = true
@@ -76,17 +78,52 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     if (iframeRef.current && htmlContent) {
       const doc = iframeRef.current.contentDocument;
       if (doc) {
+        // HTMLコンテンツのエスケープ処理を修正
+        let processedContent = htmlContent;
+        
+        // 二重エンコーディングされたURLを修正
+        processedContent = processedContent.replace(/&quot;/g, '"');
+        processedContent = processedContent.replace(/&#x27;/g, "'");
+        processedContent = processedContent.replace(/&lt;/g, '<');
+        processedContent = processedContent.replace(/&gt;/g, '>');
+        processedContent = processedContent.replace(/&amp;/g, '&');
+        
+        // 不正なSVGパス属性を修正（より厳密なパターン）
+        processedContent = processedContent.replace(/d="\\*"/g, 'd=""');
+        processedContent = processedContent.replace(/d="\\+"([^"]*)"\\*"/g, 'd="$1"');
+        processedContent = processedContent.replace(/d="\\"([^"]*)\\""/g, 'd="$1"');
+        processedContent = processedContent.replace(/d="\\\"([^"]*)\\\"/g, 'd="$1"');
+        
+        // 不正なイメージソースを修正（data URIも含む）
+        processedContent = processedContent.replace(/src="\\"([^"]*)\\""/g, 'src="$1"');
+        processedContent = processedContent.replace(/src="\\\"([^"]*)\\\"/g, 'src="$1"');
+        processedContent = processedContent.replace(/href="\\"([^"]*)\\""/g, 'href="$1"');
+        processedContent = processedContent.replace(/href="\\\"([^"]*)\\\"/g, 'href="$1"');
+        
+        // data URIの二重クォートエスケープを修正
+        processedContent = processedContent.replace(/"data:image\/svg\+xml,[^"]*"/g, (match) => {
+          return match.replace(/\\"/g, '"').replace(/""/g, '"');
+        });
+        
+        // 不正な外部リソースパスを修正
+        processedContent = processedContent.replace(/src="[^"]*\.jpg"\/"/g, 'src=""');
+        processedContent = processedContent.replace(/src="\/[^"]*\.jpg\/"/g, 'src=""');
+        processedContent = processedContent.replace(/href="\/[^"]*\.jpg\/"/g, 'href=""');
+        
+        // 空のsrc属性を持つ画像を隠す
+        processedContent = processedContent.replace(/<img[^>]*src=""[^>]*>/g, '<div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center"><span class="text-gray-500">画像プレースホルダー</span></div>');
+        
         // htmlContentに<style>タグやHTML構造が含まれているか確認
-        const hasStyleTag = htmlContent.includes('<style>') && htmlContent.includes('</style>');
-        const hasHtmlStructure = htmlContent.includes('<section') || htmlContent.includes('<div') || htmlContent.includes('<body');
+        const hasStyleTag = processedContent.includes('<style>') && processedContent.includes('</style>');
+        const hasHtmlStructure = processedContent.includes('<section') || processedContent.includes('<div') || processedContent.includes('<body');
         
         // 完全なHTMLドキュメントかどうかを確認
-        const isCompleteHtml = htmlContent.trim().startsWith('<!DOCTYPE') || htmlContent.trim().startsWith('<html');
+        const isCompleteHtml = processedContent.trim().startsWith('<!DOCTYPE') || processedContent.trim().startsWith('<html');
         
         if (isCompleteHtml) {
           // 完全なHTMLドキュメントの場合はそのまま表示
           doc.open();
-          doc.write(htmlContent);
+          doc.write(processedContent);
           doc.close();
         } else if (hasStyleTag && hasHtmlStructure) {
           // スタイルタグとHTML構造が含まれている場合は、最小限のHTMLドキュメントで包む
@@ -98,6 +135,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <script src="https://cdn.tailwindcss.com"></script>
               <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+              ${cssContent}
               <style>
                 body {
                   margin: 0;
@@ -159,7 +197,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
               </style>
             </head>
             <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-              ${htmlContent}
+              ${processedContent}
             </body>
             </html>
           `;
@@ -176,6 +214,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <script src="https://cdn.tailwindcss.com"></script>
               <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+              ${cssContent}
               <style>
                 body {
                   margin: 0;
@@ -230,7 +269,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
             </head>
             <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
               <main>
-                ${htmlContent}
+                ${processedContent}
               </main>
             </body>
             </html>
@@ -247,6 +286,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <script src="https://cdn.tailwindcss.com"></script>
+              ${cssContent}
               <style>
                 body {
                   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -259,7 +299,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
               </style>
             </head>
             <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-              <div>${htmlContent}</div>
+              <div>${processedContent}</div>
             </body>
             </html>
           `;
@@ -269,7 +309,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
         }
       }
     }
-  }, [htmlContent, isFullscreen]);
+  }, [htmlContent, cssContent, isFullscreen]);
 
   return (
     <div 
