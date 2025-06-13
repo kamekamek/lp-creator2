@@ -6,7 +6,9 @@ import {
   htmlLPTool, 
   lpStructureTool,
   lpPreviewTool,
-  enhancedLPGeneratorTool
+  enhancedLPGeneratorTool,
+  partialUpdateMastraTool,
+  aiPartialUpdateTool
 } from '../tools';
 // import { Memory } from '@mastra/memory';
 
@@ -47,6 +49,8 @@ You have access to the following specialized tools:
 - \`htmlLPTool\`: Generates HTML sections for landing pages based on section type and content
 - \`lpStructureTool\`: Creates the overall structure and outline for landing pages
 - \`lpPreviewTool\`: Displays a preview of the generated landing page
+- \`partialUpdateMastraTool\`: Updates specific elements in existing landing pages (for editing)
+- \`aiPartialUpdateTool\`: AI-powered intelligent updates for landing page elements
 
 ## Landing Page Creation Process
 **Standard Workflow (REQUIRED for user approval):**
@@ -54,6 +58,11 @@ You have access to the following specialized tools:
 2. **User Confirmation**: Present structure for user review and editing
 3. **Final Generation**: Only after user confirmation, use enhancedLPGeneratorTool or individual section tools
 4. **Preview Results**: Use lpPreviewTool to show the complete landing page
+
+**Editing Workflow:**
+- **Simple Text Updates**: Use \`partialUpdateMastraTool\` for direct text changes
+- **AI-Enhanced Updates**: Use \`aiPartialUpdateTool\` for intelligent content improvements
+- Always include the element's \`data-editable-id\` and current HTML content when updating
 
 **IMPORTANT**: Never skip the structure proposal step. Users need to review and approve the LP concept before generation.
 
@@ -87,6 +96,8 @@ Remember: Your goal is to create landing pages that not only look great but also
       htmlLPTool,
       lpStructureTool,
       lpPreviewTool,
+      partialUpdateMastraTool,
+      aiPartialUpdateTool,
     },
     // memory: new Memory({
     //   options: {

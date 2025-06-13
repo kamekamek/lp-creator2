@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { useEditMode } from '../contexts/EditModeContext';
 
 interface LPViewerProps {
   htmlContent: string;
@@ -21,6 +22,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isEditMode, selectedElementId, selectElement } = useEditMode();
 
   // フルスクリーン切り替え
   const toggleFullscreen = useCallback(async () => {
@@ -72,6 +74,130 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // iframe内要素のクリック検出とハイライト機能
+  const setupEditableElements = useCallback(() => {
+    if (!iframeRef.current || !isEditMode) return;
+
+    const iframe = iframeRef.current;
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    console.log('🎯 Setting up editable elements...');
+
+    // 既存のイベントリスナーを削除
+    const existingListeners = doc.querySelectorAll('[data-edit-listener]');
+    existingListeners.forEach(el => {
+      el.removeAttribute('data-edit-listener');
+    });
+
+    // 編集可能な要素を取得
+    const editableElements = doc.querySelectorAll('[data-editable-id]');
+    console.log(`📝 Found ${editableElements.length} editable elements`);
+
+    editableElements.forEach((element) => {
+      const editableId = element.getAttribute('data-editable-id');
+      if (!editableId) return;
+
+      // クリックイベントリスナーを追加
+      const handleClick = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log(`🖱️ Clicked element: ${editableId}`);
+        selectElement(editableId);
+        
+        // 他の要素のハイライトを削除
+        editableElements.forEach(el => {
+          el.classList.remove('edit-highlight');
+        });
+        
+        // クリックされた要素をハイライト
+        element.classList.add('edit-highlight');
+      };
+
+      element.addEventListener('click', handleClick);
+      element.setAttribute('data-edit-listener', 'true');
+      
+      // ホバー効果も追加
+      const handleMouseEnter = () => {
+        if (selectedElementId !== editableId) {
+          element.classList.add('edit-hover');
+        }
+      };
+      
+      const handleMouseLeave = () => {
+        element.classList.remove('edit-hover');
+      };
+
+      element.addEventListener('mouseenter', handleMouseEnter);
+      element.addEventListener('mouseleave', handleMouseLeave);
+    });
+
+    // 編集スタイルをiframe内に注入
+    const existingStyle = doc.getElementById('edit-mode-styles');
+    if (!existingStyle) {
+      const style = doc.createElement('style');
+      style.id = 'edit-mode-styles';
+      style.textContent = `
+        [data-editable-id] {
+          cursor: pointer;
+          transition: all 0.2s ease;
+          position: relative;
+        }
+        
+        [data-editable-id]:hover.edit-hover {
+          outline: 2px dashed #3b82f6;
+          outline-offset: 2px;
+        }
+        
+        [data-editable-id].edit-highlight {
+          outline: 3px solid #3b82f6;
+          outline-offset: 2px;
+          background-color: rgba(59, 130, 246, 0.1);
+        }
+        
+        [data-editable-id].edit-highlight:before {
+          content: "✏️ " attr(data-editable-id);
+          position: absolute;
+          top: -25px;
+          left: 0;
+          background: #3b82f6;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-family: monospace;
+          z-index: 1000;
+          white-space: nowrap;
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+  }, [isEditMode, selectElement, selectedElementId]);
+
+  // 選択された要素のハイライトを更新
+  useEffect(() => {
+    if (!iframeRef.current) return;
+    
+    const doc = iframeRef.current.contentDocument;
+    if (!doc) return;
+
+    // 全ての要素のハイライトを削除
+    const allEditableElements = doc.querySelectorAll('[data-editable-id]');
+    allEditableElements.forEach(el => {
+      el.classList.remove('edit-highlight');
+    });
+
+    // 選択された要素をハイライト
+    if (selectedElementId) {
+      const selectedElement = doc.querySelector(`[data-editable-id="${selectedElementId}"]`);
+      if (selectedElement) {
+        selectedElement.classList.add('edit-highlight');
+        selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [selectedElementId]);
 
   // LPHTMLをiframeに展開する
   useEffect(() => {
@@ -307,9 +433,23 @@ export const LPViewer: React.FC<LPViewerProps> = ({
           doc.write(basicTemplate);
           doc.close();
         }
+        
+        // HTML更新後に編集可能要素を設定
+        setTimeout(() => {
+          setupEditableElements();
+        }, 100);
       }
     }
-  }, [htmlContent, cssContent, isFullscreen]);
+  }, [htmlContent, cssContent, isFullscreen, setupEditableElements]);
+
+  // 編集モードが変更された時も編集可能要素を再設定
+  useEffect(() => {
+    if (htmlContent) {
+      setTimeout(() => {
+        setupEditableElements();
+      }, 100);
+    }
+  }, [isEditMode, setupEditableElements, htmlContent]);
 
   return (
     <div 
@@ -317,6 +457,22 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       className={`relative w-full h-full ${isFullscreen ? 'bg-black' : 'bg-white'}`}
       style={{ width, height }}
     >
+      {/* 編集モードインジケーター */}
+      {isEditMode && (
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-md">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          <span className="text-sm font-medium">編集モード</span>
+        </div>
+      )}
+
+      {/* 選択された要素の情報 */}
+      {isEditMode && selectedElementId && (
+        <div className="absolute top-16 left-4 z-10 bg-white border border-gray-200 rounded-lg shadow-md p-3 max-w-xs">
+          <div className="text-sm text-gray-600 mb-1">選択中の要素:</div>
+          <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{selectedElementId}</div>
+        </div>
+      )}
+
       {/* フルスクリーンボタン */}
       {enableFullscreen && (
         <button

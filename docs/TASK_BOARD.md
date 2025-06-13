@@ -9,9 +9,9 @@
 | A-1 | UI 2 カラムレイアウト改修 | 🔥 | ✅ | 実装済み PR #12 |
 | A-2 | LpDisplay コンポーネント作成 | 🔥 | ✅ | `app/components/LpDisplay.tsx` |
 | A-3 | CSS 未適用バグ応急修正 | 🔥 | ✅ | Tailwind CDN → proper inject |
-| A+-1 | AI 生成スキーマ不整合修正 | 🔥 | 🔄 | `lpGeneratorTool.ts` JSON 抽出改善中 |
-| A+-2 | 生成処理安定化 (timeout) | 🔥 | 🔄 | batch size/ retry logic 調整 |
-| A+-3 | MVP 動作テスト整備 | 🔴 | ⏳ | Playwright E2E |
+| A+-1 | AI 生成スキーマ不整合修正 | 🔥 | ✅ | JSON抽出ロジック4パターン対応完了 |
+| A+-2 | 生成処理安定化 (timeout) | 🔥 | ✅ | batch処理+retry+fallback実装完了 |
+| A+-3 | MVP 動作テスト整備 | 🔴 | ✅ | Playwright E2E テストスイート完了 |
 | B-1 | レスポンシブ実装 | 🔴 | ⏳ | breakpoints + flex-cols |
 | B-2 | 画像差し替えシステム | 🔴 | ⏳ | `<EditableImage />` |
 | B-3 | 状態管理簡素化 | 🟡 | ⏳ | useReducer 化検討 |

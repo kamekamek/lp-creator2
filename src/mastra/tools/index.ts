@@ -8,3 +8,4 @@ export { htmlLPTool } from './htmlLPTool';
 export { lpStructureTool } from './lpStructureTool';
 export { lpPreviewTool } from './lpPreviewTool';
 export { enhancedLPGeneratorTool } from './enhancedLPGeneratorTool';
+export { partialUpdateMastraTool, aiPartialUpdateTool } from './partialUpdateMastraTool';

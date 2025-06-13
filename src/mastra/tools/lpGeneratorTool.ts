@@ -232,9 +232,14 @@ async function generateSectionHtml(section: LPSection, sectionIndex: number, str
   const enhancedPrompt = `あなたはプロフェッショナルな「ランディングページデザイナー」です。
 企業レベルの高品質なランディングページセクションを作成してください。
 
-【重要】出力形式の絶対的ルール
-必ず以下の形式で出力してください：
-{"html": "完全なHTMLコンテンツ"}
+【🚨 最重要：出力形式の絶対的ルール 🚨】
+以下のJSON形式でのみ出力してください。他の形式は一切禁止です：
+
+{"html": "完全なHTMLコンテンツをここに記載"}
+
+- 説明文、コメント、マークダウンは一切出力しないでください
+- JSONの外側に何も書かないでください
+- HTMLコンテンツ内のダブルクォート（"）は必ずエスケープ（\"）してください
 
 【入力パラメータ】
 ・セクションタイプ: ${section.type}
@@ -302,20 +307,55 @@ ${getSectionDesignGuidelines(section.type)}
       temperature: 0.7,
     });
     
-    // Parse JSON response
+    // Parse JSON response with improved extraction logic
     let htmlContent = '';
+    
+    console.log(`🔍 Parsing response for section ${sectionIndex}:`, text.substring(0, 200) + '...');
+    
     try {
+      // First try to parse as complete JSON
       const jsonResponse = JSON.parse(text.trim());
       htmlContent = jsonResponse.html || text;
-    } catch {
-      // If JSON.parse fails, attempt to extract the HTML value manually
-      const regexMatch = text.trim().match(/"html"\s*:\s*"([\s\S]*?)"\s*\}?$/);
-      if (regexMatch && regexMatch[1]) {
-        // Unescape any escaped quotes
-        htmlContent = regexMatch[1].replace(/\\"/g, '"');
-      } else {
-        // Fallback: treat entire text as HTML
-        htmlContent = text.trim();
+      console.log(`✅ Section ${sectionIndex}: JSON parsed successfully`);
+    } catch (parseError) {
+      console.log(`⚠️ Section ${sectionIndex}: JSON parse failed, trying extraction...`);
+      
+      // Improved regex to handle complex HTML content with nested quotes
+      const patterns = [
+        // Pattern 1: Complete JSON object
+        /\{\s*"html"\s*:\s*"([\s\S]*?)"\s*\}/,
+        // Pattern 2: Just the HTML value with escaped quotes
+        /"html"\s*:\s*"([\s\S]*?)"/,
+        // Pattern 3: HTML value at the end of the response
+        /"html"\s*:\s*"([\s\S]*?)"\s*\}?\s*$/,
+        // Pattern 4: Look for any string after "html":
+        /"html"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/
+      ];
+      
+      let extracted = false;
+      for (const pattern of patterns) {
+        const match = text.trim().match(pattern);
+        if (match && match[1]) {
+          // Properly unescape JSON string
+          htmlContent = match[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\\\/g, '\\');
+          console.log(`✅ Section ${sectionIndex}: Extracted HTML using pattern ${patterns.indexOf(pattern) + 1}`);
+          extracted = true;
+          break;
+        }
+      }
+      
+      if (!extracted) {
+        // Final fallback: Check if the text itself looks like HTML
+        if (text.trim().includes('<') && text.trim().includes('>')) {
+          htmlContent = text.trim();
+          console.log(`⚠️ Section ${sectionIndex}: Using raw text as HTML (contains HTML tags)`);
+        } else {
+          throw new Error(`Failed to extract HTML content from AI response: ${text.substring(0, 100)}...`);
+        }
       }
     }
     
@@ -464,19 +504,60 @@ export async function generateUnifiedLP({ topic }: { topic: string }) {
         console.log('🎨 Step 2: Generating HTML for each section...');
         const htmlStart = Date.now();
         
-        // Process in smaller batches to avoid API rate limits
+        // Process in smaller batches with retry logic to avoid API rate limits
         const batchSize = 2;
+        const maxRetries = 3;
+        const retryDelay = 1000; // 1 second
         const sectionHtmls: string[] = [];
         
         for (let i = 0; i < structure.sections.length; i += batchSize) {
             const batch = structure.sections.slice(i, i + batchSize);
-            const batchPromises = batch.map((section, batchIndex) => 
-                generateSectionHtml(section, i + batchIndex, structure)
-            );
+            const batchIndex = Math.floor(i/batchSize) + 1;
+            const totalBatches = Math.ceil(structure.sections.length/batchSize);
             
-            console.log(`⚡ Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(structure.sections.length/batchSize)}`);
-            const batchResults = await Promise.all(batchPromises);
-            sectionHtmls.push(...batchResults);
+            console.log(`⚡ Processing batch ${batchIndex}/${totalBatches} (sections ${i}-${Math.min(i + batchSize - 1, structure.sections.length - 1)})`);
+            
+            let batchAttempt = 0;
+            let batchSuccess = false;
+            
+            while (batchAttempt < maxRetries && !batchSuccess) {
+                try {
+                    const batchPromises = batch.map((section, batchLocalIndex) => 
+                        generateSectionHtml(section, i + batchLocalIndex, structure)
+                    );
+                    
+                    const batchResults = await Promise.all(batchPromises);
+                    sectionHtmls.push(...batchResults);
+                    batchSuccess = true;
+                    
+                    console.log(`✅ Batch ${batchIndex} completed successfully`);
+                    
+                    // Add delay between batches to avoid rate limits
+                    if (i + batchSize < structure.sections.length) {
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    }
+                } catch (error) {
+                    batchAttempt++;
+                    console.error(`❌ Batch ${batchIndex} attempt ${batchAttempt} failed:`, error);
+                    
+                    if (batchAttempt < maxRetries) {
+                        const backoffDelay = retryDelay * Math.pow(2, batchAttempt - 1);
+                        console.log(`⏳ Retrying batch ${batchIndex} in ${backoffDelay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                    } else {
+                        console.error(`💥 Batch ${batchIndex} failed after ${maxRetries} attempts`);
+                        // Generate fallback HTML for failed sections
+                        for (let j = 0; j < batch.length; j++) {
+                            const section = batch[j];
+                            const sectionIndex = i + j;
+                            const uniqueClass = `lp-section-${section.type}-${Math.random().toString(36).substring(7)}`;
+                            const fallbackHtml = generateEnhancedFallbackHtml(section, sectionIndex, uniqueClass);
+                            sectionHtmls.push(fallbackHtml);
+                        }
+                        batchSuccess = true; // Continue with fallback
+                    }
+                }
+            }
         }
         
         console.log(`✅ All sections HTML generated in ${Date.now() - htmlStart}ms`);

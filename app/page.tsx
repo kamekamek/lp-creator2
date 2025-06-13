@@ -6,6 +6,7 @@ import { useEditMode } from './contexts/EditModeContext';
 import type { Message } from 'ai';
 import { LPTool } from './components/LPTool';
 import { LPViewer } from './components/LPViewer';
+import { EditModal } from './components/EditModal';
 
 // --- Prop Types ---
 interface InitialViewProps {
@@ -84,6 +85,94 @@ const MainView = ({
     title: '生成されたランディングページ',
     forcePanelOpen: false
   });
+
+  // 編集機能の状態管理
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingText, setEditingText] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // 選択された要素からテキストを抽出
+  const extractTextFromElement = (elementId: string): string => {
+    if (!lpToolState.htmlContent) return '';
+
+    try {
+      // DOMParserを使ってHTMLを解析
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
+      
+      // data-editable-id属性で要素を検索
+      const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
+      
+      if (element) {
+        // 要素内のテキストコンテンツを取得
+        return element.textContent?.trim() || '';
+      }
+    } catch (error) {
+      console.error('Error extracting text from element:', error);
+    }
+    
+    return '';
+  };
+
+  // 要素が選択された時にモーダルを開く
+  useEffect(() => {
+    if (selectedElementId && isEditMode) {
+      const text = extractTextFromElement(selectedElementId);
+      setEditingText(text);
+      setIsEditModalOpen(true);
+    } else {
+      setIsEditModalOpen(false);
+    }
+  }, [selectedElementId, isEditMode, lpToolState.htmlContent]);
+
+  // 編集モーダルを閉じる
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    selectElement(null);
+  };
+
+  // テキスト更新処理（AI連携）
+  const handleTextUpdate = async (newText: string) => {
+    if (!selectedElementId) return;
+
+    setIsUpdating(true);
+    try {
+      console.log('🔄 Updating element via AI:', selectedElementId, 'with text:', newText);
+      
+      // AI経由で更新を実行
+      const updatePrompt = `要素「${selectedElementId}」のテキストを「${newText}」に更新してください。`;
+      
+      // チャット経由でAIに更新を依頼
+      await sendPrompt(updatePrompt);
+      
+      handleEditModalClose();
+    } catch (error) {
+      console.error('Error updating text via AI:', error);
+      
+      // フォールバック: 直接HTML更新
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
+        const element = doc.querySelector(`[data-editable-id="${selectedElementId}"]`);
+        
+        if (element) {
+          element.textContent = newText;
+          const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
+          
+          setLpToolState(prev => ({
+            ...prev,
+            htmlContent: updatedHTML
+          }));
+        }
+        
+        handleEditModalClose();
+      } catch (fallbackError) {
+        console.error('Fallback update also failed:', fallbackError);
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // LPツール検出とコンテンツ抽出
   useEffect(() => {
@@ -378,6 +467,16 @@ const MainView = ({
           )}
         </div>
       </div>
+      
+      {/* 編集モーダル */}
+      <EditModal
+        isOpen={isEditModalOpen}
+        elementId={selectedElementId}
+        currentText={editingText}
+        onSave={handleTextUpdate}
+        onClose={handleEditModalClose}
+        isLoading={isUpdating}
+      />
     </div>
   );
 };
