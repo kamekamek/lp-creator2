@@ -113,8 +113,9 @@ export function LPViewer({ htmlContent }: LPViewerProps) {
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '600px',        border: 'none',
-        borderRadius: '8px',
+        flex: 1,
+        border: 'none',
+        borderRadius: '0px',
         backgroundColor: '#fff'
       }}
       sandbox="allow-scripts allow-same-origin"

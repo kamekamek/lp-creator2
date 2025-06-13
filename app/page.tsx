@@ -138,7 +138,7 @@ const MainView = ({
         </div>
         <div className="flex-1 flex flex-col">
           {latestLpMessage ? (
-            <div className="flex-1 h-full flex flex-col overflow-y-auto p-4">
+            <div className="flex-1 h-full overflow-hidden p-4 min-h-0">
               {/* プレビューラッパー: 高さを flex で埋める */}
               {latestLpMessage.display}
             </div>
