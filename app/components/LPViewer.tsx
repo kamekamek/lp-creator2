@@ -110,11 +110,10 @@ export function LPViewer({ htmlContent }: LPViewerProps) {
     <iframe
       ref={iframeRef}
       srcDoc={processedHtml}
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        minHeight: '600px',
-        border: 'none', 
+      style={{
+        width: '100%',
+        height: '100%',
+        minHeight: '600px',        border: 'none',
         borderRadius: '8px',
         backgroundColor: '#fff'
       }}

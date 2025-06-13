@@ -62,17 +62,13 @@ const MainView = ({
   selectElement,
   getPlaceholder
 }: MainViewProps) => {
-  // 最新のLPメッセージを取得
+  // 最新のLPメッセージを取得 (JSON文字列で判定)
   const latestLpMessage = [...messages]
     .reverse()
     .find(message => 
-      message.role === 'assistant' && 
-      message.display && 
-      typeof message.display === 'object' && 
-      'props' in message.display && (
-        message.display.props?.className?.includes('lp-preview-message') ||
-        message.display.props?.lpObject
-      )
+      message.role === 'assistant' &&
+      message.display &&
+      JSON.stringify(message.display).includes('lp-preview-message')
     );
 
   return (
@@ -98,15 +94,17 @@ const MainView = ({
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.filter(message => {
-            // LPプレビューはチャットエリアに表示しない
-            if (message.role === 'assistant' && 
-                message.display && 
-                typeof message.display === 'object' && 
-                'props' in message.display && (
-                  message.display.props?.className?.includes('lp-preview-message') ||
-                  message.display.props?.lpObject
-                )) {
-              return false;
+            // LPプレビューメッセージは左のチャットエリアには表示しない
+            // 全てのassistantからのLPコンテンツを除外
+            if (message.role === 'assistant' && message.display) {
+              const displayStr = JSON.stringify(message.display);
+              if (displayStr.includes('lp-preview-message') || 
+                  displayStr.includes('LpDisplay') ||
+                  displayStr.includes('lpObject') ||
+                  displayStr.includes('data-editable-id')) {
+                console.log('Filtering out LP message:', message.id);
+                return false;
+              }
             }
             return true;
           }).map((message) => (
@@ -140,7 +138,8 @@ const MainView = ({
         </div>
         <div className="flex-1 overflow-hidden">
           {latestLpMessage ? (
-            <div className="h-full overflow-y-auto p-4">
+            <div className="flex-1 h-full flex flex-col overflow-y-auto p-4">
+              {/* プレビューラッパー: 高さを flex で埋める */}
               {latestLpMessage.display}
             </div>
           ) : (
@@ -162,6 +161,9 @@ const MainView = ({
 export default function Page() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useUIState<typeof AI>();
+  // ai/rsc 型定義の制限により submitUserMessage の型が {} と解釈されることがあるため抑制
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const { submitUserMessage } = useActions<typeof AI>();
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
 

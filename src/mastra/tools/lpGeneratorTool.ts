@@ -86,8 +86,8 @@ async function generateSectionHtml(section: LPSection, sectionIndex: number) {
     const { object } = await generateObject({
       model: createAnthropic()('claude-3-5-sonnet-20240620'),
       schema: sectionHtmlSchema,
-      maxTokens: 4000,
-      temperature: 0.8,
+      maxTokens: 6000,
+      temperature: 0.7,
       prompt: `You must generate a JSON object with an "html" field containing valid HTML for a landing page section.
 
 Section Type: ${section.type}
