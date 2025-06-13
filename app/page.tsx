@@ -182,6 +182,8 @@ const MainView = ({
     // LP結果が見つかった場合は状態を更新
     if (foundLPResult && htmlContent) {
       console.log('[LP Detection] Setting LP tool state with HTML content');
+      console.log('[LP Detection] HTML content length:', htmlContent.length);
+      console.log('[LP Detection] Title:', title);
       setLpToolState({
         isActive: true,
         htmlContent: htmlContent,
@@ -190,6 +192,8 @@ const MainView = ({
       });
     } else {
       console.log('[LP Detection] No LP result found, keeping current state');
+      console.log('[LP Detection] foundLPResult:', foundLPResult);
+      console.log('[LP Detection] htmlContent length:', htmlContent?.length || 0);
     }
   }, [messages]);
 
@@ -201,13 +205,13 @@ const MainView = ({
     <div className="flex h-full overflow-hidden">
       {/* 左側: チャットエリア */}
       <main className="w-1/2 flex flex-col overflow-hidden bg-white border-r border-gray-200">
-        {/* LPツールがアクティブな場合に表示 */}
-        {lpToolState.isActive && (
+        {/* LPツールがアクティブで、HTMLコンテンツがない場合のみ表示 */}
+        {lpToolState.isActive && !lpToolState.htmlContent && (
           <LPTool 
             htmlContent={lpToolState.htmlContent}
             title={lpToolState.title}
-            autoOpenPreview={lpToolState.htmlContent !== ''} // HTMLコンテンツがある場合に自動的に開く
-            forcePanelOpen={lpToolState.forcePanelOpen} // 強制的にパネルを開くフラグ
+            autoOpenPreview={false}
+            forcePanelOpen={false}
             onCreateLP={() => {
               // LP編集機能を開く
               console.log("Edit LP clicked");
@@ -327,7 +331,27 @@ const MainView = ({
       {/* 右側: LPプレビューエリア */}
       <div className="w-1/2 flex flex-col bg-white">
         <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
-          <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
+            {lpToolState.isActive && lpToolState.htmlContent && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const blob = new Blob([lpToolState.htmlContent], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${lpToolState.title.replace(/[^a-z0-9]/gi, '_')}.html`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                >
+                  HTMLダウンロード
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex-1 overflow-hidden">
           {lpToolState.isActive && lpToolState.htmlContent ? (
@@ -343,6 +367,11 @@ const MainView = ({
                   <div>• フルスクリーン表示対応</div>
                   <div>• HTML/PDF出力機能</div>
                   <div>• リアルタイムプレビュー</div>
+                </div>
+                {/* デバッグ情報 */}
+                <div className="mt-4 text-xs text-red-500">
+                  <div>Debug: lpToolState.isActive = {lpToolState.isActive.toString()}</div>
+                  <div>Debug: htmlContent length = {lpToolState.htmlContent?.length || 0}</div>
                 </div>
               </div>
             </div>
