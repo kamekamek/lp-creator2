@@ -31,6 +31,8 @@ interface MainViewProps {
   getPlaceholder: () => string;
   setInput: (value: string) => void;
   sendPrompt: (prompt: string) => void;
+  isLoading?: boolean;
+  status?: string;
 }
 
 // --- Standalone Components ---
@@ -81,6 +83,8 @@ const MainView = ({
   getPlaceholder,
   setInput,
   sendPrompt,
+  isLoading,
+  status,
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
@@ -402,6 +406,35 @@ const MainView = ({
               </div>
             );
           })}
+          
+          {/* ローディング状態表示 */}
+          {isLoading && (
+            <div className="mb-4 mr-8">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
+                    AI
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                      <span className="text-sm text-blue-800 font-medium">
+                        {status === 'submitted' && 'リクエストを処理しています...'}
+                        {status === 'streaming' && 'AIが作成中です...'}
+                        {(!status || status === 'loading') && 'ランディングページを生成中...'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-blue-600">
+                      <div className="mb-1">🔍 戦略とコンセプトを分析中</div>
+                      <div className="mb-1">✏️ コピーとUXを設計中</div>
+                      <div className="mb-1">🛠️ HTML/CSS/JSを生成中</div>
+                      <div className="text-blue-500">💡 高品質なLP作成まで少々お待ちください</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
@@ -413,11 +446,11 @@ const MainView = ({
               </div>
             )}
             <input
-              className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
-              placeholder={getPlaceholder()}
+              className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder={isLoading ? 'AI処理中です...' : getPlaceholder()}
               value={input}
               onChange={handleInputChange}
-              disabled={isEditMode && !selectedElementId}
+              disabled={isLoading || (isEditMode && !selectedElementId)}
             />
             {/* デバッグ情報 */}
             <div className="text-xs text-gray-500 mt-1">
@@ -514,6 +547,7 @@ export default function Page() {
     isLoading, 
     error,
     setInput,
+    status,
   } = useChat({
     api: '/api/lp-creator/chat', // 新しいMastraベースのAPI
     onFinish: (message) => {
@@ -599,6 +633,8 @@ export default function Page() {
                   getPlaceholder={getPlaceholder}
                   setInput={setInput}
                   sendPrompt={sendPrompt}
+                  isLoading={isLoading}
+                  status={status}
                 />
               ) : (
                 <InitialView 
