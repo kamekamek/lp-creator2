@@ -21,7 +21,7 @@ const sectionHtmlSchema = z.object({
  */
 async function regenerateSectionHtml(section: z.infer<typeof sectionSchema>, modificationPrompt: string, sectionIndex: number) {
   const { object } = await generateObject({
-    model: createAnthropic()('claude-3-5-sonnet-20240620'),
+    model: createAnthropic()('claude-opus-4-20250514'),
     schema: sectionHtmlSchema,
     prompt: `You are tasked with modifying a specific section of an existing landing page. 
     The user wants to change an element within this section.
@@ -85,7 +85,7 @@ export async function partialUpdateLP({
     // So, we must regenerate the other sections as well to be safe.
     // A better approach would be to store each section's HTML separately.
     const { object } = await generateObject({
-        model: createAnthropic()('claude-3-5-sonnet-20240620'),
+        model: createAnthropic()('claude-opus-4-20250514'),
         schema: sectionHtmlSchema,
         prompt: `Generate the HTML for a landing page section based on the following prompt. Use Tailwind CSS for styling. Make it visually appealing and responsive. 
 

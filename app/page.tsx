@@ -9,6 +9,8 @@ import { LPTool } from './components/LPTool';
 import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
+import { ProHPWorkflowPanel } from './components/ProHPWorkflowPanel';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 // --- Prop Types ---
 interface InitialViewProps {
@@ -501,6 +503,7 @@ const MainView = ({
 
 export default function Page() {
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
+  const [activeTab, setActiveTab] = useState('quick');
 
   // 新しいMastraベースのチャットシステムを使用
   const { 
@@ -531,7 +534,6 @@ export default function Page() {
   console.log('[Page] Messages length:', messages.length);
   console.log('[Page] Messages:', messages);
   console.log('[Page] Show main view:', showMainView);
-
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -567,28 +569,54 @@ export default function Page() {
   };
 
   return (
-    <div className="h-screen">
-      {showMainView ? (
-        <MainView 
-          messages={messages}
-          input={input}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-          isEditMode={isEditMode}
-          toggleEditMode={toggleEditMode}
-          selectedElementId={selectedElementId}
-          selectElement={selectElement}
-          getPlaceholder={getPlaceholder}
-          setInput={setInput}
-          sendPrompt={sendPrompt}
-        />
-      ) : (
-        <InitialView 
-          input={input}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-        />
-      )}
+    <div className="h-screen bg-gray-50">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+        {/* タブヘッダー */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div className="max-w-6xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">LP Creator</h1>
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="quick">クイック作成</TabsTrigger>
+              <TabsTrigger value="professional">プロフェッショナル</TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+        {/* タブコンテンツ */}
+        <div className="flex-1 overflow-hidden">
+          <TabsContent value="quick" className="h-full m-0">
+            <div className="h-full">
+              {showMainView ? (
+                <MainView 
+                  messages={messages}
+                  input={input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  isEditMode={isEditMode}
+                  toggleEditMode={toggleEditMode}
+                  selectedElementId={selectedElementId}
+                  selectElement={selectElement}
+                  getPlaceholder={getPlaceholder}
+                  setInput={setInput}
+                  sendPrompt={sendPrompt}
+                />
+              ) : (
+                <InitialView 
+                  input={input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                />
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="professional" className="h-full m-0">
+            <div className="h-full overflow-auto bg-gray-50">
+              <ProHPWorkflowPanel />
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }
