@@ -1,23 +1,25 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useEditMode } from './contexts/EditModeContext';
 import type { Message } from 'ai';
 import { LPTool } from './components/LPTool';
 import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
+import { MarkdownRenderer } from './components/MarkdownRenderer';
 
 // --- Prop Types ---
 interface InitialViewProps {
-  inputValue: string;
+  input: string;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
 }
 
 interface MainViewProps {
   messages: any[]; // Consider a more specific type if available from useUIState
-  inputValue: string;
+  input: string;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
   isEditMode: boolean;
@@ -25,15 +27,13 @@ interface MainViewProps {
   selectedElementId: string | null;
   selectElement: (id: string | null) => void;
   getPlaceholder: () => string;
-  setInputValue: (value: string) => void;
+  setInput: (value: string) => void;
   sendPrompt: (prompt: string) => void;
-  onContentUpdate: (content: string) => void;
-  onAIRequest: (message: string) => Promise<void>;
 }
 
 // --- Standalone Components ---
 
-const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialViewProps) => (
+const InitialView = ({ input, handleInputChange, handleSubmit }: InitialViewProps) => (
   <div className="flex flex-col items-center justify-center h-full bg-gray-50">
     <div className="w-full max-w-2xl p-8 text-center">
       <h1 className="text-4xl font-bold text-gray-800 mb-4">今日は何をデザインしますか？</h1>
@@ -42,14 +42,14 @@ const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialVie
         <input
           className="flex-grow p-4 border border-gray-300 rounded-l-lg text-black text-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
           placeholder="例：AI写真編集アプリのランディングページ..."
-          value={inputValue}
+          value={input}
           onChange={handleInputChange}
           autoFocus
         />
         <button
           type="submit"
           className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400"
-          disabled={!inputValue.trim()}
+          disabled={!input.trim()}
         >
           生成
         </button>
@@ -69,7 +69,7 @@ interface LPToolState {
 
 const MainView = ({
   messages,
-  inputValue,
+  input,
   handleInputChange,
   handleSubmit,
   isEditMode,
@@ -77,10 +77,8 @@ const MainView = ({
   selectedElementId,
   selectElement,
   getPlaceholder,
-  setInputValue,
+  setInput,
   sendPrompt,
-  onContentUpdate,
-  onAIRequest,
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
@@ -94,7 +92,6 @@ const MainView = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingText, setEditingText] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
-  const [lastManualUpdate, setLastManualUpdate] = useState<{elementId: string, text: string, timestamp: number} | null>(null);
 
   // 選択された要素からテキストを抽出
   const extractTextFromElement = (elementId: string): string => {
@@ -119,7 +116,7 @@ const MainView = ({
     return '';
   };
 
-  // 要素が選択された時にモーダルを開く（シンプル版）
+  // 要素が選択された時にモーダルを開く
   useEffect(() => {
     if (selectedElementId && isEditMode) {
       const text = extractTextFromElement(selectedElementId);
@@ -136,134 +133,48 @@ const MainView = ({
     selectElement(null);
   };
 
-  // テキスト更新処理（即座反映優先）
+  // テキスト更新処理（AI連携）
   const handleTextUpdate = async (newText: string) => {
     if (!selectedElementId) return;
 
     setIsUpdating(true);
     try {
-      console.log('🔄 Immediate text update:', selectedElementId, 'with text:', newText);
+      console.log('🔄 Updating element via AI:', selectedElementId, 'with text:', newText);
       
-      // より安全な方法で即座にローカル更新
-      let updatedHTML = lpToolState.htmlContent;
+      // AI経由で更新を実行
+      const updatePrompt = `要素「${selectedElementId}」のテキストを「${newText}」に更新してください。`;
       
+      // チャット経由でAIに更新を依頼
+      await sendPrompt(updatePrompt);
+      
+      handleEditModalClose();
+    } catch (error) {
+      console.error('Error updating text via AI:', error);
+      
+      // フォールバック: 直接HTML更新
       try {
         const parser = new DOMParser();
         const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
         const element = doc.querySelector(`[data-editable-id="${selectedElementId}"]`);
         
         if (element) {
-          const originalText = element.textContent || '';
-          console.log(`📝 Original text: "${originalText}"`);
-          console.log(`📝 New text: "${newText}"`);
-          
           element.textContent = newText;
+          const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
           
-          // HTMLの種類に応じて適切に更新
-          console.log('📄 HTML format detection...');
-          if (lpToolState.htmlContent.includes('<!DOCTYPE')) {
-            console.log('📄 Using full document format');
-            updatedHTML = doc.documentElement.outerHTML;
-          } else if (lpToolState.htmlContent.includes('<html')) {
-            console.log('📄 Using html element format');
-            updatedHTML = doc.documentElement.outerHTML;
-          } else {
-            console.log('📄 Using body content format');
-            updatedHTML = doc.body?.innerHTML || lpToolState.htmlContent;
-          }
-          
-          console.log(`📏 Original length: ${lpToolState.htmlContent.length}, Updated length: ${updatedHTML.length}`);
-          
-          // 簡単な検証: 更新後のHTMLが大幅に短くなっていないかチェック
-          if (updatedHTML.length < lpToolState.htmlContent.length * 0.5) {
-            console.warn('⚠️ Updated HTML seems corrupted, using string replacement instead');
-            // フォールバック: 文字列置換
-            updatedHTML = lpToolState.htmlContent.replace(originalText, newText);
-          }
-          
-          // 手動更新の記録
-          setLastManualUpdate({
-            elementId: selectedElementId,
-            text: newText,
-            timestamp: Date.now()
-          });
-          
-          // 即座にUIを更新
-          setLpToolState(prev => {
-            const newState = {
-              ...prev,
-              htmlContent: updatedHTML
-            };
-            console.log('📦 State updated immediately');
-            return newState;
-          });
-          
-          console.log('✅ Manual update completed and recorded');
+          setLpToolState(prev => ({
+            ...prev,
+            htmlContent: updatedHTML
+          }));
         }
-      } catch (error) {
-        console.error('❌ DOM parsing failed, using string replacement:', error);
-        // フォールバック: 単純な文字列置換（最も安全）
-        const element = lpToolState.htmlContent.match(new RegExp(`data-editable-id="${selectedElementId}"[^>]*>([^<]*)`));
-        if (element && element[1]) {
-          updatedHTML = lpToolState.htmlContent.replace(element[1], newText);
-          
-          // 手動更新の記録
-          setLastManualUpdate({
-            elementId: selectedElementId,
-            text: newText,
-            timestamp: Date.now()
-          });
-          
-          setLpToolState(prev => {
-            const newState = {
-              ...prev,
-              htmlContent: updatedHTML
-            };
-            console.log('📦 Fallback state updated immediately');
-            return newState;
-          });
-          console.log('✅ Updated via string replacement');
-        }
+        
+        handleEditModalClose();
+      } catch (fallbackError) {
+        console.error('Fallback update also failed:', fallbackError);
       }
-      
-      handleEditModalClose();
-      
-    } catch (error) {
-      console.error('Error updating text:', error);
     } finally {
       setIsUpdating(false);
     }
   };
-
-  // AI改善処理（明示的なリクエスト時のみ）
-  const handleAIImprove = async (text: string) => {
-    if (!selectedElementId) return;
-
-    console.log('🤖 AI improvement requested for:', selectedElementId, 'with text:', text);
-    const improvePrompt = `要素「${selectedElementId}」のテキスト「${text}」をより良く改善してください。`;
-    
-    handleEditModalClose();
-    sendPrompt(improvePrompt);
-  };
-
-  // 即時編集のコンテンツ更新ハンドラー
-  const handleContentUpdate = useCallback((updatedContent: string) => {
-    console.log('🔄 Immediate content update received');
-    console.log('📏 Updated content length:', updatedContent.length);
-    setLpToolState(prev => {
-      console.log('📦 Updating lpToolState with new HTML content');
-      return {
-        ...prev,
-        htmlContent: updatedContent
-      };
-    });
-  }, []);
-
-  // AI改善リクエストのハンドラー
-  const handleAIRequest = useCallback(async (message: string) => {
-    console.log('🤖 AI improvement request:', message);
-    await sendPrompt(message);
-  }, [sendPrompt]);
 
   // LPツール検出とコンテンツ抽出
   useEffect(() => {
@@ -315,32 +226,8 @@ const MainView = ({
             hasResult: !!toolInvocation.result
           });
           
-          // 部分更新ツールの結果を検出して最近の手動更新と競合チェック
-          if ((toolInvocation.toolName === 'partialUpdateMastraTool' || 
-               toolInvocation.toolName === 'aiPartialUpdateTool') && 
-              toolInvocation.state === 'result' && 
-              toolInvocation.result) {
-            
-            console.log('[Partial Update Detection] Found partial update result:', toolInvocation.result);
-            
-            // 最近の手動更新と競合しているかチェック
-            if (lastManualUpdate && 
-                toolInvocation.result.elementId === lastManualUpdate.elementId &&
-                Date.now() - lastManualUpdate.timestamp < 5000) { // 5秒以内
-              console.log('🚫 Ignoring AI update - conflicts with recent manual update');
-              continue; // この更新を無視
-            }
-            
-            // 競合しない場合のみ適用
-            if (toolInvocation.result.htmlContent) {
-              htmlContent = toolInvocation.result.htmlContent;
-              foundLPResult = true;
-              console.log('[Partial Update] Applied AI update for element:', toolInvocation.result.elementId);
-            }
-          }
-          
           // enhancedLPGeneratorToolまたはhtmlLPToolの結果を検索
-          else if ((toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
+          if ((toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
                toolInvocation.toolName === 'htmlLPTool') && 
               toolInvocation.state === 'result' && 
               toolInvocation.result) {
@@ -473,8 +360,14 @@ const MainView = ({
                       {message.role === 'user' ? 'U' : 'AI'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                        {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                      <div className="text-sm text-gray-900">
+                        {typeof message.content === 'string' ? (
+                          <MarkdownRenderer content={message.content} />
+                        ) : (
+                          <div className="whitespace-pre-wrap">
+                            {JSON.stringify(message.content)}
+                          </div>
+                        )}
                       </div>
                       
                       {/* 構造提案の場合、確認ボタンを表示 */}
@@ -520,7 +413,7 @@ const MainView = ({
             <input
               className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
               placeholder={getPlaceholder()}
-              value={inputValue}
+              value={input}
               onChange={handleInputChange}
               disabled={isEditMode && !selectedElementId}
             />
@@ -563,8 +456,11 @@ const MainView = ({
               <LPViewer 
                 htmlContent={lpToolState.htmlContent} 
                 cssContent={lpToolState.cssContent}
-                onContentUpdate={onContentUpdate}
-                onAIRequest={onAIRequest}
+                onTextUpdate={handleTextUpdate}
+                onAIImprove={(elementId, currentText) => {
+                  const prompt = `要素「${elementId}」のテキスト「${currentText}」をAIで改善してください。`;
+                  sendPrompt(prompt);
+                }}
               />
             </div>
           ) : (
@@ -595,7 +491,6 @@ const MainView = ({
         currentText={editingText}
         onSave={handleTextUpdate}
         onClose={handleEditModalClose}
-        onAIImprove={handleAIImprove}
         isLoading={isUpdating}
       />
     </div>
@@ -605,7 +500,6 @@ const MainView = ({
 // --- Main Page Component ---
 
 export default function Page() {
-  const [inputValue, setInputValue] = useState('');
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
 
   // 新しいMastraベースのチャットシステムを使用
@@ -638,27 +532,19 @@ export default function Page() {
   console.log('[Page] Messages:', messages);
   console.log('[Page] Show main view:', showMainView);
 
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!input.trim()) return;
 
-    console.log('[Page] Submitting message:', inputValue);
+    console.log('[Page] Submitting message via sendPrompt:', input);
     console.log('[Page] Messages before submit:', messages.length);
     
-    // useChat の内部 input に先にセットし、その後 submit を遅延実行
-    setInput(inputValue);
-    setInputValue('');
-
-    // setInput の state 更新が反映されてから submit しないと空文字が送信されるため、0ms 遅延を入れる
-    setTimeout(() => {
-      const fakeEvt = { preventDefault: () => {} } as any;
-      originalHandleSubmit(fakeEvt);
-    }, 0);
+    // sendPrompt ensures setInput is committed before triggering originalHandleSubmit
+    sendPrompt(input);
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  };
+  const handleInputChange = originalHandleInputChange;
 
   const getPlaceholder = () => {
     if (!isEditMode) {
@@ -672,22 +558,20 @@ export default function Page() {
 
   // 任意のプロンプトを即座に送信するユーティリティ
   const sendPrompt = (prompt: string) => {
-    // Chat input を直接設定し、そのまま submit
-    setInput(prompt);
-    setTimeout(() => {
-      // originalHandleSubmit は current form event が必要ない実装なのでダミーを渡す
-      const fakeEvt = { preventDefault: () => {} } as any;
-      originalHandleSubmit(fakeEvt);
-    }, 0);
+    // flushSync で setInput を同期的に反映させてから submit を実行する
+    flushSync(() => {
+      setInput(prompt);
+    });
+    const fakeEvt = { preventDefault: () => {} } as any;
+    originalHandleSubmit(fakeEvt);
   };
-
 
   return (
     <div className="h-screen">
       {showMainView ? (
         <MainView 
           messages={messages}
-          inputValue={inputValue}
+          input={input}
           handleInputChange={handleInputChange}
           handleSubmit={handleSubmit}
           isEditMode={isEditMode}
@@ -695,14 +579,12 @@ export default function Page() {
           selectedElementId={selectedElementId}
           selectElement={selectElement}
           getPlaceholder={getPlaceholder}
-          setInputValue={setInputValue}
+          setInput={setInput}
           sendPrompt={sendPrompt}
-          onContentUpdate={handleContentUpdate}
-          onAIRequest={handleAIRequest}
         />
       ) : (
         <InitialView 
-          inputValue={inputValue}
+          input={input}
           handleInputChange={handleInputChange}
           handleSubmit={handleSubmit}
         />

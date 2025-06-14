@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { createLPCreatorAgent, createModel } from '@/src/mastra/agents/lpCreatorAgent';
-import { mastra } from '@/src/mastra';
+
 import { Message } from 'ai';
 import { streamText } from 'ai';
 

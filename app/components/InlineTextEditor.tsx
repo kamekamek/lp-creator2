@@ -1,151 +1,199 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Check, X, Sparkles, Type } from 'lucide-react';
 
 interface InlineTextEditorProps {
-  text: string;
-  onSave: (newText: string) => Promise<void>;
+  initialText: string;
+  elementId: string;
+  isActive: boolean;
+  onSave: (newText: string) => void;
   onCancel: () => void;
+  onAIImprove?: (text: string) => void;
   className?: string;
   placeholder?: string;
-  isLoading?: boolean;
-  multiline?: boolean;
 }
 
 export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
-  text,
+  initialText,
+  elementId,
+  isActive,
   onSave,
   onCancel,
+  onAIImprove,
   className = '',
-  placeholder = 'テキストを入力...',
-  isLoading = false,
-  multiline = false
+  placeholder = 'テキストを入力...'
 }) => {
-  const [value, setValue] = useState(text);
-  const [isEditing, setIsEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const [text, setText] = useState(initialText);
+  const [hasChanges, setHasChanges] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // 編集開始
-  const startEditing = useCallback(() => {
-    setIsEditing(true);
-    setValue(text);
-  }, [text]);
+  // テキスト変更の監視
+  useEffect(() => {
+    setHasChanges(text !== initialText);
+  }, [text, initialText]);
 
-  // 編集確定
-  const handleSave = useCallback(async () => {
-    if (value.trim() !== text.trim()) {
-      try {
-        await onSave(value.trim());
-      } catch (error) {
-        console.error('Save failed:', error);
-        setValue(text); // 元の値に戻す
-      }
+  // アクティブになった時にフォーカス
+  useEffect(() => {
+    if (isActive && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
     }
-    setIsEditing(false);
-  }, [value, text, onSave]);
+  }, [isActive]);
 
-  // 編集キャンセル
-  const handleCancel = useCallback(() => {
-    setValue(text);
-    setIsEditing(false);
-    onCancel();
-  }, [text, onCancel]);
+  // テキストエリアの高さを自動調整
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+  }, []);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [text, adjustTextareaHeight]);
 
   // キーボードイベント処理
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && !multiline) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSave();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       handleCancel();
     }
-  }, [handleSave, handleCancel, multiline]);
-
-  // フォーカス処理
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      // テキスト全選択
-      if (inputRef.current instanceof HTMLInputElement) {
-        inputRef.current.select();
-      } else if (inputRef.current instanceof HTMLTextAreaElement) {
-        inputRef.current.setSelectionRange(0, inputRef.current.value.length);
-      }
-    }
-  }, [isEditing]);
-
-  // フォーカス外れた時の処理
-  const handleBlur = useCallback((e: React.FocusEvent) => {
-    // わずかな遅延を設けて他の要素のクリックを処理する
-    setTimeout(() => {
-      if (isEditing) {
-        handleSave();
-      }
-    }, 100);
-  }, [isEditing, handleSave]);
-
-  if (!isEditing) {
-    return (
-      <div
-        className={`inline-text-editor-display ${className} cursor-pointer hover:bg-gray-100 transition-colors duration-200 rounded px-2 py-1`}
-        onDoubleClick={startEditing}
-        title="ダブルクリックで編集"
-      >
-        {text || <span className="text-gray-400 italic">{placeholder}</span>}
-        {/* 編集アイコンをホバー時に表示 */}
-        <span className="inline-text-editor-icon ml-2 opacity-0 hover:opacity-100 transition-opacity duration-200">
-          ✏️
-        </span>
-      </div>
-    );
-  }
-
-  const commonProps = {
-    ref: inputRef as any,
-    value,
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setValue(e.target.value),
-    onKeyDown: handleKeyDown,
-    onBlur: handleBlur,
-    className: `inline-text-editor-input ${className} border-2 border-blue-500 rounded px-2 py-1 outline-none text-gray-900 ${isLoading ? 'opacity-50' : ''}`,
-    placeholder,
-    disabled: isLoading
   };
 
+  // 保存処理
+  const handleSave = useCallback(() => {
+    if (text.trim() && hasChanges) {
+      onSave(text.trim());
+    } else if (!text.trim()) {
+      // 空の場合は元のテキストに戻す
+      setText(initialText);
+      onCancel();
+    } else {
+      onCancel();
+    }
+  }, [text, hasChanges, onSave, onCancel, initialText]);
+
+  // キャンセル処理
+  const handleCancel = useCallback(() => {
+    setText(initialText);
+    onCancel();
+  }, [initialText, onCancel]);
+
+  // AI改善処理
+  const handleAIImprove = useCallback(() => {
+    if (onAIImprove && text.trim()) {
+      onAIImprove(text.trim());
+    }
+  }, [onAIImprove, text]);
+
+  // 外部クリックでの保存
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isActive && containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        handleSave();
+      }
+    };
+
+    if (isActive) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isActive, handleSave]);
+
+  if (!isActive) {
+    return null;
+  }
+
   return (
-    <div className="inline-text-editor-container relative">
-      {multiline ? (
-        <textarea
-          {...commonProps}
-          rows={3}
-          className={`${commonProps.className} resize-none text-gray-900 placeholder:text-gray-400`}
-        />
-      ) : (
-        <input
-          type="text"
-          {...commonProps}
-          className={`${commonProps.className} text-gray-900 placeholder:text-gray-400`}
-        />
-      )}
+    <div 
+      ref={containerRef}
+      className={`relative inline-block w-full ${className}`}
+    >
+      {/* メインのテキストエリア */}
+      <textarea
+        ref={textareaRef}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className={`
+          w-full min-h-[2rem] resize-none overflow-hidden
+          bg-white border-2 border-blue-500 rounded-md
+          px-3 py-2 text-black text-base leading-relaxed
+          focus:outline-none focus:border-blue-600
+          placeholder:text-gray-400
+        `}
+        style={{
+          fontFamily: 'inherit',
+          fontSize: 'inherit',
+          fontWeight: 'inherit',
+          lineHeight: 'inherit'
+        }}
+      />
       
-      {/* 編集中のコントロールボタン */}
-      <div className="inline-text-editor-controls absolute -bottom-8 left-0 flex gap-2 bg-white border border-gray-200 rounded shadow-lg p-1">
+      {/* 操作ボタン */}
+      <div className="absolute -bottom-12 left-0 flex items-center gap-2 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 z-10">
+        {/* 保存ボタン */}
         <button
           onClick={handleSave}
-          disabled={isLoading}
-          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          title="保存 (Enter)"
+          disabled={!hasChanges || !text.trim()}
+          className={`
+            flex items-center gap-1 px-3 py-1 rounded text-sm font-medium transition-colors
+            ${hasChanges && text.trim() 
+              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }
+          `}
+          title="Enter で保存"
         >
-          {isLoading ? '保存中...' : '✓'}
+          <Check className="h-3 w-3" />
+          保存
         </button>
+
+        {/* キャンセルボタン */}
         <button
           onClick={handleCancel}
-          disabled={isLoading}
-          className="px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 disabled:opacity-50 transition-colors"
-          title="キャンセル (Esc)"
+          className="flex items-center gap-1 px-3 py-1 rounded text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+          title="Esc でキャンセル"
         >
-          ✕
+          <X className="h-3 w-3" />
+          キャンセル
         </button>
+
+        {/* AI改善ボタン */}
+        {onAIImprove && (
+          <button
+            onClick={handleAIImprove}
+            disabled={!text.trim()}
+            className={`
+              flex items-center gap-1 px-3 py-1 rounded text-sm font-medium transition-colors
+              ${text.trim()
+                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }
+            `}
+            title="AIで改善"
+          >
+            <Sparkles className="h-3 w-3" />
+            AI改善
+          </button>
+        )}
+
+        {/* 文字数表示 */}
+        <div className="text-xs text-gray-500 ml-2">
+          {text.length} 文字
+        </div>
+      </div>
+
+      {/* キーボードショートカットヒント */}
+      <div className="absolute -bottom-20 left-0 text-xs text-gray-400">
+        Enter: 保存 | Esc: キャンセル | 外側クリック: 保存
       </div>
     </div>
   );
