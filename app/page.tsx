@@ -8,17 +8,18 @@ import type { Message } from 'ai';
 import { LPTool } from './components/LPTool';
 import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
+import { MarkdownRenderer } from './components/MarkdownRenderer';
 
 // --- Prop Types ---
 interface InitialViewProps {
-  inputValue: string;
+  input: string;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
 }
 
 interface MainViewProps {
   messages: any[]; // Consider a more specific type if available from useUIState
-  inputValue: string;
+  input: string;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
   isEditMode: boolean;
@@ -26,13 +27,13 @@ interface MainViewProps {
   selectedElementId: string | null;
   selectElement: (id: string | null) => void;
   getPlaceholder: () => string;
-  setInputValue: (value: string) => void;
+  setInput: (value: string) => void;
   sendPrompt: (prompt: string) => void;
 }
 
 // --- Standalone Components ---
 
-const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialViewProps) => (
+const InitialView = ({ input, handleInputChange, handleSubmit }: InitialViewProps) => (
   <div className="flex flex-col items-center justify-center h-full bg-gray-50">
     <div className="w-full max-w-2xl p-8 text-center">
       <h1 className="text-4xl font-bold text-gray-800 mb-4">今日は何をデザインしますか？</h1>
@@ -41,14 +42,14 @@ const InitialView = ({ inputValue, handleInputChange, handleSubmit }: InitialVie
         <input
           className="flex-grow p-4 border border-gray-300 rounded-l-lg text-black text-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
           placeholder="例：AI写真編集アプリのランディングページ..."
-          value={inputValue}
+          value={input}
           onChange={handleInputChange}
           autoFocus
         />
         <button
           type="submit"
           className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400"
-          disabled={!inputValue.trim()}
+          disabled={!input.trim()}
         >
           生成
         </button>
@@ -68,7 +69,7 @@ interface LPToolState {
 
 const MainView = ({
   messages,
-  inputValue,
+  input,
   handleInputChange,
   handleSubmit,
   isEditMode,
@@ -76,7 +77,7 @@ const MainView = ({
   selectedElementId,
   selectElement,
   getPlaceholder,
-  setInputValue,
+  setInput,
   sendPrompt,
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
@@ -359,8 +360,14 @@ const MainView = ({
                       {message.role === 'user' ? 'U' : 'AI'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                        {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                      <div className="text-sm text-gray-900">
+                        {typeof message.content === 'string' ? (
+                          <MarkdownRenderer content={message.content} />
+                        ) : (
+                          <div className="whitespace-pre-wrap">
+                            {JSON.stringify(message.content)}
+                          </div>
+                        )}
                       </div>
                       
                       {/* 構造提案の場合、確認ボタンを表示 */}
@@ -406,7 +413,7 @@ const MainView = ({
             <input
               className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
               placeholder={getPlaceholder()}
-              value={inputValue}
+              value={input}
               onChange={handleInputChange}
               disabled={isEditMode && !selectedElementId}
             />
@@ -493,15 +500,14 @@ const MainView = ({
 // --- Main Page Component ---
 
 export default function Page() {
-  const [inputValue, setInputValue] = useState('');
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
 
   // 新しいMastraベースのチャットシステムを使用
   const { 
     messages, 
     input, 
-    handleInputChange: originalHandleInputChange, 
-    handleSubmit: originalHandleSubmit, 
+    handleInputChange, 
+    handleSubmit, 
     isLoading, 
     error,
     setInput,
@@ -525,6 +531,7 @@ export default function Page() {
   console.log('[Page] Messages length:', messages.length);
   console.log('[Page] Messages:', messages);
   console.log('[Page] Show main view:', showMainView);
+
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -559,15 +566,14 @@ export default function Page() {
       setInput(prompt);
     });
     const fakeEvt = { preventDefault: () => {} } as any;
-    originalHandleSubmit(fakeEvt);
-  };
+    originalHandleSubmit(fakeEvt);  };
 
   return (
     <div className="h-screen">
       {showMainView ? (
         <MainView 
           messages={messages}
-          inputValue={inputValue}
+          input={input}
           handleInputChange={handleInputChange}
           handleSubmit={handleSubmit}
           isEditMode={isEditMode}
@@ -575,12 +581,12 @@ export default function Page() {
           selectedElementId={selectedElementId}
           selectElement={selectElement}
           getPlaceholder={getPlaceholder}
-          setInputValue={setInputValue}
+          setInput={setInput}
           sendPrompt={sendPrompt}
         />
       ) : (
         <InitialView 
-          inputValue={inputValue}
+          input={input}
           handleInputChange={handleInputChange}
           handleSubmit={handleSubmit}
         />
