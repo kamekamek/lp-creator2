@@ -1,4 +1,4 @@
-import { createTool } from '@mastra/core';
+import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
 const generateHTMLSchema = z.object({
@@ -40,7 +40,8 @@ export const generateHTMLTool = createTool({
   description: 'プロフェッショナルなランディングページのHTMLを生成する',
   inputSchema: generateHTMLSchema,
   outputSchema: generateHTMLOutputSchema,
-  execute: async ({ fileStructure, copyContent, wireframe, technicalSpecs }) => {
+  execute: async ({ context }) => {
+    const { fileStructure, copyContent, wireframe, technicalSpecs } = context;
     // SEO最適化されたメタタグの生成
     const metaTags = [
       '<meta charset="UTF-8">',

@@ -44,7 +44,8 @@ export const generateJSTool = createTool({
   description: 'プロフェッショナルなランディングページのJavaScriptを生成する',
   inputSchema: generateJSSchema,
   outputSchema: generateJSOutputSchema,
-  execute: async ({ html, css, technicalSpecs, interactionRequirements }) => {
+  execute: async ({ context }) => {
+    const { html, css, technicalSpecs, interactionRequirements } = context;
     // メインJavaScriptファイル
     const main = `
 /**

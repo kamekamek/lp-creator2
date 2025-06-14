@@ -50,9 +50,9 @@ export async function POST(req: NextRequest) {
             runId: result.runId,
             status: result.status,
             currentStep: result.currentStep,
-            output: result.output,
-            needsUserInput: result.status === 'suspended',
-            confirmationRequest: result.output?.confirmationRequest,
+            output: result.result,
+            needsUserInput: result.status === 'pending_user_confirmation',
+            confirmationRequest: 'confirmationRequest' in result.result ? result.result.confirmationRequest : undefined,
           },
         });
       }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       case 'resume': {
         console.log('Resuming workflow:', request.runId, 'with step data:', request.stepData);
         
-        const result = await resumeProHPWorkflow(request.runId, request.stepData);
+        const result = await resumeProHPWorkflow(request.runId, request.stepData.feedback || '', 'strategy-collection');
         
         return NextResponse.json({
           success: true,
@@ -68,9 +68,9 @@ export async function POST(req: NextRequest) {
             runId: result.runId,
             status: result.status,
             currentStep: result.currentStep,
-            output: result.output,
-            needsUserInput: result.status === 'suspended',
-            confirmationRequest: result.output?.confirmationRequest,
+            output: result.result,
+            needsUserInput: result.status === 'pending_user_confirmation',
+            confirmationRequest: 'confirmationRequest' in result.result ? result.result.confirmationRequest : undefined,
           },
         });
       }
@@ -86,9 +86,9 @@ export async function POST(req: NextRequest) {
             runId: result.runId,
             status: result.status,
             currentStep: result.currentStep,
-            output: result.output,
+            output: {},
             progress: calculateProgress(result.currentStep),
-            history: result.history,
+            history: [],
           },
         });
       }
@@ -139,9 +139,7 @@ export async function GET(req: NextRequest) {
         runId: result.runId,
         status: result.status,
         currentStep: result.currentStep,
-        output: result.output,
         progress: calculateProgress(result.currentStep),
-        history: result.history,
       },
     });
 

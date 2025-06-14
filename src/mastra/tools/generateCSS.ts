@@ -1,4 +1,4 @@
-import { createTool } from '@mastra/core';
+import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
 const generateCSSSchema = z.object({
@@ -39,7 +39,8 @@ export const generateCSSTool = createTool({
   description: 'プロフェッショナルなランディングページのCSSを生成する',
   inputSchema: generateCSSSchema,
   outputSchema: generateCSSOutputSchema,
-  execute: async ({ html, fileStructure, technicalSpecs, designDirection }) => {
+  execute: async ({ context }) => {
+    const { html, fileStructure, technicalSpecs, designDirection } = context;
     // CSS変数定義（デザインシステム）
     const variables = `
 /* CSS変数による一元管理 */

@@ -1,5 +1,6 @@
-import { createTool } from '@mastra/core';
+import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+
 
 const planFileStructureSchema = z.object({
   concept: z.string().describe('サイトのコンセプトとデザイン方向性'),
@@ -32,8 +33,8 @@ export const planFileStructureTool = createTool({
   description: 'サイトコンセプトに基づいてファイル構造と実装方針を設計する',
   inputSchema: planFileStructureSchema,
   outputSchema: planFileStructureOutputSchema,
-  execute: async ({ input }) => {
-    const { concept, copyContent, wireframe, targetAudience } = input;
+  execute: async ({ context }) => {
+    const { concept, copyContent, wireframe, targetAudience } = context;
     // ファイル構造の設計
     const fileStructure = {
       description: `${concept}に基づくモジュラー設計で、保守性とパフォーマンスを両立したファイル構造`,

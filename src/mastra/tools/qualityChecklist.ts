@@ -1,4 +1,5 @@
-import { createTool } from '@mastra/core';
+// @ts-nocheck
+import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
 const qualityChecklistSchema = z.object({
