@@ -506,8 +506,8 @@ export default function Page() {
   const { 
     messages, 
     input, 
-    handleInputChange, 
-    handleSubmit, 
+    handleInputChange: originalHandleInputChange, 
+    handleSubmit: originalHandleSubmit, 
     isLoading, 
     error,
     setInput,
@@ -535,19 +535,16 @@ export default function Page() {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!input.trim()) return;
 
-    console.log('[Page] Submitting message via sendPrompt:', inputValue);
+    console.log('[Page] Submitting message via sendPrompt:', input);
     console.log('[Page] Messages before submit:', messages.length);
-
+    
     // sendPrompt ensures setInput is committed before triggering originalHandleSubmit
-    sendPrompt(inputValue);
-    setInputValue('');
+    sendPrompt(input);
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  };
+  const handleInputChange = originalHandleInputChange;
 
   const getPlaceholder = () => {
     if (!isEditMode) {
@@ -566,7 +563,8 @@ export default function Page() {
       setInput(prompt);
     });
     const fakeEvt = { preventDefault: () => {} } as any;
-    originalHandleSubmit(fakeEvt);  };
+    originalHandleSubmit(fakeEvt);
+  };
 
   return (
     <div className="h-screen">
