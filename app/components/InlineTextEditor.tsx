@@ -118,12 +118,13 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         <textarea
           {...commonProps}
           rows={3}
-          className={`${commonProps.className} resize-none`}
+          className={`${commonProps.className} resize-none text-gray-900 placeholder:text-gray-400`}
         />
       ) : (
         <input
           type="text"
           {...commonProps}
+          className={`${commonProps.className} text-gray-900 placeholder:text-gray-400`}
         />
       )}
       

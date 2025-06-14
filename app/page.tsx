@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect } from 'react';
+import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect, useCallback } from 'react';
 import { useEditMode } from './contexts/EditModeContext';
 import type { Message } from 'ai';
 import { LPTool } from './components/LPTool';
@@ -94,6 +94,7 @@ const MainView = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingText, setEditingText] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [lastManualUpdate, setLastManualUpdate] = useState<{elementId: string, text: string, timestamp: number} | null>(null);
 
   // 選択された要素からテキストを抽出
   const extractTextFromElement = (elementId: string): string => {
@@ -118,7 +119,7 @@ const MainView = ({
     return '';
   };
 
-  // 要素が選択された時にモーダルを開く
+  // 要素が選択された時にモーダルを開く（シンプル版）
   useEffect(() => {
     if (selectedElementId && isEditMode) {
       const text = extractTextFromElement(selectedElementId);
@@ -135,48 +136,134 @@ const MainView = ({
     selectElement(null);
   };
 
-  // テキスト更新処理（AI連携）
+  // テキスト更新処理（即座反映優先）
   const handleTextUpdate = async (newText: string) => {
     if (!selectedElementId) return;
 
     setIsUpdating(true);
     try {
-      console.log('🔄 Updating element via AI:', selectedElementId, 'with text:', newText);
+      console.log('🔄 Immediate text update:', selectedElementId, 'with text:', newText);
       
-      // AI経由で更新を実行
-      const updatePrompt = `要素「${selectedElementId}」のテキストを「${newText}」に更新してください。`;
+      // より安全な方法で即座にローカル更新
+      let updatedHTML = lpToolState.htmlContent;
       
-      // チャット経由でAIに更新を依頼
-      await sendPrompt(updatePrompt);
-      
-      handleEditModalClose();
-    } catch (error) {
-      console.error('Error updating text via AI:', error);
-      
-      // フォールバック: 直接HTML更新
       try {
         const parser = new DOMParser();
         const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
         const element = doc.querySelector(`[data-editable-id="${selectedElementId}"]`);
         
         if (element) {
-          element.textContent = newText;
-          const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
+          const originalText = element.textContent || '';
+          console.log(`📝 Original text: "${originalText}"`);
+          console.log(`📝 New text: "${newText}"`);
           
-          setLpToolState(prev => ({
-            ...prev,
-            htmlContent: updatedHTML
-          }));
+          element.textContent = newText;
+          
+          // HTMLの種類に応じて適切に更新
+          console.log('📄 HTML format detection...');
+          if (lpToolState.htmlContent.includes('<!DOCTYPE')) {
+            console.log('📄 Using full document format');
+            updatedHTML = doc.documentElement.outerHTML;
+          } else if (lpToolState.htmlContent.includes('<html')) {
+            console.log('📄 Using html element format');
+            updatedHTML = doc.documentElement.outerHTML;
+          } else {
+            console.log('📄 Using body content format');
+            updatedHTML = doc.body?.innerHTML || lpToolState.htmlContent;
+          }
+          
+          console.log(`📏 Original length: ${lpToolState.htmlContent.length}, Updated length: ${updatedHTML.length}`);
+          
+          // 簡単な検証: 更新後のHTMLが大幅に短くなっていないかチェック
+          if (updatedHTML.length < lpToolState.htmlContent.length * 0.5) {
+            console.warn('⚠️ Updated HTML seems corrupted, using string replacement instead');
+            // フォールバック: 文字列置換
+            updatedHTML = lpToolState.htmlContent.replace(originalText, newText);
+          }
+          
+          // 手動更新の記録
+          setLastManualUpdate({
+            elementId: selectedElementId,
+            text: newText,
+            timestamp: Date.now()
+          });
+          
+          // 即座にUIを更新
+          setLpToolState(prev => {
+            const newState = {
+              ...prev,
+              htmlContent: updatedHTML
+            };
+            console.log('📦 State updated immediately');
+            return newState;
+          });
+          
+          console.log('✅ Manual update completed and recorded');
         }
-        
-        handleEditModalClose();
-      } catch (fallbackError) {
-        console.error('Fallback update also failed:', fallbackError);
+      } catch (error) {
+        console.error('❌ DOM parsing failed, using string replacement:', error);
+        // フォールバック: 単純な文字列置換（最も安全）
+        const element = lpToolState.htmlContent.match(new RegExp(`data-editable-id="${selectedElementId}"[^>]*>([^<]*)`));
+        if (element && element[1]) {
+          updatedHTML = lpToolState.htmlContent.replace(element[1], newText);
+          
+          // 手動更新の記録
+          setLastManualUpdate({
+            elementId: selectedElementId,
+            text: newText,
+            timestamp: Date.now()
+          });
+          
+          setLpToolState(prev => {
+            const newState = {
+              ...prev,
+              htmlContent: updatedHTML
+            };
+            console.log('📦 Fallback state updated immediately');
+            return newState;
+          });
+          console.log('✅ Updated via string replacement');
+        }
       }
+      
+      handleEditModalClose();
+      
+    } catch (error) {
+      console.error('Error updating text:', error);
     } finally {
       setIsUpdating(false);
     }
   };
+
+  // AI改善処理（明示的なリクエスト時のみ）
+  const handleAIImprove = async (text: string) => {
+    if (!selectedElementId) return;
+
+    console.log('🤖 AI improvement requested for:', selectedElementId, 'with text:', text);
+    const improvePrompt = `要素「${selectedElementId}」のテキスト「${text}」をより良く改善してください。`;
+    
+    handleEditModalClose();
+    sendPrompt(improvePrompt);
+  };
+
+  // 即時編集のコンテンツ更新ハンドラー
+  const handleContentUpdate = useCallback((updatedContent: string) => {
+    console.log('🔄 Immediate content update received');
+    console.log('📏 Updated content length:', updatedContent.length);
+    setLpToolState(prev => {
+      console.log('📦 Updating lpToolState with new HTML content');
+      return {
+        ...prev,
+        htmlContent: updatedContent
+      };
+    });
+  }, []);
+
+  // AI改善リクエストのハンドラー
+  const handleAIRequest = useCallback(async (message: string) => {
+    console.log('🤖 AI improvement request:', message);
+    await sendPrompt(message);
+  }, [sendPrompt]);
 
   // LPツール検出とコンテンツ抽出
   useEffect(() => {
@@ -228,8 +315,32 @@ const MainView = ({
             hasResult: !!toolInvocation.result
           });
           
+          // 部分更新ツールの結果を検出して最近の手動更新と競合チェック
+          if ((toolInvocation.toolName === 'partialUpdateMastraTool' || 
+               toolInvocation.toolName === 'aiPartialUpdateTool') && 
+              toolInvocation.state === 'result' && 
+              toolInvocation.result) {
+            
+            console.log('[Partial Update Detection] Found partial update result:', toolInvocation.result);
+            
+            // 最近の手動更新と競合しているかチェック
+            if (lastManualUpdate && 
+                toolInvocation.result.elementId === lastManualUpdate.elementId &&
+                Date.now() - lastManualUpdate.timestamp < 5000) { // 5秒以内
+              console.log('🚫 Ignoring AI update - conflicts with recent manual update');
+              continue; // この更新を無視
+            }
+            
+            // 競合しない場合のみ適用
+            if (toolInvocation.result.htmlContent) {
+              htmlContent = toolInvocation.result.htmlContent;
+              foundLPResult = true;
+              console.log('[Partial Update] Applied AI update for element:', toolInvocation.result.elementId);
+            }
+          }
+          
           // enhancedLPGeneratorToolまたはhtmlLPToolの結果を検索
-          if ((toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
+          else if ((toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
                toolInvocation.toolName === 'htmlLPTool') && 
               toolInvocation.state === 'result' && 
               toolInvocation.result) {
@@ -484,6 +595,7 @@ const MainView = ({
         currentText={editingText}
         onSave={handleTextUpdate}
         onClose={handleEditModalClose}
+        onAIImprove={handleAIImprove}
         isLoading={isUpdating}
       />
     </div>
@@ -526,16 +638,22 @@ export default function Page() {
   console.log('[Page] Messages:', messages);
   console.log('[Page] Show main view:', showMainView);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
     console.log('[Page] Submitting message:', inputValue);
     console.log('[Page] Messages before submit:', messages.length);
     
+    // useChat の内部 input に先にセットし、その後 submit を遅延実行
     setInput(inputValue);
     setInputValue('');
-    originalHandleSubmit(e);
+
+    // setInput の state 更新が反映されてから submit しないと空文字が送信されるため、0ms 遅延を入れる
+    setTimeout(() => {
+      const fakeEvt = { preventDefault: () => {} } as any;
+      originalHandleSubmit(fakeEvt);
+    }, 0);
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -563,20 +681,6 @@ export default function Page() {
     }, 0);
   };
 
-  // 即時編集のコンテンツ更新ハンドラー
-  const handleContentUpdate = (updatedContent: string) => {
-    console.log('🔄 Immediate content update received');
-    setLpToolState(prev => ({
-      ...prev,
-      htmlContent: updatedContent
-    }));
-  };
-
-  // AI改善リクエストのハンドラー
-  const handleAIRequest = async (message: string) => {
-    console.log('🤖 AI improvement request:', message);
-    await sendPrompt(message);
-  };
 
   return (
     <div className="h-screen">

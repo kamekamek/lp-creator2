@@ -97,6 +97,7 @@ The LP Creator features a Notion/Word-like natural editing interface for non-tec
 - Use natural language patterns in AI interaction prompts
 - Test editing flow without requiring chat submission
 - Maintain visual polish with smooth transitions and micro-interactions
+- **Server-side HTML parsing**: Use `jsdom` instead of `DOMParser` in Node.js environment
 
 ## Important Notes
 - Always test LP generation workflow end-to-end when making changes
@@ -104,4 +105,4 @@ The LP Creator features a Notion/Word-like natural editing interface for non-tec
 - Preview detection relies on specific tool result formats
 - HTML download functionality expects complete HTML documents
 - **Editing must reflect immediately** - no chat requests for simple text changes
-- **All editing UI text must be black/dark gray** - never use light gray for readability
+- **All editing UI text must be black/dark gray** - use `text-gray-900` for all labels, buttons, and editable text (never `text-gray-600` or lighter)

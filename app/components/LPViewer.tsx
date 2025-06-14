@@ -1,9 +1,29 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+// DEBUG: 1秒おきに状態をダンプして黒画面のトリガーを特定
+
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEditMode } from '../contexts/EditModeContext';
 import { InlineTextEditor } from './InlineTextEditor';
+
+// -------------------- DEBUG HOOK --------------------
+// 1秒ごとに指定オブジェクトをコンソールへ出力（開発環境のみ）
+function useDebugLogger(label: string, state: Record<string, any>) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      // eslint-disable-next-line no-console
+      console.log(`[${label}]`, JSON.parse(JSON.stringify(state)));
+    }, 1000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [label, ...Object.values(state)]);
+}
+// ----------------------------------------------------
 import { SmartHoverMenu } from './SmartHoverMenu';
 import { AIChatPanel } from './AIChatPanel';
 
@@ -36,6 +56,16 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   const [isInlineEditing, setIsInlineEditing] = useState(false);
   const [inlineEditingElementId, setInlineEditingElementId] = useState<string | null>(null);
   const { isEditMode, selectedElementId, selectElement } = useEditMode();
+
+  // デバッグログ: 黒画面のトリガーを追跡
+  useDebugLogger('LPViewer DEBUG', {
+    isFullscreen,
+    isInlineEditing,
+    showHoverMenu,
+    hoveredElementId,
+    selectedElementId,
+    isEditMode,
+  });
 
   // フルスクリーン切り替え
   const toggleFullscreen = useCallback(async () => {
@@ -74,28 +104,47 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   }, []);
 
   const handleInlineEditSave = useCallback(async (newText: string) => {
-    if (!inlineEditingElementId) return;
+    console.log(`🔄 Inline edit save triggered for element: ${inlineEditingElementId} with text: "${newText}"`);
+    
+    if (!inlineEditingElementId) {
+      console.log('❌ No element ID for inline editing');
+      return;
+    }
     
     // iframe内の要素を即座に更新
-    if (iframeRef.current) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        const element = doc.querySelector(`[data-editable-id="${inlineEditingElementId}"]`);
-        if (element) {
-          // テキスト内容を即座に更新
-          element.textContent = newText;
-          
-          // 元のHTMLコンテンツも更新（完全なHTMLドキュメントを取得）
-          const fullHtml = doc.documentElement.outerHTML;
-          
-          // 親コンポーネントに即座に更新を通知
-          if (onContentUpdate) {
-            onContentUpdate(fullHtml);
-          }
-          
-          console.log(`✅ Immediately updated element ${inlineEditingElementId} with: "${newText}"`);
-        }
+    const iframe = iframeRef.current;
+    if (!iframe) {
+      console.log('❌ iframe reference not available');
+      return;
+    }
+    
+    const doc = iframe.contentDocument;
+    if (!doc) {
+      console.log('❌ Could not access iframe document');
+      return;
+    }
+    
+    const element = doc.querySelector(`[data-editable-id="${inlineEditingElementId}"]`);
+    if (element) {
+      console.log(`📝 Found element ${inlineEditingElementId}, updating text...`);
+      
+      // テキスト内容を即座に更新
+      element.textContent = newText;
+      
+      // 元のHTMLコンテンツも更新（完全なHTMLドキュメントを取得）
+      const fullHtml = doc.documentElement.outerHTML;
+      
+      // 親コンポーネントに即座に更新を通知
+      if (onContentUpdate) {
+        console.log('📤 Calling onContentUpdate with updated HTML');
+        onContentUpdate(fullHtml);
+      } else {
+        console.log('❌ onContentUpdate callback not available');
       }
+      
+      console.log(`✅ Successfully updated element ${inlineEditingElementId} with: "${newText}"`);
+    } else {
+      console.log(`❌ Element with ID ${inlineEditingElementId} not found in iframe`);
     }
     
     setIsInlineEditing(false);
@@ -181,45 +230,21 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       const editableId = element.getAttribute('data-editable-id');
       if (!editableId) return;
 
-      // ダブルクリックでインライン編集開始
+      // ダブルクリックでも通常のクリックと同じ動作（シンプル化）
       const handleDoubleClick = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`✏️ Double-clicked for inline edit: ${editableId}`);
-        handleInlineEdit(editableId);
+        console.log(`🖱️ Double-clicked element: ${editableId}`);
+        selectElement(editableId);
       };
 
-      // ホバーでスマートメニュー表示
-      const handleMouseEnter = (e: Event) => {
-        if (isInlineEditing) return;
-        
-        const rect = element.getBoundingClientRect();
-        const iframeRect = iframe.getBoundingClientRect();
-        
-        // iframe内の位置をページ座標に変換
-        const position = {
-          x: iframeRect.left + rect.right + 10,
-          y: iframeRect.top + rect.top
-        };
-        
+      // シンプルなホバー効果のみ
+      const handleMouseEnter = () => {
         element.classList.add('edit-hover');
-        
-        // 少し遅延してからメニューを表示
-        setTimeout(() => {
-          if (element.matches(':hover')) {
-            handleHoverMenuShow(editableId, position);
-          }
-        }, 300);
       };
       
       const handleMouseLeave = () => {
         element.classList.remove('edit-hover');
-        // メニューが表示されていない場合のみ即座に非表示
-        setTimeout(() => {
-          if (!element.matches(':hover')) {
-            handleHoverMenuHide();
-          }
-        }, 100);
       };
 
       // シングルクリックで要素選択（従来の機能）
@@ -253,12 +278,13 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       const style = doc.createElement('style');
       style.id = 'natural-edit-styles';
       style.textContent = `
-        /* 自然な編集体験のスタイル */
+        /* 自然な編集体験のスタイル（安定性重視） */
         [data-editable-id] {
-          cursor: text;
-          transition: all 0.3s ease;
-          position: relative;
-          border-radius: 4px;
+          cursor: pointer;
+          transition: background-color 0.2s ease, box-shadow 0.2s ease;
+          border-radius: 2px;
+          min-height: 1em;
+          display: inline-block;
         }
         
         /* ホバー時の微細なハイライト */
@@ -309,17 +335,13 @@ export const LPViewer: React.FC<LPViewerProps> = ({
           pointer-events: none;
         }
         
-        /* スムーズなフォーカス効果 */
-        [data-editable-id] {
-          transform-origin: center;
-        }
-        
+        /* 安定したフォーカス効果（transformを削除） */
         [data-editable-id]:hover {
-          transform: scale(1.01);
+          background-color: rgba(59, 130, 246, 0.08);
         }
         
         [data-editable-id].edit-highlight {
-          transform: scale(1.02);
+          background-color: rgba(59, 130, 246, 0.15);
         }
       `;
       doc.head.appendChild(style);
@@ -328,9 +350,10 @@ export const LPViewer: React.FC<LPViewerProps> = ({
 
   // 選択された要素のハイライトを更新
   useEffect(() => {
-    if (!iframeRef.current) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
     
-    const doc = iframeRef.current.contentDocument;
+    const doc = iframe.contentDocument;
     if (!doc) return;
 
     // 全ての要素のハイライトを削除
@@ -351,8 +374,9 @@ export const LPViewer: React.FC<LPViewerProps> = ({
 
   // LPHTMLをiframeに展開する
   useEffect(() => {
-    if (iframeRef.current && htmlContent) {
-      const doc = iframeRef.current.contentDocument;
+    const iframe = iframeRef.current;
+    if (iframe && htmlContent) {
+      const doc = iframe.contentDocument;
       if (doc) {
         // HTMLコンテンツのエスケープ処理を修正
         let processedContent = htmlContent;
@@ -618,8 +642,8 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       {/* 選択された要素の情報 */}
       {isEditMode && selectedElementId && (
         <div className="absolute top-16 left-4 z-10 bg-white border border-gray-200 rounded-lg shadow-md p-3 max-w-xs">
-          <div className="text-sm text-gray-600 mb-1">選択中の要素:</div>
-          <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{selectedElementId}</div>
+          <div className="text-sm text-gray-900 mb-1">選択中の要素:</div>
+          <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-900">{selectedElementId}</div>
         </div>
       )}
 
@@ -665,59 +689,64 @@ export const LPViewer: React.FC<LPViewerProps> = ({
         </div>
       )}
 
-      {/* スマートホバーメニュー */}
-      <SmartHoverMenu
-        isVisible={showHoverMenu}
-        elementId={hoveredElementId || ''}
-        position={hoverMenuPosition}
-        onEdit={() => hoveredElementId && handleInlineEdit(hoveredElementId)}
-        onAIImprove={() => hoveredElementId && handleAIImprove(hoveredElementId)}
-        onStyleEdit={() => hoveredElementId && handleStyleEdit(hoveredElementId)}
-        onClose={handleHoverMenuHide}
-      />
+      {/* 複雑なUIは一時的に無効化 - シンプルな編集フローに集中 */}
+      {false && (
+        <>
+          {/* スマートホバーメニュー */}
+          <SmartHoverMenu
+            isVisible={showHoverMenu}
+            elementId={hoveredElementId || ''}
+            position={hoverMenuPosition}
+            onEdit={() => hoveredElementId && handleInlineEdit(hoveredElementId)}
+            onAIImprove={() => hoveredElementId && handleAIImprove(hoveredElementId)}
+            onStyleEdit={() => hoveredElementId && handleStyleEdit(hoveredElementId)}
+            onClose={handleHoverMenuHide}
+          />
 
-      {/* AI改善チャットパネル */}
-      <AIChatPanel
-        isOpen={showAIChat}
-        onClose={() => setShowAIChat(false)}
-        onSendMessage={onAIRequest || (async () => {})}
-        selectedElementId={selectedElementId}
-        isLoading={false}
-      />
+          {/* AI改善チャットパネル */}
+          <AIChatPanel
+            isOpen={showAIChat}
+            onClose={() => setShowAIChat(false)}
+            onSendMessage={onAIRequest || (async () => {})}
+            selectedElementId={selectedElementId}
+            isLoading={false}
+          />
 
-      {/* インライン編集オーバーレイ */}
-      {isInlineEditing && inlineEditingElementId && (
-        <div className="absolute inset-0 bg-black bg-opacity-20 z-40 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium mb-4">テキストを編集</h3>
-            <div className="mb-4">
-              <label className="block text-sm text-gray-600 mb-2">
-                要素: {inlineEditingElementId}
-              </label>
-              <InlineTextEditor
-                text={(() => {
-                  // iframe内の要素からテキストを取得
-                  if (iframeRef.current) {
-                    const doc = iframeRef.current.contentDocument;
-                    if (doc) {
+          {/* インライン編集オーバーレイ */}
+          {isInlineEditing && inlineEditingElementId && (
+            <div className="absolute inset-0 bg-black bg-opacity-20 z-40 flex items-center justify-center">
+              <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-medium mb-4">テキストを編集</h3>
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-900 mb-2">
+                    要素: {inlineEditingElementId}
+                  </label>
+                  <InlineTextEditor
+                    text={(() => {
+                      // iframe内の要素からテキストを取得
+                      const iframe = iframeRef.current;
+                      if (!iframe) return '';
+                      
+                      const doc = iframe.contentDocument;
+                      if (!doc) return '';
+                      
                       const element = doc.querySelector(`[data-editable-id="${inlineEditingElementId}"]`);
                       return element?.textContent || '';
-                    }
-                  }
-                  return '';
-                })()}
-                onSave={handleInlineEditSave}
-                onCancel={handleInlineEditCancel}
-                placeholder="新しいテキストを入力..."
-                multiline={true}
-                className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
-              />
+                    })()}
+                    onSave={handleInlineEditSave}
+                    onCancel={handleInlineEditCancel}
+                    placeholder="新しいテキストを入力..."
+                    multiline={true}
+                    className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                <div className="flex gap-2 text-sm text-gray-500">
+                  <span>💡 Enterで確定、Escでキャンセル</span>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2 text-sm text-gray-500">
-              <span>💡 Enterで確定、Escでキャンセル</span>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );
