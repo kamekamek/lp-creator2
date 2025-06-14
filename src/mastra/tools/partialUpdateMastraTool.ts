@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
+import { JSDOM } from 'jsdom';
 
 export const partialUpdateMastraTool = tool({
   description: 'Updates specific elements in the landing page by modifying their content while preserving the overall structure.',
@@ -14,9 +15,9 @@ export const partialUpdateMastraTool = tool({
     console.log(`🔄 Partial Update: Updating element ${elementId} with new content`);
     
     try {
-      // HTMLを解析してDOM操作でテキストを更新
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, 'text/html');
+      // HTMLを解析してDOM操作でテキストを更新（サーバーサイド対応）
+      const dom = new JSDOM(htmlContent);
+      const doc = dom.window.document;
       
       // 対象要素を検索
       const targetElement = doc.querySelector(`[data-editable-id="${elementId}"]`);
@@ -44,7 +45,7 @@ export const partialUpdateMastraTool = tool({
       }
       
       // 更新されたHTMLを取得
-      let updatedHTML = doc.documentElement.outerHTML;
+      let updatedHTML = dom.serialize();
       
       // 必要に応じてHTML形式を正規化
       if (!updatedHTML.startsWith('<!DOCTYPE')) {
@@ -91,9 +92,9 @@ export const aiPartialUpdateTool = tool({
     console.log(`🤖 AI Partial Update: Processing element ${elementId}`);
     
     try {
-      // HTMLを解析して要素を特定
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, 'text/html');
+      // HTMLを解析して要素を特定（サーバーサイド対応）
+      const dom = new JSDOM(htmlContent);
+      const doc = dom.window.document;
       const targetElement = doc.querySelector(`[data-editable-id="${elementId}"]`);
       
       if (!targetElement) {
@@ -144,7 +145,7 @@ ${context || 'なし'}
       targetElement.textContent = newContent.trim();
       
       // 更新されたHTMLを取得
-      const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
+      const updatedHTML = dom.serialize();
       
       console.log(`✅ AI Partial Update completed for element: ${elementId}`);
       

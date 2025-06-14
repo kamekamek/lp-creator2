@@ -9,6 +9,7 @@ interface EditModalProps {
   currentText: string;
   onSave: (newText: string) => void;
   onClose: () => void;
+  onAIImprove?: (text: string) => void;
   isLoading?: boolean;
 }
 
@@ -18,6 +19,7 @@ export const EditModal: React.FC<EditModalProps> = ({
   currentText,
   onSave,
   onClose,
+  onAIImprove,
   isLoading = false
 }) => {
   const [editText, setEditText] = useState(currentText);
@@ -98,13 +100,13 @@ export const EditModal: React.FC<EditModalProps> = ({
         {/* コンテンツ */}
         <div className="flex-1 p-6 overflow-hidden">
           <div className="h-full flex flex-col">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-900 mb-3">
               編集内容
             </label>
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="flex-1 w-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              className="flex-1 w-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder:text-gray-400"
               placeholder="編集したいテキストを入力してください..."
               autoFocus
               disabled={isLoading}
@@ -134,6 +136,16 @@ export const EditModal: React.FC<EditModalProps> = ({
           </div>
           
           <div className="flex gap-3">
+            {onAIImprove && (
+              <button
+                onClick={() => onAIImprove(editText)}
+                disabled={!editText.trim() || isLoading}
+                className="flex items-center gap-2 px-4 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="AIがテキストを改善します"
+              >
+                🤖 AI改善
+              </button>
+            )}
             <button
               onClick={onClose}
               disabled={isLoading}
