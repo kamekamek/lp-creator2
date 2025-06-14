@@ -116,7 +116,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
                 placeholder="例：ECサイト向けのコンバージョン率の高いランディングページを作りたい。ターゲットは30-40代の女性で、化粧品を販売している。"
                 value={formData.initialQuery}
                 onChange={(e) => handleInputChange('initialQuery', e.target.value)}
-                className="mt-2"
+                className="mt-2 text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 rows={3}
               />
             </div>
@@ -131,7 +131,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
                   placeholder="例：ECサイト、SaaS、コンサルティング"
                   value={formData.businessType}
                   onChange={(e) => handleInputChange('businessType', e.target.value)}
-                  className="mt-2"
+                  className="mt-2 text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
@@ -144,7 +144,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
                   placeholder="例：30-40代の働く女性"
                   value={formData.targetAudience}
                   onChange={(e) => handleInputChange('targetAudience', e.target.value)}
-                  className="mt-2"
+                  className="mt-2 text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -158,7 +158,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
                 placeholder="例：月間コンバージョン率を3%向上、売上20%増加"
                 value={formData.goals}
                 onChange={(e) => handleInputChange('goals', e.target.value)}
-                className="mt-2"
+                className="mt-2 text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -265,6 +265,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
                   placeholder="どのような修正が必要か具体的に説明してください..."
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
+                  className="text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   rows={3}
                 />
                 <Button 

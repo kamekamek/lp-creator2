@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-// import { WorkflowWizard } from './WorkflowWizard';
-// import { useProHPWorkflow } from '../hooks/useProHPWorkflow';
+import { WorkflowWizard } from './WorkflowWizard';
+import { useProHPWorkflow } from '../hooks/useProHPWorkflow';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-// import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 export function ProHPWorkflowPanel() {
+  const {
+    workflowState,
+    startWorkflow,
+    resumeWorkflow,
+  } = useProHPWorkflow();
   const [activeTab, setActiveTab] = useState('wizard');
 
   return (
@@ -29,35 +33,11 @@ export function ProHPWorkflowPanel() {
         </div>
 
         <TabsContent value="wizard" className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  プロフェッショナルHP作成ワークフロー
-                </h2>
-                <p className="text-gray-600">
-                  マーケティング心理学と最新Web技術を活用した高品質なランディングページを作成します
-                </p>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <p className="text-blue-800 mb-4">
-                  🚧 <strong>開発中</strong>: プロフェッショナルワークフロー機能は現在実装中です。
-                </p>
-                <p className="text-blue-700 text-sm">
-                  完成予定機能: 戦略設計 → コンセプト設計 → コピーライティング → 実装 → 品質チェック
-                </p>
-              </div>
-
-              <Button 
-                disabled
-                className="w-full bg-gray-400 cursor-not-allowed"
-                size="lg"
-              >
-                プロフェッショナルHP作成を開始 (開発中)
-              </Button>
-            </div>
-          </Card>
+          <WorkflowWizard
+            onStartWorkflow={startWorkflow}
+            onResumeWorkflow={resumeWorkflow}
+            workflowState={workflowState || undefined}
+          />
         </TabsContent>
 
         <TabsContent value="about" className="space-y-6">
