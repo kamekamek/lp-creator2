@@ -17,7 +17,7 @@ function devLog(message: string, data?: any) {
 }
 
 // Vercel Serverless Function でストリームを許可するための設定
-export const maxDuration = 300;
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
