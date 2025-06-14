@@ -5,6 +5,5 @@
     }
   },
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "regions": ["nrt1"]
+  "installCommand": "npm install"
 }
