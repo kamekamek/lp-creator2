@@ -14,6 +14,7 @@ interface LPViewerProps {
   enableFullscreen?: boolean;
   onTextUpdate?: (elementId: string, newText: string) => void;
   onAIImprove?: (elementId: string, currentText: string) => void;
+  isModalOpen?: boolean;
 }
 
 export const LPViewer: React.FC<LPViewerProps> = ({ 
@@ -23,7 +24,8 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   height = '100%',
   enableFullscreen = true,
   onTextUpdate,
-  onAIImprove
+  onAIImprove,
+  isModalOpen = false
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,7 +175,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
         };
 
         const handleMouseEnter = (e: MouseEvent) => {
-          if (inlineEditingId) return;
+          if (inlineEditingId || isModalOpen) return;
           const rect = currentElement.getBoundingClientRect();
           const iframeRect = iframe.getBoundingClientRect();
           setHoveredElementId(editableId);

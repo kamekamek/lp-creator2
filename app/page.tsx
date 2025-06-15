@@ -528,6 +528,7 @@ const MainView = ({
                   const prompt = `要素「${elementId}」のテキスト「${currentText}」をAIで改善してください。`;
                   sendPrompt(prompt);
                 }}
+                isModalOpen={isEditModalOpen}
               />
             </div>
           ) : (
