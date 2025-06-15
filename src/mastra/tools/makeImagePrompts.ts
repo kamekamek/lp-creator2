@@ -345,6 +345,10 @@ function extractImageElementsFromHTML(html: string): Array<{
   class?: string;
   section?: string;
 }> {
+  // htmlがundefinedまたは空文字列の場合は空配列を返す
+  if (!html) {
+    return [];
+  }
   // 簡易HTMLパーサー（実際の実装では jsdom などを使用）
   const imgRegex = /<img[^>]*>/gi;
   const matches = html.match(imgRegex) || [];

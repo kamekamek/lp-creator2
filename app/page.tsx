@@ -1,10 +1,10 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import React, { useState, FormEvent, ChangeEvent, useMemo, useEffect } from 'react';
+import type { Message } from 'ai';
+import React, { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { useEditMode } from './contexts/EditModeContext';
-import type { Message } from 'ai';
 import { LPTool } from './components/LPTool';
 import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
@@ -20,7 +20,7 @@ interface InitialViewProps {
 }
 
 interface MainViewProps {
-  messages: any[]; // Consider a more specific type if available from useUIState
+  messages: Message[]; // Using Message type from ai package
   input: string;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
@@ -29,10 +29,10 @@ interface MainViewProps {
   selectedElementId: string | null;
   selectElement: (id: string | null) => void;
   getPlaceholder: () => string;
-  setInput: (value: string) => void;
   sendPrompt: (prompt: string) => void;
   isLoading?: boolean;
   status?: string;
+  error?: Error | undefined; // エラーオブジェクトを追加
 }
 
 // --- Standalone Components ---
@@ -81,10 +81,10 @@ const MainView = ({
   selectedElementId,
   selectElement,
   getPlaceholder,
-  setInput,
   sendPrompt,
-  isLoading,
+  isLoading: propsIsLoading,
   status,
+  error,
 }: MainViewProps) => {
   const [lpToolState, setLpToolState] = useState<LPToolState>({
     isActive: false,
@@ -151,7 +151,7 @@ const MainView = ({
       const updatePrompt = `要素「${selectedElementId}」のテキストを「${newText}」に更新してください。`;
       
       // チャット経由でAIに更新を依頼
-      await sendPrompt(updatePrompt);
+      sendPrompt(updatePrompt);
       
       handleEditModalClose();
     } catch (error) {
@@ -207,9 +207,9 @@ const MainView = ({
         role: msg.role,
         contentType: typeof msg.content,
         contentSnippet: typeof msg.content === 'string' ? msg.content.substring(0, 200) + '...' : msg.content,
-        hasToolCalls: !!msg.toolInvocations,
-        toolCallsCount: msg.toolInvocations?.length || 0,
-        toolInvocations: msg.toolInvocations
+        hasParts: !!msg.parts,
+        partsCount: msg.parts?.length || 0,
+        parts: msg.parts
       });
     });
 
@@ -223,44 +223,45 @@ const MainView = ({
     for (let i = assistantMessages.length - 1; i >= 0; i--) {
       const message = assistantMessages[i];
       
-      // ツール結果を確認
-      if (message.toolInvocations && message.toolInvocations.length > 0) {
-        for (const toolInvocation of message.toolInvocations) {
-          console.log('[LP Detection] Tool invocation:', {
-            toolName: toolInvocation.toolName,
-            state: toolInvocation.state,
-            hasResult: !!toolInvocation.result
-          });
-          
-          // enhancedLPGeneratorToolまたはhtmlLPToolの結果を検索
-          if ((toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
-               toolInvocation.toolName === 'htmlLPTool') && 
-              toolInvocation.state === 'result' && 
-              toolInvocation.result) {
+      if (message.parts && message.parts.length > 0) {
+        for (const part of message.parts) {
+          if (part.type === 'tool-invocation') {
+            const toolInvocation = part.toolInvocation;
+            console.log('[LP Detection] Tool invocation part:', {
+              toolName: toolInvocation.toolName,
+              state: toolInvocation.state,
+              // fullObject: toolInvocation // デバッグ用に残しても良い
+            });
             
-            console.log('[LP Detection] Found LP tool result:', toolInvocation.result);
-            
-            // enhancedLPGeneratorToolの結果からHTMLとCSSを抽出
-            if (toolInvocation.result.htmlContent) {
-              htmlContent = toolInvocation.result.htmlContent;
-              cssContent = toolInvocation.result.cssContent || '';
-              title = toolInvocation.result.title || title;
-              foundLPResult = true;
-              console.log('[LP Detection] Extracted HTML content length:', htmlContent.length);
-              console.log('[LP Detection] Extracted CSS content length:', cssContent.length);
-              break;
+            // ツール実行結果があり、かつそれが成功(result)している場合
+            if (toolInvocation.state === 'result' && toolInvocation.result) {
+              const result = toolInvocation.result as any; // 適切な型にキャストすることが望ましい
+              
+              // LP生成関連ツールの結果かどうかを確認
+              if (toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
+                  toolInvocation.toolName === 'htmlLPTool' ||
+                  toolInvocation.toolName === 'lpPreviewTool') {
+                
+                // HTMLコンテンツが存在する場合
+                if (result && result.htmlContent) {
+                  htmlContent = result.htmlContent;
+                  cssContent = result.cssContent || ''; // cssContentも取得 (存在しない場合は空文字)
+                  title = result.title || 'Generated Landing Page'; // titleも取得 (存在しない場合はデフォルト値)
+                  foundLPResult = true;
+                  console.log(`[LP Detection] Found HTML in ${toolInvocation.toolName} result, length: ${htmlContent.length}`);
+                  break; // LP関連ツールの結果が見つかったら内部ループを抜ける
+                }
+              }
             }
           }
         }
-        
-        if (foundLPResult) break;
+        if (foundLPResult) break; // LP関連ツールの結果が見つかったら外部ループも抜ける
       }
       
-      // フォールバック: メッセージコンテンツからHTMLを検索
+      // フォールバック: message.content からのHTML検索 (tool-invocation がない場合や result がない場合)
+      // このロジックは、toolInvocation.result が優先されるため、基本的には不要になるか、限定的な状況でのみ動作する
       if (!foundLPResult && message.content && typeof message.content === 'string') {
         const content = message.content;
-        
-        // 完全なHTMLドキュメントを検索
         const fullHtmlMatch = content.match(/<!DOCTYPE html>[\s\S]*?<\/html>/);
         if (fullHtmlMatch) {
           htmlContent = fullHtmlMatch[0];
@@ -269,16 +270,15 @@ const MainView = ({
             title = titleMatch[1];
           }
           foundLPResult = true;
-          console.log('[LP Detection] Found HTML in message content');
-          break;
+          console.log('[LP Detection] Found HTML in message content (fallback)');
+          break; 
         }
         
-        // セクション単位のHTMLを検索
         const sectionMatches = content.match(/<section[\s\S]*?<\/section>/g);
         if (sectionMatches && sectionMatches.length > 0) {
           htmlContent = sectionMatches.join('\n\n');
           foundLPResult = true;
-          console.log('[LP Detection] Found sections in message content');
+          console.log('[LP Detection] Found sections in message content (fallback)');
           break;
         }
       }
@@ -303,9 +303,7 @@ const MainView = ({
     }
   }, [messages]);
 
-  // プレビュー判定（レガシー互換性）
-  const isPreviewMessage = (msg: any) => false; // 新システムでは使用しない
-  const latestPreviewMessage = null; // 新システムでは使用しない
+  // プレビュー判定はもう使用しない（レガシーコードを削除）
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -344,6 +342,25 @@ const MainView = ({
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* ローディング表示とエラー表示 */} 
+          {propsIsLoading && (
+            <div className="flex items-center justify-center p-4 my-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-sm text-blue-700">
+                {status || 'AIがコンテンツを生成中です...'}
+              </p>
+            </div>
+          )}
+          {error && (
+            <div className="p-4 my-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700">
+                エラーが発生しました: {error.message || '不明なエラーです。もう一度お試しください。'}
+              </p>
+            </div>
+          )}
           {messages.map((message) => {
             // 構造提案メッセージかどうかを判定
             const isStructureProposal = message.role === 'assistant' && 
@@ -408,7 +425,7 @@ const MainView = ({
           })}
           
           {/* ローディング状態表示 */}
-          {isLoading && (
+          {propsIsLoading && (
             <div className="mb-4 mr-8">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start gap-3">
@@ -446,12 +463,27 @@ const MainView = ({
               </div>
             )}
             <input
-              className="w-full p-3 border border-gray-300 rounded-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder={isLoading ? 'AI処理中です...' : getPlaceholder()}
+              className="w-full p-3 border border-gray-300 rounded-l-lg text-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder={propsIsLoading ? 'AIが応答中です...' : getPlaceholder()}
               value={input}
               onChange={handleInputChange}
-              disabled={isLoading || (isEditMode && !selectedElementId)}
+              disabled={isEditMode || propsIsLoading} // propsIsLoading時も無効化
             />
+            <button
+              type="submit"
+              className="px-6 py-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+              style={{ minWidth: '100px' }} // ボタン幅を確保
+              disabled={!input.trim() || isEditMode || propsIsLoading} // propsIsLoading時も無効化
+            >
+              {propsIsLoading ? (
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                '送信'
+              )}
+            </button>
             {/* デバッグ情報 */}
             <div className="text-xs text-gray-500 mt-1">
               Debug: EditMode={isEditMode ? 'ON' : 'OFF'}, SelectedElement={selectedElementId || 'none'}, Disabled={isEditMode && !selectedElementId ? 'YES' : 'NO'}
@@ -598,7 +630,7 @@ export default function Page() {
     flushSync(() => {
       setInput(prompt);
     });
-    const fakeEvt = { preventDefault: () => {} } as any;
+    const fakeEvt = { preventDefault: () => {} } as FormEvent<HTMLFormElement>;
     originalHandleSubmit(fakeEvt);
   };
 
@@ -631,10 +663,10 @@ export default function Page() {
                   selectedElementId={selectedElementId}
                   selectElement={selectElement}
                   getPlaceholder={getPlaceholder}
-                  setInput={setInput}
                   sendPrompt={sendPrompt}
                   isLoading={isLoading}
                   status={status}
+                  error={error}
                 />
               ) : (
                 <InitialView 
