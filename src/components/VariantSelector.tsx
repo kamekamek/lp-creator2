@@ -6,15 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Eye, Download, Sparkles } from 'lucide-react';
 
-interface Variant {
-  id: string;
-  title: string;
-  htmlContent: string;
-  cssContent: string;
-  variantSeed: number;
-  designFocus: string;
-  metadata?: any;
-}
+import type { Variant } from '../types/lp-generator';
 
 interface VariantSelectorProps {
   variants: Variant[];

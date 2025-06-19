@@ -16,21 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-interface AISuggestion {
-  id: string;
-  type: 'content' | 'design' | 'conversion' | 'accessibility' | 'performance';
-  title: string;
-  description: string;
-  impact: 'low' | 'medium' | 'high';
-  confidence: number;
-  preview?: string;
-  action: {
-    type: 'replace' | 'add' | 'modify';
-    target: string;
-    value: any;
-  };
-  reasoning: string;
-}
+import type { AISuggestion } from '../types/lp-generator';
 
 interface AISuggestionPanelProps {
   suggestions: AISuggestion[];

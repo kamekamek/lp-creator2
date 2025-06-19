@@ -10,8 +10,8 @@ import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { ProHPWorkflowPanel } from './components/ProHPWorkflowPanel';
-import { VariantSelector } from '@/components/VariantSelector';
-import { AISuggestionPanel, AISuggestionGenerator } from '@/components/AISuggestionPanel';
+import { VariantSelector } from '../src/components/VariantSelector';
+import { AISuggestionPanel, AISuggestionGenerator } from '../src/components/AISuggestionPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 // --- Prop Types ---

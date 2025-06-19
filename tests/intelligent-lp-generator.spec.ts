@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Intelligent LP Generator', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:3000');
+    await page.goto('http://localhost:3001');
   });
 
   test('should display initial view correctly', async ({ page }) => {
@@ -116,7 +116,7 @@ test.describe('Intelligent LP Generator', () => {
 
 test.describe('Component Integration Tests', () => {
   test('VariantSelector component functionality', async ({ page }) => {
-    await page.goto('http://localhost:3000');
+    await page.goto('http://localhost:3001');
     
     // variants データをモック
     await page.evaluate(() => {
@@ -146,7 +146,7 @@ test.describe('Component Integration Tests', () => {
   });
 
   test('AISuggestionPanel component functionality', async ({ page }) => {
-    await page.goto('http://localhost:3000');
+    await page.goto('http://localhost:3001');
     
     // AI提案データをモック
     await page.evaluate(() => {

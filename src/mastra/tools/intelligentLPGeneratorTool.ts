@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { generateUnifiedLP } from './lpGeneratorTool';
+import type { BusinessContext, Variant, GenerationResult } from '../../types/lp-generator';
 
 // ビジネスコンテキスト分析器
 class BusinessContextAnalyzer {
