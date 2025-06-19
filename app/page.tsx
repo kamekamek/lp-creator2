@@ -10,6 +10,7 @@ import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { ProHPWorkflowPanel } from './components/ProHPWorkflowPanel';
+import { StructuredWorkflowPanel } from '../src/components/StructuredWorkflowPanel';
 import { VariantSelector } from '../src/components/VariantSelector';
 import { AISuggestionPanel, AISuggestionGenerator } from '../src/components/AISuggestionPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -691,7 +692,7 @@ const MainView = ({
 
 export default function Page() {
   const { isEditMode, toggleEditMode, selectedElementId, selectElement } = useEditMode();
-  const [activeTab, setActiveTab] = useState('quick');
+  const [activeTab, setActiveTab] = useState('structured');
 
   // 新しいMastraベースのチャットシステムを使用
   const { 
@@ -764,7 +765,8 @@ export default function Page() {
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">LP Creator</h1>
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-2xl grid-cols-3">
+              <TabsTrigger value="structured">構造化ワークフロー</TabsTrigger>
               <TabsTrigger value="quick">クイック作成</TabsTrigger>
               <TabsTrigger value="professional">プロフェッショナル</TabsTrigger>
             </TabsList>
@@ -773,6 +775,12 @@ export default function Page() {
 
         {/* タブコンテンツ */}
         <div className="flex-1 overflow-hidden">
+          <TabsContent value="structured" className="h-full m-0">
+            <div className="h-full">
+              <StructuredWorkflowPanel />
+            </div>
+          </TabsContent>
+
           <TabsContent value="quick" className="h-full m-0">
             <div className="h-full">
               {showMainView ? (

@@ -123,7 +123,7 @@ class BusinessContextAnalyzer {
 
 // コンテンツ生成戦略
 class ContentStrategy {
-  generatePromptStrategy(context: any): string {
+  generatePromptStrategy(context: any): any {
     const { industry, targetAudience, businessGoal, tone } = context;
 
     const strategies = {
@@ -146,6 +146,59 @@ class ContentStrategy {
 
     return strategies[industry as keyof typeof strategies] || strategies.saas;
   }
+}
+
+// ヘルパー関数
+function generateEnhancedPrompt(userInput: string, context: any, strategy: any, focusAreas: string[]): string {
+  return `
+【ビジネス要件】
+原文: ${userInput}
+
+【分析結果】
+- 業界: ${context.industry}
+- ターゲット: ${context.targetAudience}
+- 目標: ${context.businessGoal}
+- トーン: ${context.tone}
+- 競合優位性: ${context.competitiveAdvantage.join(', ')}
+
+【重点領域】
+${focusAreas.join(', ')}
+
+【コンテンツ戦略】
+${JSON.stringify(strategy, null, 2)}
+
+上記の分析結果に基づいて、ターゲットユーザーに響く高品質なランディングページを生成してください。
+特に${context.tone}なトーンで、${context.businessGoal}を達成するための構成にしてください。
+  `.trim();
+}
+
+function addVariationSeed(basePrompt: string, seedIndex: number): string {
+  const variations = [
+    '（レイアウト重視：視覚的に洗練されたデザイン）',
+    '（コンバージョン重視：CTA最適化とフォーム配置）',
+    '（コンテンツ重視：詳細な説明と信頼性構築）'
+  ];
+
+  return `${basePrompt}\n\n【デザインバリエーション】\n${variations[seedIndex] || variations[0]}`;
+}
+
+function extractTopicName(input: string): string {
+  // 簡単なトピック名抽出ロジック
+  const sentences = input.split(/[。．]/);
+  const firstSentence = sentences[0];
+  
+  // サービス名やプロダクト名を推定
+  const serviceMatch = firstSentence.match(/(.+?)(?:の|を|について|に関して)/);
+  if (serviceMatch) {
+    return serviceMatch[1].trim();
+  }
+  
+  return firstSentence.substring(0, 30) + '...';
+}
+
+function getDesignFocus(variantIndex: number): string {
+  const focuses = ['modern-clean', 'conversion-optimized', 'content-rich'];
+  return focuses[variantIndex] || focuses[0];
 }
 
 // メインツール
@@ -171,20 +224,20 @@ export const intelligentLPGeneratorTool = tool({
       const promptStrategy = strategy.generatePromptStrategy(context);
 
       // 3. 強化されたプロンプトの生成
-      const enhancedPrompt = this.generateEnhancedPrompt(userInput, context, promptStrategy, focusAreas);
+      const enhancedPrompt = generateEnhancedPrompt(userInput, context, promptStrategy, focusAreas);
 
       // 4. 複数バリエーションの生成
       const variants = [];
       for (let i = 0; i < Math.min(designVariants, 3); i++) {
-        const variantPrompt = this.addVariationSeed(enhancedPrompt, i);
+        const variantPrompt = addVariationSeed(enhancedPrompt, i);
         const result = await generateUnifiedLP({ topic: variantPrompt });
         
         variants.push({
           id: `variant_${i + 1}`,
-          title: `${this.extractTopicName(userInput)} - バリエーション${i + 1}`,
+          title: `${extractTopicName(userInput)} - バリエーション${i + 1}`,
           ...result,
           variantSeed: i,
-          designFocus: this.getDesignFocus(i)
+          designFocus: getDesignFocus(i)
         });
       }
 
@@ -221,58 +274,5 @@ export const intelligentLPGeneratorTool = tool({
         }
       };
     }
-  },
-
-  // プライベートメソッド（ヘルパー関数）
-  generateEnhancedPrompt(userInput: string, context: any, strategy: any, focusAreas: string[]): string {
-    return `
-【ビジネス要件】
-原文: ${userInput}
-
-【分析結果】
-- 業界: ${context.industry}
-- ターゲット: ${context.targetAudience}
-- 目標: ${context.businessGoal}
-- トーン: ${context.tone}
-- 競合優位性: ${context.competitiveAdvantage.join(', ')}
-
-【重点領域】
-${focusAreas.join(', ')}
-
-【コンテンツ戦略】
-${JSON.stringify(strategy, null, 2)}
-
-上記の分析結果に基づいて、ターゲットユーザーに響く高品質なランディングページを生成してください。
-特に${context.tone}なトーンで、${context.businessGoal}を達成するための構成にしてください。
-    `.trim();
-  },
-
-  addVariationSeed(basePrompt: string, seedIndex: number): string {
-    const variations = [
-      '（レイアウト重視：視覚的に洗練されたデザイン）',
-      '（コンバージョン重視：CTA最適化とフォーム配置）',
-      '（コンテンツ重視：詳細な説明と信頼性構築）'
-    ];
-
-    return `${basePrompt}\n\n【デザインバリエーション】\n${variations[seedIndex] || variations[0]}`;
-  },
-
-  extractTopicName(input: string): string {
-    // 簡単なトピック名抽出ロジック
-    const sentences = input.split(/[。．]/);
-    const firstSentence = sentences[0];
-    
-    // サービス名やプロダクト名を推定
-    const serviceMatch = firstSentence.match(/(.+?)(?:の|を|について|に関して)/);
-    if (serviceMatch) {
-      return serviceMatch[1].trim();
-    }
-    
-    return firstSentence.substring(0, 30) + '...';
-  },
-
-  getDesignFocus(variantIndex: number): string {
-    const focuses = ['modern-clean', 'conversion-optimized', 'content-rich'];
-    return focuses[variantIndex] || focuses[0];
   }
 });

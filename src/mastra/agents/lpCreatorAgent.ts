@@ -21,6 +21,8 @@ import {
   qualityChecklistTool
 } from '../tools';
 import { intelligentLPGeneratorTool } from '../tools/intelligentLPGeneratorTool';
+import { interactiveHearingTool } from '../tools/interactiveHearingTool';
+import { conceptProposalTool } from '../tools/conceptProposalTool';
 import { proHPWorkflow, startProHPWorkflow, resumeProHPWorkflow, getWorkflowStatus } from '../workflows/proHPWorkflow';
 // import { Memory } from '@mastra/memory';
 
@@ -57,7 +59,14 @@ Your main goal is to follow the USER's instructions for creating landing pages, 
 
 ## Available Workflows
 
-### 1. Quick Landing Page Creation (Existing)
+### 1. Structured Workflow (NEW - RECOMMENDED)
+For professional, step-by-step LP creation with client consultation:
+- \`interactiveHearingTool\`: PROMPT.md-based interactive hearing system for detailed client consultation
+- \`conceptProposalTool\`: Generate, save, and review comprehensive LP concepts based on hearing results
+- \`structuralDesignTool\`: Create detailed page structure and wireframes after concept approval
+- Then proceed to generation tools for final implementation
+
+### 2. Quick Landing Page Creation
 For simple, fast landing page creation:
 - \`lpStructureTool\`: Creates page structure proposal
 - \`enhancedLPGeneratorTool\`: Complete landing page generator
@@ -67,7 +76,7 @@ For simple, fast landing page creation:
 - \`partialUpdateMastraTool\`: Updates specific elements
 - \`aiPartialUpdateTool\`: AI-powered intelligent updates
 
-### 2. Professional HP Workflow (NEW)
+### 3. Professional HP Workflow
 For comprehensive, professional-grade landing pages with marketing psychology:
 - \`collectStrategyInfo\`: Collect business strategy and target audience
 - \`generateConceptWireframe\`: Create wireframes and site concepts
@@ -80,6 +89,13 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 - \`qualityChecklistTool\`: Comprehensive quality assessment
 
 ## Workflow Selection Guidelines
+
+**Use Structured Workflow (interactiveHearingTool → conceptProposalTool) when:**
+- User wants a professional, consultative approach
+- Detailed business requirements need to be gathered
+- User mentions "ヒアリング", "相談", "段階的", or asks for a structured process
+- High-quality, customized LP is required
+- User wants to review and approve concepts before generation
 
 **Use intelligentLPGeneratorTool when:**
 - User provides natural language descriptions of their business/service
@@ -99,6 +115,15 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 - Prototyping or testing purposes
 - No specific business strategy requirements
 - User explicitly requests "quick" or "simple" approach
+
+## Structured Workflow Process (NEW - RECOMMENDED)
+1. **Interactive Hearing**: Use interactiveHearingTool to gather detailed business requirements through PROMPT.md-based consultation
+2. **Concept Proposal**: Use conceptProposalTool to generate comprehensive LP concept based on hearing results (USER REVIEW)
+3. **Concept Approval**: User reviews and approves the proposed concept
+4. **Structure Design**: Create detailed page structure and wireframes
+5. **Final Generation**: Generate the final LP using enhanced tools
+
+**IMPORTANT**: This workflow includes multiple user review and approval points for maximum customization.
 
 ## Professional HP Workflow Process
 1. **Strategy Collection**: Gather business information, target audience, goals
@@ -134,6 +159,9 @@ Remember: Your goal is to create landing pages that not only look great but also
     `,
     model,
     tools: { 
+      // Structured Workflow Tools (NEW)
+      interactiveHearingTool,
+      conceptProposalTool,
       // Quick Creation Tools
       enhancedLPGeneratorTool,
       intelligentLPGeneratorTool,
