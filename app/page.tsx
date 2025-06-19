@@ -10,6 +10,8 @@ import { LPViewer } from './components/LPViewer';
 import { EditModal } from './components/EditModal';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { ProHPWorkflowPanel } from './components/ProHPWorkflowPanel';
+import { VariantSelector } from '@/components/VariantSelector';
+import { AISuggestionPanel, AISuggestionGenerator } from '@/components/AISuggestionPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 // --- Prop Types ---
@@ -99,6 +101,13 @@ const MainView = ({
   const [editingText, setEditingText] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // 新機能の状態管理
+  const [variants, setVariants] = useState<any[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [showVariantSelector, setShowVariantSelector] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+
   // 選択された要素からテキストを抽出
   const extractTextFromElement = (elementId: string): string => {
     if (!lpToolState.htmlContent) return '';
@@ -182,6 +191,47 @@ const MainView = ({
     }
   };
 
+  // 新機能のハンドラー関数
+  const handleSelectVariant = (variant: any) => {
+    setSelectedVariant(variant);
+    setLpToolState(prev => ({
+      ...prev,
+      htmlContent: variant.htmlContent,
+      cssContent: variant.cssContent,
+      title: variant.title
+    }));
+    setShowVariantSelector(false);
+  };
+
+  const handleApplyAISuggestion = async (suggestion: any) => {
+    // AI提案の適用ロジック
+    console.log('Applying AI suggestion:', suggestion);
+    
+    // 簡単な実装例（実際にはより複雑な処理が必要）
+    if (suggestion.action.type === 'replace' && lpToolState.htmlContent) {
+      const updatedContent = lpToolState.htmlContent.replace(
+        suggestion.action.target,
+        suggestion.action.value
+      );
+      
+      setLpToolState(prev => ({
+        ...prev,
+        htmlContent: updatedContent
+      }));
+    }
+  };
+
+  const generateAISuggestions = () => {
+    if (lpToolState.htmlContent) {
+      const suggestions = AISuggestionGenerator.analyzeContent(
+        lpToolState.htmlContent, 
+        lpToolState.cssContent
+      );
+      setAiSuggestions(suggestions);
+      setShowAISuggestions(true);
+    }
+  };
+
   // LPツール検出とコンテンツ抽出
   useEffect(() => {
     console.log('[LP Detection] Messages array:', messages);
@@ -240,7 +290,26 @@ const MainView = ({
               // LP生成関連ツールの結果かどうかを確認
               if (toolInvocation.toolName === 'enhancedLPGeneratorTool' || 
                   toolInvocation.toolName === 'htmlLPTool' ||
-                  toolInvocation.toolName === 'lpPreviewTool') {
+                  toolInvocation.toolName === 'lpPreviewTool' ||
+                  toolInvocation.toolName === 'intelligentLPGeneratorTool') {
+                
+                // インテリジェントLPジェネレーターの場合、バリエーションを処理
+                if (toolInvocation.toolName === 'intelligentLPGeneratorTool' && result && result.variants) {
+                  setVariants(result.variants);
+                  setShowVariantSelector(true);
+                  
+                  // 推奨バリエーションを自動選択
+                  const recommendedVariant = result.variants[result.recommendedVariant || 0];
+                  if (recommendedVariant) {
+                    htmlContent = recommendedVariant.htmlContent;
+                    cssContent = recommendedVariant.cssContent || '';
+                    title = recommendedVariant.title || 'Generated Landing Page';
+                    setSelectedVariant(recommendedVariant);
+                  }
+                  foundLPResult = true;
+                  console.log(`[LP Detection] Found variants in intelligentLPGeneratorTool, count: ${result.variants.length}`);
+                  break;
+                }
                 
                 // HTMLコンテンツが存在する場合
                 if (result && result.htmlContent) {
@@ -296,6 +365,15 @@ const MainView = ({
         title: title,
         forcePanelOpen: true
       });
+
+      // AI提案を自動生成
+      setTimeout(() => {
+        const suggestions = AISuggestionGenerator.analyzeContent(htmlContent, cssContent);
+        if (suggestions.length > 0) {
+          setAiSuggestions(suggestions);
+          setShowAISuggestions(true);
+        }
+      }, 1000); // 1秒後に提案を表示
     } else {
       console.log('[LP Detection] No LP result found, keeping current state');
       console.log('[LP Detection] foundLPResult:', foundLPResult);
@@ -513,6 +591,24 @@ const MainView = ({
                 >
                   HTMLダウンロード
                 </button>
+
+                {/* バリエーション表示ボタン */}
+                {variants.length > 0 && (
+                  <button
+                    onClick={() => setShowVariantSelector(true)}
+                    className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
+                  >
+                    バリエーション ({variants.length})
+                  </button>
+                )}
+
+                {/* AI提案表示ボタン */}
+                <button
+                  onClick={generateAISuggestions}
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                >
+                  AI改善提案
+                </button>
               </div>
             )}
           </div>
@@ -560,6 +656,32 @@ const MainView = ({
         onSave={handleTextUpdate}
         onClose={handleEditModalClose}
         isLoading={isUpdating}
+      />
+
+      {/* バリエーションセレクター */}
+      {showVariantSelector && (
+        <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
+          <VariantSelector
+            variants={variants}
+            selectedVariantId={selectedVariant?.id}
+            onSelectVariant={handleSelectVariant}
+          />
+          <button
+            onClick={() => setShowVariantSelector(false)}
+            className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* AI提案パネル */}
+      <AISuggestionPanel
+        suggestions={aiSuggestions}
+        onApplySuggestion={handleApplyAISuggestion}
+        onDismissSuggestion={(id) => setAiSuggestions(prev => prev.filter(s => s.id !== id))}
+        isVisible={showAISuggestions}
+        onClose={() => setShowAISuggestions(false)}
       />
     </div>
   );

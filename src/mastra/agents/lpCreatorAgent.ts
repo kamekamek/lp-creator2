@@ -20,6 +20,7 @@ import {
   makeImagePromptsTool,
   qualityChecklistTool
 } from '../tools';
+import { intelligentLPGeneratorTool } from '../tools/intelligentLPGeneratorTool';
 import { proHPWorkflow, startProHPWorkflow, resumeProHPWorkflow, getWorkflowStatus } from '../workflows/proHPWorkflow';
 // import { Memory } from '@mastra/memory';
 
@@ -60,6 +61,7 @@ Your main goal is to follow the USER's instructions for creating landing pages, 
 For simple, fast landing page creation:
 - \`lpStructureTool\`: Creates page structure proposal
 - \`enhancedLPGeneratorTool\`: Complete landing page generator
+- \`intelligentLPGeneratorTool\`: Advanced AI-powered generator with natural language understanding and variant generation
 - \`htmlLPTool\`: Generates HTML sections
 - \`lpPreviewTool\`: Displays preview
 - \`partialUpdateMastraTool\`: Updates specific elements
@@ -79,6 +81,12 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 
 ## Workflow Selection Guidelines
 
+**Use intelligentLPGeneratorTool when:**
+- User provides natural language descriptions of their business/service
+- Multiple design variations are desired (readdy.ai style)
+- Automatic business context analysis is needed
+- User input contains industry, target audience, or competitive advantage information
+
 **Use Professional HP Workflow when:**
 - User requests "professional", "high-quality", or "comprehensive" landing pages
 - Business requirements include marketing psychology, SEO optimization, or conversion optimization
@@ -86,7 +94,7 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 - Project requires separated HTML/CSS/JS files
 - Quality assurance and performance optimization are priorities
 
-**Use Quick Creation when:**
+**Use Quick Creation (enhancedLPGeneratorTool) when:**
 - User wants a simple, fast landing page
 - Prototyping or testing purposes
 - No specific business strategy requirements
@@ -128,6 +136,7 @@ Remember: Your goal is to create landing pages that not only look great but also
     tools: { 
       // Quick Creation Tools
       enhancedLPGeneratorTool,
+      intelligentLPGeneratorTool,
       htmlLPTool,
       lpStructureTool,
       lpPreviewTool,
