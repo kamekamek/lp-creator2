@@ -45,16 +45,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
   const { messages, append, isLoading } = useChat({
     api: '/api/lp-creator/chat',
     onFinish: (message) => {
-      console.log('Tool execution completed:', message);
       setProcessing(false);
-      
-      // ツール結果の解析（ヒアリングデータの更新など）
-      try {
-        // メッセージ内容からツール結果を抽出する処理は必要に応じて追加
-        // 現在はシンプルに処理完了のログのみ
-      } catch (error) {
-        console.error('Error processing tool result:', error);
-      }
     },
     onError: (error) => {
       console.error('Tool execution error:', error);
@@ -65,24 +56,24 @@ export const StructuredWorkflowPanel: React.FC = () => {
 
   // ワークフロー段階に応じた表示制御
   useEffect(() => {
-    setShowHearing(currentStage === 'hearing');
+    // currentStageが'hearing'以外に変わった時のみshowHearingをfalseに
+    if (currentStage !== 'hearing') {
+      setShowHearing(false);
+    }
     setShowConcept(currentStage === 'concept');
   }, [currentStage]);
 
   // ヒアリング開始
   const startHearing = async () => {
-    console.log('🚀 ヒアリング開始ボタンがクリックされました');
     setProcessing(true);
     setError(null);
     setShowHearing(true); // ヒアリング画面を表示
-    console.log('📝 showHearing を true に設定しました');
     
     try {
       await append({
         role: 'user',
         content: 'interactiveHearingTool を使ってヒアリングを開始してください。stage: initial で実行してください。'
       });
-      console.log('💬 Mastra API にメッセージを送信しました');
     } catch (error) {
       console.error('Failed to start hearing:', error);
       setError('ヒアリングの開始に失敗しました');
@@ -259,7 +250,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
               <MessageCircle className="w-5 h-5 text-blue-600" />
               ヒアリング
             </CardTitle>
@@ -274,7 +265,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
               <Lightbulb className="w-5 h-5 text-yellow-600" />
               コンセプト提案
             </CardTitle>
@@ -289,7 +280,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
               <Target className="w-5 h-5 text-green-600" />
               LP生成
             </CardTitle>
@@ -324,17 +315,10 @@ export const StructuredWorkflowPanel: React.FC = () => {
     </div>
   );
 
-  console.log('🔄 StructuredWorkflowPanel render:', { 
-    currentStage, 
-    showHearing, 
-    showConcept, 
-    isProcessing,
-    condition1: currentStage === 'hearing' && !showHearing,
-    condition2: showHearing
-  });
+  // デバッグログを削除（本番環境のため）
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="h-full bg-gray-50 p-6 overflow-auto">
       <div className="max-w-7xl mx-auto">
         {/* 段階インジケーター */}
         {currentStage !== 'hearing' && renderStageIndicator()}

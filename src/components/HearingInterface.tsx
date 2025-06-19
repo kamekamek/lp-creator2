@@ -46,7 +46,7 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   completionRate = 0,
   collectedData = {}
 }) => {
-  console.log('🎤 HearingInterface rendered:', { isProcessing, currentQuestion, completionRate });
+  // デバッグログを削除
   
   const [currentStage, setCurrentStage] = useState<'initial' | 'progress' | 'complete'>('initial');
   const [userInput, setUserInput] = useState('');
@@ -147,7 +147,7 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   );
 
   const renderConversationHistory = () => (
-    <div className="space-y-4 max-h-96 overflow-y-auto">
+    <div className="space-y-4 max-h-64 overflow-y-auto">
       {conversationHistory.map((entry, index) => (
         <div
           key={index}
@@ -265,22 +265,23 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* ヘッダー */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          LP作成ヒアリング
-        </h1>
-        <p className="text-gray-900">
-          効果的なランディングページを作成するため、いくつか質問させていただきます
-        </p>
-      </div>
+    <div className="h-full overflow-auto">
+      <div className="max-w-6xl mx-auto p-6">
+        {/* ヘッダー */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            LP作成ヒアリング
+          </h1>
+          <p className="text-gray-900">
+            効果的なランディングページを作成するため、いくつか質問させていただきます
+          </p>
+        </div>
 
-      {/* 進捗サマリー */}
-      {currentStage === 'progress' && renderProgressSummary()}
+        {/* 進捗サマリー */}
+        {currentStage === 'progress' && renderProgressSummary()}
 
-      {/* メインコンテンツ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* メインコンテンツ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 会話エリア */}
         <div className="lg:col-span-2">
           <Card>
