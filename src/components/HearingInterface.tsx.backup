@@ -46,7 +46,7 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   completionRate = 0,
   collectedData = {}
 }) => {
-  console.log('🎤 HearingInterface rendered:', { isProcessing, currentQuestion, completionRate });
+  // デバッグログを削除
   
   const [currentStage, setCurrentStage] = useState<'initial' | 'progress' | 'complete'>('initial');
   const [userInput, setUserInput] = useState('');
@@ -69,9 +69,7 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   useEffect(() => {
     if (currentQuestion && conversationHistory.length > 0) {
       const lastEntry = conversationHistory[conversationHistory.length - 1];
-      // 質問が変わった場合のみ追加（ストリーミング重複を防ぐ）
-      if (lastEntry.type !== 'question' || lastEntry.content !== currentQuestion) {
-        console.log('🆕 New question received:', currentQuestion.substring(0, 100) + '...');
+      if (lastEntry.content !== currentQuestion) {
         setConversationHistory(prev => [
           ...prev,
           {
@@ -121,8 +119,8 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
         <div className="space-y-4">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-900">完了率</span>
-              <span className="text-sm text-gray-900">{completionRate}%</span>
+              <span className="text-sm font-medium">全体進捗</span>
+              <span className="text-sm text-gray-600">{completionRate}%</span>
             </div>
             <Progress value={completionRate} className="h-2" />
           </div>
@@ -130,15 +128,15 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-gray-900">必須情報</span>
-              <Badge variant="secondary">
-                {Object.keys(collectedData.必須情報 || {}).length}/4
+              <span className="text-sm">必須情報</span>
+              <Badge variant={Object.keys(collectedData.必須情報 || {}).length > 2 ? 'default' : 'secondary'}>
+                {Object.keys(collectedData.必須情報 || {}).length}/5
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm text-gray-900">戦略情報</span>
-              <Badge variant="secondary">
+              <span className="text-sm">戦略情報</span>
+              <Badge variant={Object.keys(collectedData.戦略情報 || {}).length > 1 ? 'default' : 'secondary'}>
                 {Object.keys(collectedData.戦略情報 || {}).length}/4
               </Badge>
             </div>
@@ -184,7 +182,7 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   const renderCollectedDataSummary = () => (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg text-gray-900">収集済み情報</CardTitle>
+        <CardTitle className="text-lg">収集済み情報</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -204,7 +202,11 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
                       ? 'text-green-500'
                       : 'text-gray-300'
                   }`} />
-                  <span className="text-sm text-gray-900">
+                  <span className={`text-sm ${
+                    collectedData.必須情報?.[item.key as keyof typeof collectedData.必須情報]
+                      ? 'text-gray-900'
+                      : 'text-gray-900'
+                  }`}>
                     {item.label}
                   </span>
                 </div>
@@ -228,7 +230,11 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
                       ? 'text-green-500'
                       : 'text-gray-300'
                   }`} />
-                  <span className="text-sm text-gray-900">
+                  <span className={`text-sm ${
+                    collectedData.戦略情報?.[item.key as keyof typeof collectedData.戦略情報]
+                      ? 'text-gray-900'
+                      : 'text-gray-900'
+                  }`}>
                     {item.label}
                   </span>
                 </div>
@@ -279,58 +285,57 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
           {/* 会話エリア */}
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5 text-blue-600" />
-                  対話
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* 会話履歴 */}
-                {renderConversationHistory()}
-                
-                {/* 入力エリア */}
-                <div className="mt-6 space-y-3">
-                  <textarea
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="こちらにご回答ください..."
-                    className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                    rows={4}
-                    disabled={isProcessing}
-                  />
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-900">
-                      Enterで送信（Shift+Enterで改行）
-                    </span>
-                    <Button
-                      onClick={handleSubmitResponse}
-                      disabled={!userInput.trim() || isProcessing}
-                      className="px-6"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          処理中...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
-                          送信
-                        </>
-                      )}
-                    </Button>
-                  </div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-blue-600" />
+                対話
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* 会話履歴 */}
+              {renderConversationHistory()}
+              
+              {/* 入力エリア */}
+              <div className="mt-6 space-y-3">
+                <textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="こちらにご回答ください..."
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  rows={4}
+                  disabled={isProcessing}
+                />
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-900">
+                    Enterで送信（Shift+Enterで改行）
+                  </span>
+                  <Button
+                    onClick={handleSubmitResponse}
+                    disabled={!userInput.trim() || isProcessing}
+                    className="px-6"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        処理中...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        回答する
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* サイドバー：収集済み情報 */}
-          <div>
-            {renderCollectedDataSummary()}
-          </div>
+        {/* サイドバー：収集済み情報 */}
+        <div>
+          {renderCollectedDataSummary()}
         </div>
       </div>
     </div>

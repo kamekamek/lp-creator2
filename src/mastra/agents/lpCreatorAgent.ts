@@ -9,21 +9,12 @@ import {
   enhancedLPGeneratorTool,
   partialUpdateMastraTool,
   aiPartialUpdateTool,
-  // Professional HP Workflow Tools
-  collectStrategyInfo,
-  generateConceptWireframe,
-  writeCopyAndUX,
-  planFileStructureTool,
-  generateHTMLTool,
-  generateCSSTool,
-  generateJSTool,
-  makeImagePromptsTool,
-  qualityChecklistTool
+  // Simplified tool set - Professional HP Workflow tools removed
 } from '../tools';
 import { intelligentLPGeneratorTool } from '../tools/intelligentLPGeneratorTool';
 import { interactiveHearingTool } from '../tools/interactiveHearingTool';
 import { conceptProposalTool } from '../tools/conceptProposalTool';
-import { proHPWorkflow, startProHPWorkflow, resumeProHPWorkflow, getWorkflowStatus } from '../workflows/proHPWorkflow';
+// Professional HP Workflow removed - using simplified approach
 // import { Memory } from '@mastra/memory';
 
 // 動的にモデルを作成する関数
@@ -76,19 +67,7 @@ For simple, fast landing page creation:
 - \`partialUpdateMastraTool\`: Updates specific elements
 - \`aiPartialUpdateTool\`: AI-powered intelligent updates
 
-### 3. Professional HP Workflow
-For comprehensive, professional-grade landing pages with marketing psychology:
-- \`collectStrategyInfo\`: Collect business strategy and target audience
-- \`generateConceptWireframe\`: Create wireframes and site concepts
-- \`writeCopyAndUX\`: Professional copywriting with marketing psychology
-- \`planFileStructureTool\`: Design optimal file structure
-- \`generateHTMLTool\`: Generate semantic, SEO-optimized HTML
-- \`generateCSSTool\`: Create modern, responsive CSS
-- \`generateJSTool\`: Generate ES6+ JavaScript with performance optimization
-- \`makeImagePromptsTool\`: Create detailed image generation prompts
-- \`qualityChecklistTool\`: Comprehensive quality assessment
-
-## Workflow Selection Guidelines
+## Workflow Selection Guidelines (Simplified)
 
 **Use Structured Workflow (interactiveHearingTool → conceptProposalTool) when:**
 - User wants a professional, consultative approach
@@ -102,13 +81,6 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 - Multiple design variations are desired (readdy.ai style)
 - Automatic business context analysis is needed
 - User input contains industry, target audience, or competitive advantage information
-
-**Use Professional HP Workflow when:**
-- User requests "professional", "high-quality", or "comprehensive" landing pages
-- Business requirements include marketing psychology, SEO optimization, or conversion optimization
-- User mentions specific business goals, target audience analysis, or competitive analysis
-- Project requires separated HTML/CSS/JS files
-- Quality assurance and performance optimization are priorities
 
 **Use Quick Creation (enhancedLPGeneratorTool) when:**
 - User wants a simple, fast landing page
@@ -125,18 +97,7 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 
 **IMPORTANT**: This workflow includes multiple user review and approval points for maximum customization.
 
-## Professional HP Workflow Process
-1. **Strategy Collection**: Gather business information, target audience, goals
-2. **Concept Design**: Create wireframes and design concepts (USER REVIEW)
-3. **Copywriting**: Professional copy with marketing psychology (USER REVIEW)  
-4. **File Structure**: Plan optimal implementation approach
-5. **Implementation**: Generate HTML, CSS, JavaScript in parallel
-6. **Assets**: Create image generation prompts and branding guidelines
-7. **Quality Check**: Comprehensive testing and optimization recommendations
-
-**IMPORTANT**: Professional workflow includes user review points at strategy, concept, and copy stages.
-
-## Standard Creation Process (Quick)
+## Quick Creation Process
 1. **Structure Proposal**: Use lpStructureTool to propose page structure
 2. **User Confirmation**: Present structure for user review
 3. **Generation**: Use enhancedLPGeneratorTool after confirmation
@@ -153,13 +114,12 @@ For comprehensive, professional-grade landing pages with marketing psychology:
 1. Choose appropriate workflow based on user requirements
 2. Follow tool schemas exactly as specified
 3. Explain tool choices to users before execution
-4. For Professional HP Workflow, guide users through each review stage
 
 Remember: Your goal is to create landing pages that not only look great but also convert visitors into customers, using the most appropriate approach for their needs.
     `,
     model,
     tools: { 
-      // Structured Workflow Tools (NEW)
+      // Structured Workflow Tools (MAIN)
       interactiveHearingTool,
       conceptProposalTool,
       // Quick Creation Tools
@@ -170,16 +130,6 @@ Remember: Your goal is to create landing pages that not only look great but also
       lpPreviewTool,
       partialUpdateMastraTool,
       aiPartialUpdateTool,
-      // Professional HP Workflow Tools
-      collectStrategyInfo,
-      generateConceptWireframe,
-      writeCopyAndUX,
-      planFileStructureTool,
-      generateHTMLTool,
-      generateCSSTool,
-      generateJSTool,
-      makeImagePromptsTool,
-      qualityChecklistTool,
     },
     // memory: new Memory({
     //   options: {

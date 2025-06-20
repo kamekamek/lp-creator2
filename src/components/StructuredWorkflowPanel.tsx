@@ -45,10 +45,28 @@ export const StructuredWorkflowPanel: React.FC = () => {
   const { messages, append, isLoading } = useChat({
     api: '/api/lp-creator/chat',
     onFinish: (message) => {
+      console.log('✅ Tool execution completed');
       setProcessing(false);
+      
+      // ツール結果の解析
+      try {
+        if (message.toolInvocations) {
+          message.toolInvocations.forEach((toolInvocation: any) => {
+            if (toolInvocation.toolName === 'interactiveHearingTool' && toolInvocation.result) {
+              console.log('📝 Hearing tool result:', toolInvocation.result);
+              // ヒアリングデータの更新
+              if (toolInvocation.result.collectedData) {
+                updateHearingData(toolInvocation.result.collectedData);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error processing tool results:', error);
+      }
     },
     onError: (error) => {
-      console.error('Tool execution error:', error);
+      console.error('❌ Tool execution error:', error);
       setError(error.message);
       setProcessing(false);
     }
@@ -150,7 +168,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
                   ? 'border-blue-500 bg-blue-50 text-blue-700' 
                   : isCompleted 
                     ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 bg-gray-50 text-gray-500'
+                    : 'border-gray-200 bg-gray-50 text-gray-900'
               }`}>
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{stage.label}</span>
@@ -159,7 +177,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
               
               {index < stages.length - 1 && (
                 <ArrowRight className={`w-5 h-5 mx-3 ${
-                  isCompleted ? 'text-green-500' : 'text-gray-300'
+                  isCompleted ? 'text-green-500' : 'text-gray-900'
                 }`} />
               )}
             </div>
@@ -337,7 +355,8 @@ export const StructuredWorkflowPanel: React.FC = () => {
             onResponse={handleHearingResponse}
             onComplete={() => generateConcept()}
             isProcessing={isLoading || isProcessing}
-            currentQuestion={messages.length > 0 ? messages[messages.length - 1].content : ''}
+            currentQuestion={messages.length > 0 && messages[messages.length - 1].role === 'assistant' ? 
+              (typeof messages[messages.length - 1].content === 'string' ? messages[messages.length - 1].content : '') : ''}
             completionRate={completionRate}
             collectedData={hearingData}
           />
