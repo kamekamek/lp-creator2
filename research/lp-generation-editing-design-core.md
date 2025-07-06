@@ -1,27 +1,6 @@
-# LP生成・編集・対話システム詳細設計書
+# LP生成・編集・対話システム詳細設計書 - コアシステム
 
-> **TL;DR**: AI駆動のランディングページ生成・編集システムの包括的設計書。インテリジェントコンテンツ生成、リアルタイム編集機能、対話型UI、ビジュアルデザインシステムを統合した次世代LP作成プラットフォームの技術仕様とアーキテクチャ設計を詳述。
-
-## 📋 メタデータ
-
-| 項目 | 内容 |
-|------|------|
-| **作成日** | 2025-06-14 |
-| **最終更新** | 2025-07-06 |
-| **バージョン** | 1.2 |
-| **ステータス** | 🔄 開発中 |
-| **対象読者** | 開発者、アーキテクト、プロダクトマネージャー |
-| **関連ドキュメント** | `PRO_HP_WORKFLOW_SUMMARY.md`, `implementation-guide.md` |
-| **技術スタック** | Next.js, TypeScript, Mastra, OpenAI, TensorFlow.js |
-
-## 📖 目次
-
-1. [LP生成プロセスの高度化](#1-lp生成プロセスの高度化)
-2. [高度なテキスト編集システム](#2-高度なテキスト編集システム)
-3. [ビジュアルデザイン編集システム](#3-ビジュアルデザイン編集システム)
-4. [対話型編集システム](#4-対話型編集システム)
-5. [実装アーキテクチャ](#5-実装アーキテクチャ)
-6. [技術スタック詳細](#6-技術スタック詳細)
+> **関連ドキュメント**: [概要](lp-generation-editing-design-overview.md) | [実装詳細](lp-generation-editing-design-impl.md)
 
 ---
 
@@ -196,6 +175,8 @@ export class DesignSystemGenerator {
   }
 }
 ```
+
+---
 
 ## 2. 高度なテキスト編集システム
 
@@ -388,6 +369,8 @@ export class CollaborativeEditingService {
   }
 }
 ```
+
+---
 
 ## 3. ビジュアルデザイン編集システム
 
@@ -663,6 +646,8 @@ export const AnimationEditor: React.FC<{ elementId: string }> = ({ elementId }) 
 };
 ```
 
+---
+
 ## 4. 対話型編集システム
 
 ### 4.1 コンテキスト理解型対話エンジン
@@ -882,211 +867,3 @@ export class IntelligentSuggestionEngine {
   }
 }
 ```
-
-## 5. 実装アーキテクチャ
-
-### 5.1 状態管理設計
-
-```typescript
-// src/store/editing-store.ts
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-
-interface EditingState {
-  // LP全体の状態
-  lpData: {
-    id: string;
-    sections: Section[];
-    designSystem: DesignSystem;
-    metadata: LPMetadata;
-  };
-  
-  // 編集状態
-  editingMode: 'visual' | 'code' | 'preview';
-  selectedElements: string[];
-  activeElement: string | null;
-  
-  // 履歴管理
-  history: {
-    past: LPSnapshot[];
-    future: LPSnapshot[];
-  };
-  
-  // リアルタイム同期
-  syncStatus: 'synced' | 'syncing' | 'error';
-  collaborators: Collaborator[];
-  
-  // アクション
-  actions: {
-    updateElement: (elementId: string, updates: Partial<Element>) => void;
-    addSection: (section: Section, position?: number) => void;
-    deleteElement: (elementId: string) => void;
-    undo: () => void;
-    redo: () => void;
-    applyAISuggestion: (suggestion: Suggestion) => void;
-  };
-}
-
-export const useEditingStore = create<EditingState>()(
-  immer((set, get) => ({
-    lpData: initialLPData,
-    editingMode: 'visual',
-    selectedElements: [],
-    activeElement: null,
-    history: { past: [], future: [] },
-    syncStatus: 'synced',
-    collaborators: [],
-    
-    actions: {
-      updateElement: (elementId, updates) => set((state) => {
-        // 履歴に追加
-        state.history.past.push(createSnapshot(state.lpData));
-        state.history.future = [];
-        
-        // 要素を更新
-        const element = findElement(state.lpData, elementId);
-        if (element) {
-          Object.assign(element, updates);
-        }
-        
-        // 同期をトリガー
-        state.syncStatus = 'syncing';
-        syncChanges(elementId, updates);
-      }),
-      
-      // ... 他のアクション
-    }
-  }))
-);
-```
-
-### 5.2 パフォーマンス最適化
-
-```typescript
-// src/utils/performance-optimization.ts
-export class PerformanceOptimizer {
-  // 仮想化レンダリング
-  virtualizeElements(elements: Element[], viewport: Viewport): Element[] {
-    return elements.filter(element => {
-      const elementBounds = calculateBounds(element);
-      return intersectsViewport(elementBounds, viewport);
-    });
-  }
-  
-  // デバウンス処理
-  debouncedUpdate = debounce((elementId: string, updates: any) => {
-    this.applyUpdates(elementId, updates);
-  }, 300);
-  
-  // バッチ更新
-  batchUpdates(updates: Update[]) {
-    unstable_batchedUpdates(() => {
-      updates.forEach(update => {
-        this.applyUpdate(update);
-      });
-    });
-  }
-  
-  // メモ化
-  memoizedCalculations = new Map<string, any>();
-  
-  calculateWithMemo<T>(key: string, calculation: () => T): T {
-    if (!this.memoizedCalculations.has(key)) {
-      this.memoizedCalculations.set(key, calculation());
-    }
-    return this.memoizedCalculations.get(key);
-  }
-}
-```
-
-### 5.3 プラグインシステム
-
-```typescript
-// src/plugins/plugin-system.ts
-export interface Plugin {
-  id: string;
-  name: string;
-  version: string;
-  hooks: {
-    beforeGenerate?: (context: GenerationContext) => void;
-    afterGenerate?: (result: GenerationResult) => void;
-    beforeEdit?: (element: Element, changes: any) => boolean;
-    afterEdit?: (element: Element) => void;
-    customTools?: Tool[];
-    customComponents?: Component[];
-  };
-}
-
-export class PluginManager {
-  private plugins: Map<string, Plugin> = new Map();
-  
-  async loadPlugin(pluginPath: string) {
-    const plugin = await import(pluginPath);
-    this.validatePlugin(plugin);
-    this.plugins.set(plugin.id, plugin);
-    this.initializePlugin(plugin);
-  }
-  
-  executeHook<T extends keyof Plugin['hooks']>(
-    hookName: T,
-    ...args: Parameters<NonNullable<Plugin['hooks'][T]>>
-  ) {
-    this.plugins.forEach(plugin => {
-      const hook = plugin.hooks[hookName];
-      if (hook) {
-        hook(...args);
-      }
-    });
-  }
-  
-  getCustomTools(): Tool[] {
-    return Array.from(this.plugins.values())
-      .flatMap(plugin => plugin.hooks.customTools || []);
-  }
-}
-```
-
-## 6. 技術スタック詳細
-
-### 必要な依存関係
-
-```json
-{
-  "dependencies": {
-    // AI・自然言語処理
-    "@tensorflow/tfjs": "^4.10.0",
-    "natural": "^6.5.0",
-    "compromise": "^14.10.0",
-    
-    // リアルタイム同期
-    "yjs": "^13.6.0",
-    "y-websocket": "^1.5.0",
-    
-    // 音声認識・合成
-    "@speechly/react-client": "^2.2.0",
-    "react-speech-kit": "^3.0.1",
-    
-    // ジェスチャー認識
-    "hammerjs": "^2.0.8",
-    "@use-gesture/react": "^10.2.0",
-    
-    // アニメーション
-    "framer-motion": "^10.16.0",
-    "lottie-react": "^2.4.0",
-    
-    // ドラッグ&ドロップ
-    "@dnd-kit/sortable": "^7.0.2",
-    "@dnd-kit/core": "^6.0.8",
-    
-    // 状態管理
-    "zustand": "^4.4.0",
-    "immer": "^10.0.2",
-    
-    // パフォーマンス
-    "react-window": "^1.8.9",
-    "react-intersection-observer": "^9.5.0"
-  }
-}
-```
-
-これらの設計により、readdy.ai水準の高度なLP生成・編集システムを実現できます。

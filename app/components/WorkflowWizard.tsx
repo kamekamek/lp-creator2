@@ -9,11 +9,9 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
 import { Badge } from '@/app/components/ui/badge';
 
-
-
 interface WorkflowWizardProps {
-  onStartWorkflow: (input: WorkflowInput) => void;
-  onResumeWorkflow: (runId: string, feedback: { approved: boolean; feedback?: string }) => void;
+  onStartWorkflow: (input: WorkflowInput) => Promise<void>;
+  onResumeWorkflow: (runId: string, feedback: { approved: boolean; feedback?: string }) => Promise<void>;
   workflowState?: {
     runId: string;
     status: string;
@@ -46,6 +44,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
   });
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   const handleInputChange = useCallback((field: keyof WorkflowInput, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -83,6 +82,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
         feedback: feedback.trim() 
       });
       setFeedback('');
+      setShowFeedbackForm(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -240,38 +240,34 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
                 <Button 
                   variant="outline"
                   disabled={isSubmitting}
-                  onClick={() => {
-                    // 修正要求用のフォームを展開
-                    const feedbackForm = document.getElementById('feedback-form');
-                    if (feedbackForm) {
-                      feedbackForm.style.display = feedbackForm.style.display === 'none' ? 'block' : 'none';
-                    }
-                  }}
+                  onClick={() => setShowFeedbackForm(!showFeedbackForm)}
                 >
                   修正を要求
                 </Button>
               </div>
 
-              <div id="feedback-form" style={{ display: 'none' }} className="space-y-3">
-                <Label htmlFor="feedback" className="text-gray-900 font-medium">
-                  修正内容を詳しく説明してください
-                </Label>
-                <Textarea
-                  id="feedback"
-                  placeholder="どのような修正が必要か具体的に説明してください..."
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  className="text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                  rows={3}
-                />
-                <Button 
-                  onClick={handleRequestChanges}
-                  disabled={!feedback.trim() || isSubmitting}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                >
-                  {isSubmitting ? '修正要求中...' : '修正を要求して再実行'}
-                </Button>
-              </div>
+              {showFeedbackForm && (
+                <div className="space-y-3">
+                  <Label htmlFor="feedback" className="text-gray-900 font-medium">
+                    修正内容を具体的に説明してください
+                  </Label>
+                  <Textarea
+                    id="feedback"
+                    placeholder="どのような修正が必要か具体的に説明してください..."
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    className="text-gray-900 placeholder:text-gray-500 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    rows={3}
+                  />
+                  <Button 
+                    onClick={handleRequestChanges}
+                    disabled={!feedback.trim() || isSubmitting}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                  >
+                    {isSubmitting ? '修正要求中...' : '修正を要求して再実行'}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </Card>

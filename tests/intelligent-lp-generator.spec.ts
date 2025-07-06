@@ -74,9 +74,10 @@ test.describe('Intelligent LP Generator', () => {
     await page.fill('input', input);
     await page.click('button[type="submit"]');
     
-    // エラーハンドリングの確認（適切なエラーメッセージが表示されるか）
-    // 実際のエラーメッセージに応じて調整が必要
-    await expect(page.locator('text=エラー')).toBeVisible({ timeout: 10000 });
+    // より具体的なエラーメッセージをテスト
+    await expect(page.locator('[data-testid="error-message"]')).toBeVisible({ timeout: 10000 });
+    const errorText = await page.locator('[data-testid="error-message"]').textContent();
+    expect(errorText).toContain('接続エラー');
   });
 
   test('should maintain responsive design', async ({ page }) => {

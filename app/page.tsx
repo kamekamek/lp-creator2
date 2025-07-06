@@ -194,6 +194,7 @@ const MainView = ({
 
   // 新機能のハンドラー関数
   const handleSelectVariant = (variant: any) => {
+    console.log('🔍 [DEBUG] handleSelectVariant called:', variant?.title);
     setSelectedVariant(variant);
     setLpToolState(prev => ({
       ...prev,
@@ -201,6 +202,7 @@ const MainView = ({
       cssContent: variant.cssContent,
       title: variant.title
     }));
+    console.log('🔍 [DEBUG] Setting showVariantSelector to false');
     setShowVariantSelector(false);
   };
 
@@ -223,12 +225,15 @@ const MainView = ({
   };
 
   const generateAISuggestions = () => {
+    console.log('🔍 [DEBUG] generateAISuggestions called');
     if (lpToolState.htmlContent) {
       const suggestions = AISuggestionGenerator.analyzeContent(
         lpToolState.htmlContent, 
         lpToolState.cssContent
       );
+      console.log('🔍 [DEBUG] Generated suggestions count:', suggestions.length);
       setAiSuggestions(suggestions);
+      console.log('🔍 [DEBUG] Setting showAISuggestions to true');
       setShowAISuggestions(true);
     }
   };
@@ -368,12 +373,17 @@ const MainView = ({
       });
 
       // AI提案を自動生成
+      console.log('🔍 [DEBUG] Scheduling automatic AI suggestions in 1 second');
       setTimeout(() => {
+        console.log('🔍 [DEBUG] Auto-generating AI suggestions - START');
         const suggestions = AISuggestionGenerator.analyzeContent(htmlContent, cssContent);
+        console.log('🔍 [DEBUG] Auto-suggestions count:', suggestions.length);
         if (suggestions.length > 0) {
           setAiSuggestions(suggestions);
+          console.log('🔍 [DEBUG] Auto-setting showAISuggestions to true');
           setShowAISuggestions(true);
         }
+        console.log('🔍 [DEBUG] Auto-generating AI suggestions - END');
       }, 1000); // 1秒後に提案を表示
     } else {
       console.log('[LP Detection] No LP result found, keeping current state');
@@ -408,8 +418,10 @@ const MainView = ({
             <h1 className="text-xl font-bold text-gray-800">LPクリエーター</h1>
             <button
               onClick={() => {
+                console.log('🔍 [DEBUG] Edit mode toggle clicked - current state:', isEditMode);
                 toggleEditMode();
                 selectElement(null);
+                console.log('🔍 [DEBUG] Edit mode toggle completed - new state:', !isEditMode);
               }}
               className={`px-3 py-1.5 rounded-md text-sm font-semibold text-white transition-colors ${
                 isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
@@ -605,7 +617,10 @@ const MainView = ({
 
                 {/* AI提案表示ボタン */}
                 <button
-                  onClick={generateAISuggestions}
+                  onClick={() => {
+                    console.log('🔍 [DEBUG] AI改善提案ボタンがクリックされました');
+                    generateAISuggestions();
+                  }}
                   className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
                 >
                   AI改善提案
@@ -662,13 +677,17 @@ const MainView = ({
       {/* バリエーションセレクター */}
       {showVariantSelector && (
         <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
+          {console.log('🔍 [DEBUG] VariantSelector overlay is being rendered')}
           <VariantSelector
             variants={variants}
             selectedVariantId={selectedVariant?.id}
             onSelectVariant={handleSelectVariant}
           />
           <button
-            onClick={() => setShowVariantSelector(false)}
+            onClick={() => {
+              console.log('🔍 [DEBUG] VariantSelector close button clicked');
+              setShowVariantSelector(false);
+            }}
             className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100"
           >
             ✕
@@ -677,12 +696,19 @@ const MainView = ({
       )}
 
       {/* AI提案パネル */}
+      {console.log('🔍 [DEBUG] AISuggestionPanel render - isVisible:', showAISuggestions, 'suggestions count:', aiSuggestions.length)}
       <AISuggestionPanel
         suggestions={aiSuggestions}
         onApplySuggestion={handleApplyAISuggestion}
-        onDismissSuggestion={(id) => setAiSuggestions(prev => prev.filter(s => s.id !== id))}
+        onDismissSuggestion={(id) => {
+          console.log('🔍 [DEBUG] Dismissing AI suggestion:', id);
+          setAiSuggestions(prev => prev.filter(s => s.id !== id));
+        }}
         isVisible={showAISuggestions}
-        onClose={() => setShowAISuggestions(false)}
+        onClose={() => {
+          console.log('🔍 [DEBUG] Closing AI suggestion panel');
+          setShowAISuggestions(false);
+        }}
       />
     </div>
   );

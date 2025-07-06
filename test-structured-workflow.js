@@ -18,7 +18,7 @@ async function testStructuredWorkflow() {
     
     // 2. 構造化ワークフロータブが選択されているか確認
     console.log('2️⃣ 構造化ワークフロータブの確認...');
-    const activeTab = await page.$eval('button[class*="bg-background"]', el => el.textContent);
+    const activeTab = await page.$eval('button[data-testid="structured-workflow-tab"]', el => el.textContent);
     console.log(`✅ アクティブタブ: ${activeTab}\n`);
     
     // 3. 初期画面の要素確認
@@ -31,7 +31,10 @@ async function testStructuredWorkflow() {
         title: card.querySelector('h3')?.textContent || '',
         description: card.querySelector('p')?.textContent || ''
       }))
-    ).catch(() => []);
+    ).catch((error) => {
+      console.warn('カード情報の取得に失敗:', error.message);
+      return [];
+    });
     console.log('  - カード情報:');
     cards.forEach(card => {
       console.log(`    • ${card.title}: ${card.description.substring(0, 50)}...`);
@@ -39,27 +42,23 @@ async function testStructuredWorkflow() {
     
     // 4. ヒアリング開始ボタンクリック
     console.log('\n4️⃣ ヒアリング開始ボタンをクリック...');
-    const startButton = await page.$('button').then(button => {
-      return page.evaluate(el => el.textContent?.includes('ヒアリングを開始') ? el : null, button);
-    }).catch(() => null);
     
-    if (startButton) {
-      await page.click('button:has-text("ヒアリングを開始")').catch(async () => {
-        // フォールバック: テキストでボタンを探す
-        const buttons = await page.$$('button');
-        for (let button of buttons) {
-          const text = await page.evaluate(el => el.textContent, button);
-          if (text?.includes('ヒアリングを開始')) {
-            await button.click();
-            break;
-          }
-        }
-      });
+    // より信頼性の高い方法でボタンを探してクリック
+    const startButton = await page.evaluateHandle(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.find(button => 
+        button.textContent && button.textContent.includes('ヒアリングを開始')
+      );
+    });
+    
+    if (startButton && startButton.asElement()) {
+      await startButton.asElement().click();
       console.log('✅ ボタンクリック成功');
       
       // 5. ヒアリングインターフェースの読み込み待機
       console.log('\n5️⃣ ヒアリングインターフェース読み込み待機...');
-      await page.waitForTimeout(3000); // API呼び出しの待機
+      // 特定の要素が現れるまで待機
+      await page.waitForSelector('h1', { timeout: 10000 });
       
       // 6. ヒアリング画面の要素確認
       const hearingTitle = await page.$eval('h1', el => el.textContent).catch(() => '不明');

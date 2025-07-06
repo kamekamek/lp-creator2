@@ -1,4 +1,4 @@
-// @ts-nocheck
+// (Remove the `@ts-nocheck` directive at the top of this file)
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
@@ -77,7 +77,8 @@ export const qualityChecklistTool = createTool({
   description: 'ランディングページの品質を総合的にチェックし、Lighthouse・SEO・アクセシビリティスコアを評価する',
   inputSchema: qualityChecklistSchema,
   outputSchema: qualityChecklistOutputSchema,
-  execute: async ({ html, css, javascript, imagePrompts, projectUrl }) => {
+  execute: async (context) => {
+    const { html, css, javascript, imagePrompts, projectUrl } = context.params;
     
     // HTMLコード解析
     const htmlAnalysis = analyzeHTML(html);
@@ -216,6 +217,21 @@ export const qualityChecklistTool = createTool({
   },
 });
 
+// 品質チェック閾値定数
+const QUALITY_THRESHOLDS = {
+  HTML_OPTIMIZATION_PASS: 80,
+  CSS_OPTIMIZATION_PASS: 75,
+  JS_OPTIMIZATION_PASS: 75,
+  IMAGE_OPTIMIZATION_PASS: 75,
+  SEMANTIC_SCORE_WEIGHT: 20,
+  CSS_SCORE_WEIGHT: 25,
+  JS_SCORE_WEIGHT: 25,
+  IMAGE_SCORE_WEIGHT: 25,
+  ARIA_SCORE_MULTIPLIER: 10,
+  ARIA_SCORE_MAX: 100,
+  CRITICAL_CSS_SIZE_LIMIT: 20000, // 20KB
+} as const;
+
 // HTML解析関数
 function analyzeHTML(html: string) {
   const hasDoctype = html.includes('<!DOCTYPE html>');
@@ -227,10 +243,10 @@ function analyzeHTML(html: string) {
   
   const semanticScore = [
     hasDoctype, hasLang, hasViewport, hasMetaDescription, hasSemanticElements
-  ].filter(Boolean).length * 20;
+  ].filter(Boolean).length * QUALITY_THRESHOLDS.SEMANTIC_SCORE_WEIGHT;
 
   return {
-    isOptimized: semanticScore >= 80,
+    isOptimized: semanticScore >= QUALITY_THRESHOLDS.HTML_OPTIMIZATION_PASS,
     score: semanticScore,
     semanticScore,
     structuredData: hasStructuredData,
@@ -241,7 +257,7 @@ function analyzeHTML(html: string) {
       !hasMetaDescription && 'meta descriptionを追加',
       !hasSemanticElements && 'セマンティック要素（header, main等）を使用',
       !hasStructuredData && '構造化データ（JSON-LD）を追加',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   };
 }
 
@@ -266,7 +282,7 @@ function analyzeCSS(css: string) {
       !hasMediaQueries && 'レスポンシブデザイン用のメディアクエリを追加',
       !hasCriticalCss && 'Critical CSSを分離して初期表示を最適化',
       !usesModernFeatures && 'CSS Grid, Flexbox等のモダン機能を活用',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   };
 }
 
@@ -291,7 +307,7 @@ function analyzeJavaScript(javascript: string) {
       !hasErrorHandling && 'エラーハンドリングを実装',
       !asyncOptimized && 'デバウンス・スロットルでパフォーマンス最適化',
       !hasAnalytics && 'アナリティクス計測を実装',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   };
 }
 
@@ -316,7 +332,7 @@ function analyzeImages(imagePrompts: any[]) {
       !lazyLoading && '非クリティカル画像の遅延読み込みを実装',
       !hasAltTexts && '全画像に適切なalt属性を設定',
       !optimizedSizes && '画像サイズを適切に最適化',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   };
 }
 
@@ -337,7 +353,7 @@ function analyzeSEO(html: string) {
       !hasTitle && 'Title tagを追加',
       titleLength < 30 && 'Title tagを30文字以上に',
       titleLength > 60 && 'Title tagを60文字以下に',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   });
 
   // Meta description
@@ -354,12 +370,12 @@ function analyzeSEO(html: string) {
       !hasMetaDesc && 'Meta Descriptionを追加',
       metaDescLength < 120 && 'Meta Descriptionを120文字以上に',
       metaDescLength > 160 && 'Meta Descriptionを160文字以下に',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   });
 
   // Heading structure
   const h1Count = (html.match(/<h1>/g) || []).length;
-  const hasHeadingHierarchy = /<h1>.*<h2>/s.test(html);
+  const hasHeadingHierarchy = /<h1>[\s\S]*<h2>/.test(html);
   checks.push({
     category: 'SEO',
     item: 'Heading Structure',
@@ -369,7 +385,7 @@ function analyzeSEO(html: string) {
     recommendations: [
       h1Count !== 1 && 'H1タグは1つに限定',
       !hasHeadingHierarchy && '見出しタグの階層構造を適切に設定',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   });
 
   // Open Graph
@@ -386,7 +402,7 @@ function analyzeSEO(html: string) {
       !hasOgTitle && 'og:titleを追加',
       !hasOgDescription && 'og:descriptionを追加',
       !hasOgImage && 'og:imageを追加',
-    ].filter(Boolean),
+    ].filter((item): item is string => typeof item === 'string'),
   });
 
   return checks;
@@ -493,9 +509,9 @@ function analyzeBestPractices(html: string, css: string, javascript: string) {
 }
 
 // カテゴリスコア計算
-function calculateCategoryScores(checkResults: any[]) {
+function calculateCategoryScores(checkResults: CheckResult[]) {
   const categories = ['Performance', 'SEO', 'Accessibility', 'Best Practices'];
-  const scores: any = {};
+  const scores: { [key: string]: number } = {};
 
   categories.forEach(category => {
     const categoryResults = checkResults.filter(r => r.category === category);
@@ -514,7 +530,22 @@ function calculateCategoryScores(checkResults: any[]) {
 }
 
 // Core Web Vitals予測
-function predictCoreWebVitals(htmlAnalysis: any, cssAnalysis: any, jsAnalysis: any, imageAnalysis: any) {
+interface CoreWebVitalsResult {
+  lcp: {
+    value: number;
+    status: 'good' | 'needs_improvement' | 'poor';
+  };
+  fid: {
+    value: number;
+    status: 'good' | 'needs_improvement' | 'poor';
+  };
+  cls: {
+    value: number;
+    status: 'good' | 'needs_improvement' | 'poor';
+  };
+}
+
+function predictCoreWebVitals(htmlAnalysis: any, cssAnalysis: any, jsAnalysis: any, imageAnalysis: any): CoreWebVitalsResult {
   // 静的解析ベースの予測値
   const baselineScores = {
     lcp: 2.5, // 秒
@@ -557,8 +588,25 @@ function predictCoreWebVitals(htmlAnalysis: any, cssAnalysis: any, jsAnalysis: a
 }
 
 // アクションアイテム生成
-function generateActionItems(checkResults: any[]) {
-  const actionItems = [];
+interface CheckResult {
+  category: string;
+  item: string;
+  status: 'pass' | 'fail' | 'warning' | 'not_applicable';
+  score: number;
+  details: string;
+  recommendations: string[];
+}
+
+interface ActionItem {
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  category: string;
+  issue: string;
+  solution: string;
+  estimatedImpact: string;
+}
+
+function generateActionItems(checkResults: CheckResult[]): ActionItem[] {
+  const actionItems: ActionItem[] = [];
 
   checkResults.forEach(result => {
     if (result.status === 'fail') {
@@ -587,7 +635,7 @@ function generateActionItems(checkResults: any[]) {
 }
 
 // WCAG Level判定
-function determineWCAGLevel(checkResults: any[]): 'A' | 'AA' | 'AAA' | 'fail' {
+function determineWCAGLevel(checkResults: CheckResult[]): 'A' | 'AA' | 'AAA' | 'fail' {
   const a11yResults = checkResults.filter(r => r.category === 'Accessibility');
   const failedCount = a11yResults.filter(r => r.status === 'fail').length;
   const avgScore = a11yResults.reduce((sum, r) => sum + r.score, 0) / a11yResults.length;
@@ -599,8 +647,8 @@ function determineWCAGLevel(checkResults: any[]): 'A' | 'AA' | 'AAA' | 'fail' {
 }
 
 // 要件チェック
-function shouldRequirementBeMet(requirement: string, checkResults: any[]): boolean {
-  const requirementMap: { [key: string]: (results: any[]) => boolean } = {
+function shouldRequirementBeMet(requirement: string, checkResults: CheckResult[]): boolean {
+  const requirementMap: { [key: string]: (results: CheckResult[]) => boolean } = {
     'セマンティックHTML構造': (results) => 
       results.some(r => r.item === 'HTML構造最適化' && r.status === 'pass'),
     'レスポンシブデザイン対応': (results) => 

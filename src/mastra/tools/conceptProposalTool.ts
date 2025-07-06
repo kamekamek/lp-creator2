@@ -31,8 +31,20 @@ export const conceptProposalTool = tool({
       case 'save':
         return await conceptEngine.saveConcept(hearingData, conceptId);
       case 'load':
+        if (!conceptId) {
+          return {
+            success: false,
+            error: 'コンセプトIDが指定されていません'
+          };
+        }
         return await conceptEngine.loadConcept(conceptId!);
       case 'update':
+        if (!conceptId) {
+          return {
+            success: false,
+            error: 'コンセプトIDが指定されていません'
+          };
+        }
         return await conceptEngine.updateConcept(conceptId!, hearingData);
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -48,7 +60,7 @@ class ConceptEngine {
     const analysis = this.analyzeHearingData(hearingData);
     
     const concept = {
-      id: this.generateConceptId(),
+      id: this.generateConceptId(hearingData),
       title: this.generateConceptTitle(analysis),
       overview: this.generateOverview(analysis),
       targetPersona: this.generatePersona(analysis),
@@ -322,21 +334,23 @@ ${this.generateApproachDescription(analysis)}
     
     return {
       success: true,
-      concept: updatedConcept,
-      message: 'コンセプトが更新されました'
+      conceptId,
+      message: 'コンセプトが正常に更新されました',
+      updatedConcept
     };
-  }
-  
-  private generateConceptId(): string {
-    return `concept_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
   
   private async persistConcept(concept: any): Promise<void> {
     // ローカルストレージ実装（本番では外部ストレージを使用）
     if (typeof window !== 'undefined') {
-      const concepts = JSON.parse(localStorage.getItem('lp_concepts') || '{}');
-      concepts[concept.id] = concept;
-      localStorage.setItem('lp_concepts', JSON.stringify(concepts));
+      try {
+        const concepts = JSON.parse(localStorage.getItem('lp_concepts') || '{}');
+        concepts[concept.id] = concept;
+        localStorage.setItem('lp_concepts', JSON.stringify(concepts));
+      } catch (error) {
+        console.error('Failed to persist concept:', error);
+        throw new Error('コンセプトの保存に失敗しました。ストレージの容量を確認してください。');
+      }
     }
   }
   
@@ -435,7 +449,7 @@ ${this.generateApproachDescription(analysis)}
     ];
   }
   
-  private generateDecisionFactors(analysis: any): string[] {
+  private generateDecisionFactors(_analysis: any): string[] {
     return [
       'コストパフォーマンス',
       '実績・信頼性',
@@ -482,30 +496,198 @@ ${this.generateApproachDescription(analysis)}
     return '30日間の返金保証付き。効果を実感できなければ全額返金いたします。';
   }
   
-  // その他のヘルパーメソッド群は省略（実際の実装では全て含める）
-  private generateHeroMessage(analysis: any): string { return ''; }
-  private generateProblemSection(analysis: any): string { return ''; }
-  private generateSolutionSection(analysis: any): string { return ''; }
-  private generateBenefitsSection(analysis: any): string { return ''; }
-  private generateTrustSection(analysis: any): string { return ''; }
-  private generateCTAStrategy(analysis: any): any { return {}; }
-  private getDesignStyle(analysis: any): string { return 'modern'; }
-  private getTypographyStyle(analysis: any): string { return 'clean'; }
-  private getLayoutApproach(analysis: any): string { return 'single-column'; }
-  private getVisualElements(analysis: any): string[] { return []; }
-  private getCTAPlacement(analysis: any): string[] { return []; }
-  private getUrgencyTactics(analysis: any): string[] { return []; }
-  private getSocialProofStrategy(analysis: any): string[] { return []; }
-  private getObjectionHandling(analysis: any): string[] { return []; }
-  private getMicroConversions(analysis: any): string[] { return []; }
-  private estimateConversionRate(analysis: any): string { return '3-5%'; }
-  private generateBusinessImpact(analysis: any): string { return ''; }
-  private generateSuccessIndicators(analysis: any): string[] { return []; }
-  private generateRecommendations(analysis: any): string[] { return []; }
-  private generateAlternatives(analysis: any): any[] { return []; }
-  private generateUniqueElements(analysis: any): string[] { return []; }
-  private analyzeCompetition(data: any): string { return ''; }
-  private analyzeBrandPersonality(data: any): string { return 'professional'; }
-  private analyzeConversionPriority(data: any): string { return 'high'; }
-  private analyzeUrgency(data: any): string { return 'medium'; }
+  private generateConceptId(data?: any): string {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `concept_${timestamp}_${random}`;
+  }
+  
+  // その他のヘルパーメソッド群の実装
+  private generateHeroMessage(analysis: any): string {
+    return `${analysis.targetSegment}の課題「${analysis.mainPain}」を解決する革新的ソリューション`;
+  }
+  
+  private generateProblemSection(analysis: any): string {
+    return `多くの${analysis.targetSegment}が直面している「${analysis.mainPain}」という課題。従来の解決策では限界があり、新しいアプローチが必要です。`;
+  }
+  
+  private generateSolutionSection(analysis: any): string {
+    return `私たちの${analysis.uniqueValue}は、この課題を根本から解決する画期的なソリューションです。`;
+  }
+  
+  private generateBenefitsSection(analysis: any): string {
+    return `導入により、${analysis.desiredOutcome}を実現し、持続可能な成長を支援します。`;
+  }
+  
+  private generateTrustSection(analysis: any): string {
+    return `豊富な実績と専門知識により、${analysis.trustBuilders.join('、')}を通じて信頼をお届けします。`;
+  }
+  
+  private generateCTAStrategy(analysis: any): any {
+    return {
+      primary: analysis.primaryCTA,
+      secondary: '詳細資料をダウンロード',
+      micro: 'まずは無料相談から'
+    };
+  }
+  
+  private getDesignStyle(analysis: any): string {
+    const styles = {
+      professional: 'クリーンで信頼感のあるプロフェッショナルデザイン',
+      friendly: '親しみやすく温かみのあるデザイン',
+      premium: '高級感と洗練されたプレミアムデザイン',
+      energetic: 'ダイナミックでエネルギッシュなデザイン'
+    };
+    return styles[analysis.brandPersonality as keyof typeof styles] || styles.professional;
+  }
+  
+  private getTypographyStyle(_analysis: any): string {
+    // TODO: Implement sophisticated typography selection based on brand personality,
+    // target audience, and industry type from analysis data
+    throw new Error('Not implemented yet');
+  }
+  
+  private getLayoutApproach(_analysis: any): string {
+    // TODO: Implement layout strategy selection based on conversion priority,
+    // content length, and user behavior patterns from analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private getVisualElements(_analysis: any): string[] {
+    // TODO: Implement visual element selection based on industry type,
+    // brand personality, and trust-building requirements from analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private getCTAPlacement(_analysis: any): string[] {
+    // TODO: Implement strategic CTA placement based on urgency level,
+    // conversion priority, and user journey mapping from analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private getUrgencyTactics(_analysis: any): string[] {
+    // TODO: Implement urgency tactics selection based on urgency level,
+    // target segment behavior, and ethical persuasion principles from analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private getSocialProofStrategy(_analysis: any): string[] {
+    // TODO: Implement social proof strategy based on target segment,
+    // trust builders identified, and industry-specific credibility markers from analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private getObjectionHandling(_analysis: any): string[] {
+    // TODO: Implement objection handling strategy based on target pain points,
+    // competitive position, and common concerns identified in analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private getMicroConversions(_analysis: any): string[] {
+    // TODO: Implement micro-conversion strategy based on conversion priority,
+    // user journey stages, and progressive engagement tactics from analysis
+    throw new Error('Not implemented yet');
+  }
+  
+  private estimateConversionRate(analysis: any): string {
+    const rates = {
+      saas: '3-6%',
+      ecommerce: '2-4%',
+      consulting: '5-8%',
+      education: '4-7%',
+      general: '3-5%'
+    };
+    return rates[analysis.industryType as keyof typeof rates] || rates.general;
+  }
+  
+  private generateBusinessImpact(analysis: any): string {
+    return `想定される月間リード数の30%増加、コンバージョン率の向上により、ROI ${analysis.urgencyLevel === 'high' ? '300%' : '200%'}以上を見込みます。`;
+  }
+  
+  private generateSuccessIndicators(_analysis: any): string[] {
+    return [
+      'ページ滞在時間の向上（目標：2分以上）',
+      'スクロール率の改善（目標：70%以上）',
+      'コンバージョン率の向上',
+      'バウンス率の削減（目標：40%以下）'
+    ];
+  }
+  
+  private generateRecommendations(analysis: any): string[] {
+    return [
+      `${analysis.emotionalTrigger}に焦点を当てたメッセージング`,
+      `${analysis.targetSegment}向けの具体的な事例の活用`,
+      '段階的な信頼構築プロセスの実装',
+      'A/Bテストによる継続的最適化'
+    ];
+  }
+  
+  private generateAlternatives(analysis: any): any[] {
+    return [
+      {
+        title: '短期集中アプローチ',
+        description: '緊急性を重視したコンバージョン重視の構成',
+        suitability: analysis.urgencyLevel === 'high' ? '高' : '中'
+      },
+      {
+        title: '教育型アプローチ',
+        description: '詳細な説明と段階的な説得を重視した構成',
+        suitability: analysis.industryType === 'consulting' ? '高' : '中'
+      },
+      {
+        title: 'ストーリー型アプローチ',
+        description: '感情に訴える物語形式の構成',
+        suitability: analysis.emotionalTrigger.includes('願望') ? '高' : '中'
+      }
+    ];
+  }
+  
+  private generateUniqueElements(analysis: any): string[] {
+    return [
+      `${analysis.industryType}業界特化の専門性`,
+      `${analysis.targetSegment}向けカスタマイズ機能`,
+      '独自の成果測定システム',
+      '24時間サポート体制'
+    ];
+  }
+  
+  private analyzeCompetition(data: any): string {
+    const competitors = data.戦略情報?.競合他社 || [];
+    if (competitors.length > 0) {
+      return `${competitors.length}社との差別化が必要`;
+    }
+    return '市場のパイオニア的ポジション';
+  }
+  
+  private analyzeBrandPersonality(data: any): string {
+    const brand = data.戦略情報?.ブランドイメージ?.toLowerCase() || '';
+    if (brand.includes('親しみ') || brand.includes('フレンドリー')) {
+      return 'friendly';
+    } else if (brand.includes('高級') || brand.includes('プレミアム')) {
+      return 'premium';
+    } else if (brand.includes('活発') || brand.includes('エネルギッシュ')) {
+      return 'energetic';
+    }
+    return 'professional';
+  }
+  
+  private analyzeConversionPriority(data: any): string {
+    const urgency = data.必須情報.予算感覚と緊急度?.toLowerCase() || '';
+    if (urgency.includes('すぐ') || urgency.includes('急ぎ')) {
+      return 'high';
+    } else if (urgency.includes('検討中') || urgency.includes('様子見')) {
+      return 'low';
+    }
+    return 'medium';
+  }
+  
+  private analyzeUrgency(data: any): string {
+    const urgency = data.必須情報.予算感覚と緊急度?.toLowerCase() || '';
+    if (urgency.includes('緊急') || urgency.includes('すぐに')) {
+      return 'high';
+    } else if (urgency.includes('将来的') || urgency.includes('いずれ')) {
+      return 'low';
+    }
+    return 'medium';
+  }
 }

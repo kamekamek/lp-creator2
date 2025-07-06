@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,9 @@ export const StructuredWorkflowPanel: React.FC = () => {
   const [showHearing, setShowHearing] = useState(false);
   const [showConcept, setShowConcept] = useState(false);
 
+  // AbortController for cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // チャット機能（ツール呼び出し用）
   const { messages, append, isLoading } = useChat({
     api: '/api/lp-creator/chat',
@@ -72,6 +75,15 @@ export const StructuredWorkflowPanel: React.FC = () => {
     }
   });
 
+  // コンポーネントアンマウント時のクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   // ワークフロー段階に応じた表示制御
   useEffect(() => {
     // currentStageが'hearing'以外に変わった時のみshowHearingをfalseに
@@ -81,29 +93,63 @@ export const StructuredWorkflowPanel: React.FC = () => {
     setShowConcept(currentStage === 'concept');
   }, [currentStage]);
 
-  // ヒアリング開始
+  // ヒアリング開始（AbortController対応）
   const startHearing = async () => {
+    // 既存のAbortControllerをクリーンアップ
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 新しいAbortControllerを作成
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
     setProcessing(true);
     setError(null);
-    setShowHearing(true); // ヒアリング画面を表示
+    setShowHearing(true);
     
     try {
+      // AbortControllerのシグナルをチェック
+      if (signal.aborted) {
+        return;
+      }
+      
       await append({
         role: 'user',
         content: 'interactiveHearingTool を使ってヒアリングを開始してください。stage: initial で実行してください。'
       });
     } catch (error) {
+      // AbortControllerによるキャンセルかどうかをチェック
+      if (signal.aborted) {
+        console.log('Hearing start was aborted');
+        return;
+      }
+      
       console.error('Failed to start hearing:', error);
       setError('ヒアリングの開始に失敗しました');
       setProcessing(false);
     }
   };
 
-  // ヒアリング回答処理
+  // ヒアリング回答処理（AbortController対応）
   const handleHearingResponse = async (response: string) => {
+    // 既存のAbortControllerをクリーンアップ
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 新しいAbortControllerを作成
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
     setProcessing(true);
     
     try {
+      // AbortControllerのシグナルをチェック
+      if (signal.aborted) {
+        return;
+      }
+      
       await append({
         role: 'user',
         content: `interactiveHearingTool を使って回答を処理してください。
@@ -112,18 +158,38 @@ export const StructuredWorkflowPanel: React.FC = () => {
         currentData: ${JSON.stringify(hearingData)}`
       });
     } catch (error) {
+      // AbortControllerによるキャンセルかどうかをチェック
+      if (signal.aborted) {
+        console.log('Hearing response was aborted');
+        return;
+      }
+      
       console.error('Failed to process hearing response:', error);
       setError('回答の処理に失敗しました');
       setProcessing(false);
     }
   };
 
-  // ヒアリング完了・コンセプト生成
+  // ヒアリング完了・コンセプト生成（AbortController対応）
   const generateConcept = async () => {
+    // 既存のAbortControllerをクリーンアップ
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 新しいAbortControllerを作成
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
     setProcessing(true);
     setError(null);
     
     try {
+      // AbortControllerのシグナルをチェック
+      if (signal.aborted) {
+        return;
+      }
+      
       await append({
         role: 'user',
         content: `conceptProposalTool を使ってコンセプトを生成してください。
@@ -133,6 +199,12 @@ export const StructuredWorkflowPanel: React.FC = () => {
       
       setStage('concept');
     } catch (error) {
+      // AbortControllerによるキャンセルかどうかをチェック
+      if (signal.aborted) {
+        console.log('Concept generation was aborted');
+        return;
+      }
+      
       console.error('Failed to generate concept:', error);
       setError('コンセプト生成に失敗しました');
       setProcessing(false);

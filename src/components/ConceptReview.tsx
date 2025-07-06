@@ -88,16 +88,6 @@ export const ConceptReview: React.FC<ConceptReviewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [editedConcept, setEditedConcept] = useState(concept);
-  
-  const handleFieldEdit = (section: string, field: string, value: any) => {
-    setEditedConcept(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section as keyof Concept],
-        [field]: value
-      }
-    }));
-  };
 
   const renderOverviewTab = () => (
     <div className="space-y-6">

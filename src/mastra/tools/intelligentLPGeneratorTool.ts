@@ -264,6 +264,11 @@ export const intelligentLPGeneratorTool = tool({
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
+        errorDetails: {
+          type: error?.constructor?.name || 'UnknownError',
+          stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+          timestamp: new Date().toISOString()
+        },
         analysisResult: null,
         variants: [],
         metadata: {

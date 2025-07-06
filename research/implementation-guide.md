@@ -1,3 +1,17 @@
+# TL;DR
+30秒で読めるサマリーをここに書く✍️
+
+# Metadata
+- complexity: medium
+- estimated_reading_time: 12min
+- update_frequency: weekly
+- related_docs:
+| title     | path              | relation   |
+|-----------|-------------------|------------|
+| PROMPT定義 | docs/PROMPT.md    | dependency |
+
+---
+
 # LP Creator実装ガイド - 段階的ワークフロー実装
 
 ## 新ワークフロー概要
@@ -6,10 +20,10 @@
 従来の一括生成方式から、**ヒアリング→コンセプト提案→構成設計→LP作成**の段階的なプロセスに移行し、より精度の高いLP作成を実現する。
 
 ### ワークフロー段階
-1. **インタラクティブヒアリング**: PROMPT.mdベースの対話的情報収集
-2. **コンセプト提案・保存**: ヒアリング結果からのコンセプト生成と承認
-3. **構成設計**: 詳細なページ構造とワイヤーフレーム設計
-4. **LP作成**: 最終的な成果物生成
+1. **インタラクティブヒアリング**: PROMPT.mdベースの対話的情報収集  
+2. **コンセプト提案・保存**: ヒアリング結果からのコンセプト生成と承認  
+3. **構成設計**: 詳細なページ構造とワイヤーフレーム設計  
+4. **LP作成**: 最終的な成果物生成  
 
 ## 実装ロードマップ
 
@@ -17,7 +31,6 @@
 
 #### 1.1: 対話的ヒアリングツール
 
-```typescript
 // src/mastra/tools/interactiveHearingTool.ts
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -1323,6 +1336,7 @@ const useSmartGuides = () => {
 ```typescript
 // src/services/nlp/natural-language-processor.ts
 import * as tf from '@tensorflow/tfjs';
+import * as use from '@tensorflow-models/universal-sentence-encoder';
 import { UniversalSentenceEncoder } from '@tensorflow-models/universal-sentence-encoder';
 
 export class NaturalLanguageProcessor {

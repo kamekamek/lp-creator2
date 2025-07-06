@@ -24,32 +24,50 @@ export const interactiveHearingTool = tool({
     }).optional().describe('これまでに収集済みの情報')
   }),
   execute: async ({ stage, userResponse, currentData = {} }) => {
-    const hearingEngine = new HearingEngine();
-    
-    if (stage === 'initial') {
-      return hearingEngine.startHearing();
-    }
-    
-    if (userResponse) {
-      // ユーザー回答を解析・記録
-      const analyzedResponse = await hearingEngine.analyzeResponse(userResponse, stage);
-      const updatedData = hearingEngine.updateData(currentData, analyzedResponse);
+    try {
+      const hearingEngine = new HearingEngine();
       
-      // 次の質問を生成
-      const nextQuestion = await hearingEngine.generateNextQuestion(updatedData, stage);
+      if (stage === 'initial') {
+        return hearingEngine.startHearing();
+      }
       
+      if (userResponse) {
+        // ユーザー回答を解析・記録
+        const analyzedResponse = await hearingEngine.analyzeResponse(userResponse, stage);
+        const updatedData = hearingEngine.updateData(currentData, analyzedResponse);
+        
+        // 次の質問を生成
+        const nextQuestion = await hearingEngine.generateNextQuestion(updatedData, stage);
+        
+        return {
+          success: true,
+          currentStage: stage,
+          collectedData: updatedData,
+          nextQuestion,
+          completionRate: hearingEngine.calculateCompletion(updatedData),
+          isComplete: hearingEngine.isHearingComplete(updatedData),
+          suggestedActions: hearingEngine.getSuggestedActions(updatedData)
+        };
+      }
+      
+      return hearingEngine.getCurrentStatus(currentData);
+    } catch (error) {
+      console.error('Hearing tool execution error:', error);
       return {
-        success: true,
-        currentStage: stage,
-        collectedData: updatedData,
-        nextQuestion,
-        completionRate: hearingEngine.calculateCompletion(updatedData),
-        isComplete: hearingEngine.isHearingComplete(updatedData),
-        suggestedActions: hearingEngine.getSuggestedActions(updatedData)
+        success: false,
+        error: error.message || 'ヒアリング処理中にエラーが発生しました',
+        currentStage: stage
       };
     }
-    
-    return hearingEngine.getCurrentStatus(currentData);
+  }
+    } catch (error) {
+      console.error('Hearing tool execution error:', error);
+      return {
+        success: false,
+        error: error.message || 'ヒアリング処理中にエラーが発生しました',
+        currentStage: stage
+      };
+    }
   }
 });
 

@@ -1,7 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
+必ず日本語で応答してくださいね。
 ## Project Overview
 LP Creator is a Next.js application that generates landing pages using AI agents powered by the Mastra framework. The app provides a chat-based interface where users can describe their desired landing page and get a fully functional HTML/CSS output with real-time preview.
 

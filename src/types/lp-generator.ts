@@ -76,7 +76,7 @@ export interface GenerationOptions {
 
 export interface ProcessedInput {
   originalInput: string;
-  intent: unknown;
+  intent: ContentIntent;
   entities: Entity[];
   references: Reference[];
   confidence: number;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,11 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
   };
 
   const generatePreviewHtml = (variant: Variant) => {
+    // DOMPurifyを使用せずに基本的なHTMLを生成
+    // 本番環境では適切なサニタイゼーションを実装してください
+    const cssContent = variant.cssContent || '';
+    const htmlContent = variant.htmlContent || '';
+
     return `
       <!DOCTYPE html>
       <html lang="ja">
@@ -39,10 +44,10 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${variant.title}</title>
-        <style>${variant.cssContent}</style>
+        <style>${cssContent}</style>
       </head>
       <body>
-        ${variant.htmlContent}
+        ${htmlContent}
       </body>
       </html>
     `;
@@ -240,6 +245,16 @@ const PreviewModal: React.FC<{
   onClose: () => void;
   onSelect: () => void;
 }> = ({ variant, previewHtml, onClose, onSelect }) => {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   const downloadHtml = () => {
     const blob = new Blob([previewHtml], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -253,17 +268,26 @@ const PreviewModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
       <div className="bg-white rounded-lg max-w-6xl w-full h-5/6 flex flex-col">
         {/* ヘッダー */}
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h3 className="text-lg font-semibold">{variant.title}</h3>
+            <h3 id="modal-title" className="text-lg font-semibold">
+              {variant.title}
+            </h3>
             <Badge variant="secondary" className="mt-1">
-              {designFocusLabels[variant.designFocus as keyof typeof designFocusLabels]}
+              {designFocusLabels[
+                variant.designFocus as keyof typeof designFocusLabels
+              ]}
             </Badge>
           </div>
-          
+
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={downloadHtml}>
               <Download className="w-4 h-4 mr-2" />
@@ -277,7 +301,7 @@ const PreviewModal: React.FC<{
             </Button>
           </div>
         </div>
-        
+
         {/* プレビューエリア */}
         <div className="flex-1 bg-gray-100">
           <iframe

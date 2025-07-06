@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
@@ -49,7 +49,8 @@ export const makeImagePromptsTool = createTool({
   description: 'ランディングページの画像に対応する詳細な画像生成プロンプトを作成する',
   inputSchema: makeImagePromptsSchema,
   outputSchema: makeImagePromptsOutputSchema,
-  execute: async ({ html, copyContent, brandDirection, targetAudience, wireframe }) => {
+  execute: async (context) => {
+    const { html, copyContent, brandDirection, targetAudience, wireframe } = context.params;
     
     // HTMLから画像要素を解析
     const imageElements = extractImageElementsFromHTML(html);
@@ -337,6 +338,8 @@ HTML統合時の実装例:
   },
 });
 
+import { JSDOM } from 'jsdom';
+
 // HTMLから画像要素を抽出するヘルパー関数
 function extractImageElementsFromHTML(html: string): Array<{
   tag: string;
@@ -349,20 +352,35 @@ function extractImageElementsFromHTML(html: string): Array<{
   if (!html) {
     return [];
   }
-  // 簡易HTMLパーサー（実際の実装では jsdom などを使用）
-  const imgRegex = /<img[^>]*>/gi;
-  const matches = html.match(imgRegex) || [];
   
-  return matches.map(match => {
-    const srcMatch = match.match(/src=["']([^"']*)["']/);
-    const altMatch = match.match(/alt=["']([^"']*)["']/);
-    const classMatch = match.match(/class=["']([^"']*)["']/);
+  try {
+    // jsdomを使用して適切にHTMLをパース
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+    const imgElements = document.querySelectorAll('img');
     
-    return {
-      tag: match,
-      src: srcMatch ? srcMatch[1] : undefined,
-      alt: altMatch ? altMatch[1] : undefined,
-      class: classMatch ? classMatch[1] : undefined,
-    };
-  });
+    return Array.from(imgElements).map(img => {
+      // 最も近いsection要素のIDを検索
+      let section: string | undefined;
+      let currentElement = img.parentElement;
+      while (currentElement && !section) {
+        if (currentElement.tagName.toLowerCase() === 'section' && currentElement.id) {
+          section = currentElement.id;
+          break;
+        }
+        currentElement = currentElement.parentElement;
+      }
+      
+      return {
+        tag: img.outerHTML,
+        src: img.src || undefined,
+        alt: img.alt || undefined,
+        class: img.className || undefined,
+        section: section,
+      };
+    });
+  } catch (error) {
+    console.warn('HTML parsing failed, falling back to empty array:', error);
+    return [];
+  }
 }
