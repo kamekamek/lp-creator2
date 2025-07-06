@@ -264,21 +264,53 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     const doc = iframe.contentDocument;
 
     if (doc && htmlContent) {
-      let processedContent = htmlContent;
-      processedContent = processedContent.replace(/&quot;/g, '"');
-      processedContent = processedContent.replace(/&#x27;/g, "'");
-      processedContent = processedContent.replace(/&lt;/g, '<');
-      processedContent = processedContent.replace(/&gt;/g, '>');
-      processedContent = processedContent.replace(/&amp;/g, '&');
-      processedContent = processedContent.replace(/d="\\*"/g, 'd=""');
-      processedContent = processedContent.replace(/d="\\+"([^"]*)"\\*"/g, 'd="$1"');
-      processedContent = processedContent.replace(/d="\\"([^"]*)\\""/g, 'd="$1"');
-      processedContent = processedContent.replace(/src="\\"([^"]*)\\""/g, 'src="$1"');
-      processedContent = processedContent.replace(/href="\\"([^"]*)\\""/g, 'href="$1"');
-      processedContent = processedContent.replace(/"data:image\/svg\+xml,[^"]*"/g, (match: string) => {
-        return match.replace(/\\"/g, '"').replace(/""/g, '"');
-      });
-      processedContent = processedContent.replace(/<img[^>]*src=""[^>]*>/g, '<div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center"><span class="text-gray-500">画像プレースホルダー</span></div>');
+      // HTMLサニタイゼーション処理を関数に分割
+      const decodeHtmlEntities = (content: string): string => {
+        return content
+          .replace(/&quot;/g, '"')
+          .replace(/&#x27;/g, "'")
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&'); // 最後に処理することが重要
+      };
+
+      const fixBrokenSvgPaths = (content: string): string => {
+        return content
+          .replace(/d="\\*"/g, 'd=""')
+          .replace(/d="\\+"([^"]*)"\\*"/g, 'd="$1"')
+          .replace(/d="\\"([^"]*)\\""/g, 'd="$1"');
+      };
+
+      const fixBrokenAttributes = (content: string): string => {
+        return content
+          .replace(/src="\\"([^"]*)\\""/g, 'src="$1"')
+          .replace(/href="\\"([^"]*)\\""/g, 'href="$1"');
+      };
+
+      const fixSvgDataUrls = (content: string): string => {
+        return content.replace(/"data:image\/svg\+xml,[^"]*"/g, (match: string) => {
+          return match.replace(/\\"/g, '"').replace(/""/g, '"');
+        });
+      };
+
+      const replaceEmptyImages = (content: string): string => {
+        return content.replace(
+          /<img[^>]*src=""[^>]*>/g, 
+          '<div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center"><span class="text-gray-500">画像プレースホルダー</span></div>'
+        );
+      };
+
+      const sanitizeHtmlContent = (content: string): string => {
+        let processedContent = content;
+        processedContent = decodeHtmlEntities(processedContent);
+        processedContent = fixBrokenSvgPaths(processedContent);
+        processedContent = fixBrokenAttributes(processedContent);
+        processedContent = fixSvgDataUrls(processedContent);
+        processedContent = replaceEmptyImages(processedContent);
+        return processedContent;
+      };
+
+      let processedContent = sanitizeHtmlContent(htmlContent);
 
       const hasStyleTag = processedContent.includes('<style>') && processedContent.includes('</style>');
       const hasHtmlStructure = processedContent.includes('<section') || processedContent.includes('<div') || processedContent.includes('<body');

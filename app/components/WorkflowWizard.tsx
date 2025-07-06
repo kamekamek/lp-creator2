@@ -9,11 +9,7 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
 import { Badge } from '@/app/components/ui/badge';
 
-interface WorkflowStep {
-  id: string;
-  name: string;
-  status: 'pending' | 'active' | 'completed' | 'review';
-}
+
 
 interface WorkflowWizardProps {
   onStartWorkflow: (input: WorkflowInput) => void;
