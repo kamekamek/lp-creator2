@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 必ず日本語で応答してくださいね。
 ## Project Overview
 LP Creator is a Next.js application that generates landing pages using AI agents powered by the Mastra framework. The app provides a chat-based interface where users can describe their desired landing page and get a fully functional HTML/CSS output with real-time preview.
@@ -27,7 +29,7 @@ LP Creator is a Next.js application that generates landing pages using AI agents
 ## Development Commands
 
 ```bash
-# Start development server
+# Start development server (runs on http://localhost:3000)
 npm run dev
 
 # Build for production
@@ -36,8 +38,26 @@ npm run build
 # Start production server
 npm start
 
-# Run linting
+# Run linting (Next.js + TypeScript rules)
 npm run lint
+
+# Run all E2E tests with Playwright
+npm run test
+
+# Run tests with UI mode (interactive debugging)
+npm run test:ui
+
+# Run tests in headed mode (browser visible)
+npm run test:headed
+
+# Run tests in debug mode (step-by-step debugging)
+npm run test:debug
+
+# Run specific test file
+npx playwright test tests/e2e/lp-generation.spec.ts
+
+# Run tests in specific browser
+npx playwright test --project=chromium
 ```
 
 ## Key Development Patterns
@@ -64,9 +84,20 @@ The agent supports multiple AI providers:
 - Database file: `../memory.db` (relative to src/mastra/)
 
 ## Testing and Debugging
+
+### E2E Testing with Playwright
+- **Test directory**: `tests/e2e/` contains all end-to-end tests
+- **Test coverage**: AI response handling, LP generation workflow, edit mode functionality, basic smoke tests
+- **Browser support**: Chromium, Firefox, WebKit (Safari)
+- **Test server**: Automatically starts dev server on `http://localhost:3000` before tests
+- **Retries**: 2 retries in CI environment for flaky test handling
+- **Reports**: HTML reports generated after test runs
+
+### Development Logging
 - Development logs are enabled in non-production environments
-- Tool results and agent responses are logged extensively
+- Tool results and agent responses are logged extensively via `devLog()` function
 - Preview detection system has detailed debugging output
+- Mastra logger configured at 'info' level with 5-minute timeout
 
 ## Natural Inline Editing System
 
@@ -97,6 +128,26 @@ The LP Creator features a Notion/Word-like natural editing interface for non-tec
 - Test editing flow without requiring chat submission
 - Maintain visual polish with smooth transitions and micro-interactions
 - **Server-side HTML parsing**: Use `jsdom` instead of `DOMParser` in Node.js environment
+
+## Technology Stack
+
+### Core Dependencies
+- **Next.js 15.3.3**: App router, streaming responses, TypeScript support
+- **Mastra Framework 0.10.x**: AI agent orchestration, tool system, LibSQL storage
+- **AI SDK**: Multi-provider support (@ai-sdk/anthropic, @ai-sdk/openai, @ai-sdk/google)
+- **React 19**: Latest React features with concurrent rendering
+- **TypeScript 5.8.3**: Strict typing with Next.js integration
+
+### Key Libraries
+- **LibSQL**: Agent memory and conversation persistence
+- **Playwright**: E2E testing framework with multi-browser support
+- **jsdom**: Server-side HTML parsing (required for Node.js environment)
+- **Tailwind CSS 4**: Utility-first styling with custom configuration
+- **Zustand**: State management for React components
+
+### Development Tools
+- **ESLint**: Next.js + TypeScript rules with flat config
+- **Playwright**: Automated browser testing with dev server integration
 
 ## Important Notes
 - Always test LP generation workflow end-to-end when making changes

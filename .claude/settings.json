@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint && npm run format && npm run type-check && npm run analyze"
+          }
+        ]
+      }
+    ]
+  }
+}

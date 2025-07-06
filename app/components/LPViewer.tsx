@@ -505,7 +505,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   }
 }
 
-}, [htmlContent, cssContent, isFullscreen, setupEditableElements]);
+}, [htmlContent, cssContent, isFullscreen]); // 🔧 [CRITICAL FIX] setupEditableElements削除でiframe再描画を防止
 
 // isEditMode, selectedElementId, inlineEditingId, htmlContent が変更されたときに setupEditableElements を呼び出す
 useEffect(() => {
@@ -531,7 +531,7 @@ useEffect(() => {
       iframe.removeEventListener('load', handleLoad);
     };
   }
-}, [isEditMode, selectedElementId, inlineEditingId, setupEditableElements, htmlContent]);
+}, [isEditMode, selectedElementId, inlineEditingId]); // 🔧 [CRITICAL FIX] 不要な依存削除で連鎖的再描画を防止
 
 return (
   <div ref={containerRef} className="relative w-full h-full" style={{ width: isFullscreen ? '100vw' : width, height: isFullscreen ? '100vh' : height }}>
