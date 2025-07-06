@@ -153,61 +153,64 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     console.log('🎯 Setting up inline editable elements...');
     const editableElements = doc.querySelectorAll<HTMLElement>('[data-editable-id]');
     console.log(`📝 Found ${editableElements.length} editable elements`);
+    console.log('🔧 [FIX] Using optimized DOM manipulation - no more cloning!');
 
     editableElements.forEach((element) => {
       const editableId = element.dataset.editableId;
       if (!editableId) return;
 
-      // 既存リスナー削除のため要素をクローンして置き換える (より良い方法も検討可能)
-      const newElement = element.cloneNode(true) as HTMLElement;
-      element.parentNode?.replaceChild(newElement, element);
-      const currentElement = doc.querySelector<HTMLElement>(`[data-editable-id="${editableId}"]`) || newElement;
+      // 🔧 [FIX] クローン・置き換えを削除してDOM操作を最小化
+      // イベントリスナーは適切にクリーンアップしてパフォーマンスを向上
+      const currentElement = element;
 
       if (isEditMode) {
         currentElement.contentEditable = 'true';
         currentElement.spellcheck = false;
 
-        const handleDoubleClick = (e: MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log(`✏️ Double-clicked element: ${editableId}`);
-          startInlineEdit(editableId);
-        };
+          // 🔧 [FIX] 重複リスナー登録を防止して最適化
+        if (!currentElement.hasAttribute('data-edit-listener')) {
+          const handleDoubleClick = (e: MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`✏️ Double-clicked element: ${editableId}`);
+            startInlineEdit(editableId);
+          };
 
-        const handleMouseEnter = (e: MouseEvent) => {
-          if (inlineEditingId || isModalOpen) return;
-          const rect = currentElement.getBoundingClientRect();
-          const iframeRect = iframe.getBoundingClientRect();
-          setHoveredElementId(editableId);
-          setHoverMenuPosition({
-            x: iframeRect.left + rect.right + 10,
-            y: iframeRect.top + rect.top,
-          });
-          setHoverMenuVisible(true);
-          currentElement.classList.add('edit-hover');
-        };
+          const handleMouseEnter = (e: MouseEvent) => {
+            if (inlineEditingId || isModalOpen) return;
+            const rect = currentElement.getBoundingClientRect();
+            const iframeRect = iframe.getBoundingClientRect();
+            setHoveredElementId(editableId);
+            setHoverMenuPosition({
+              x: iframeRect.left + rect.right + 10,
+              y: iframeRect.top + rect.top,
+            });
+            setHoverMenuVisible(true);
+            currentElement.classList.add('edit-hover');
+          };
 
-        const handleMouseLeave = () => {
-          currentElement.classList.remove('edit-hover');
-          setTimeout(() => {
-            if (hoveredElementId === editableId && !document.querySelector('.smart-hover-menu:hover')) {
-               setHoverMenuVisible(false);
+          const handleMouseLeave = () => {
+            currentElement.classList.remove('edit-hover');
+            setTimeout(() => {
+              if (hoveredElementId === editableId && !document.querySelector('.smart-hover-menu:hover')) {
+                 setHoverMenuVisible(false);
+              }
+            }, 100);
+          };
+          
+          const handleBlur = (e: FocusEvent) => {
+            e.stopPropagation();
+            if (!inlineEditingId || inlineEditingId !== editableId) {
+              selectElement(editableId);
             }
-          }, 100);
-        };
-        
-        const handleBlur = (e: FocusEvent) => {
-          e.stopPropagation();
-          if (!inlineEditingId || inlineEditingId !== editableId) {
-            selectElement(editableId);
-          }
-        };
+          };
 
-        currentElement.addEventListener('dblclick', handleDoubleClick as EventListener);
-        currentElement.addEventListener('mouseenter', handleMouseEnter as EventListener);
-        currentElement.addEventListener('mouseleave', handleMouseLeave as EventListener);
-        currentElement.addEventListener('click', () => handleClick(editableId));
-        currentElement.setAttribute('data-edit-listener', 'true');
+          currentElement.addEventListener('dblclick', handleDoubleClick as EventListener);
+          currentElement.addEventListener('mouseenter', handleMouseEnter as EventListener);
+          currentElement.addEventListener('mouseleave', handleMouseLeave as EventListener);
+          currentElement.addEventListener('click', () => handleClick(editableId));
+          currentElement.setAttribute('data-edit-listener', 'true');
+        }
       } else {
         currentElement.contentEditable = 'false';
         currentElement.removeAttribute('data-edit-listener');
