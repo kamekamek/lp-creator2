@@ -90,21 +90,36 @@ class BusinessContextAnalyzer {
   }
 
   private extractAdvantages(input: string): string[] {
+    // ReDoS脆弱性を修正：より具体的で制限されたパターンを使用
     const advantagePatterns = [
-      /(?:特徴|強み|メリット|優位性)(?:は|：)(.+?)(?:[。、]|$)/g,
-      /(?:他社との違い|差別化)(?:は|：)(.+?)(?:[。、]|$)/g,
-      /(?:独自の|オリジナル|特別な)(.+?)(?:[。、]|$)/g
+      /(?:特徴|強み|メリット|優位性)(?:は|：)([^。、\n]{1,100}?)(?:[。、]|$)/g,
+      /(?:他社との違い|差別化)(?:は|：)([^。、\n]{1,100}?)(?:[。、]|$)/g,
+      /(?:独自の|オリジナル|特別な)([^。、\n]{1,100}?)(?:[。、]|$)/g
     ];
 
     const advantages: string[] = [];
+    
+    // 処理する文字列の長さを制限してReDoS攻撃を防止
+    const limitedInput = input.substring(0, 5000);
+    
     for (const pattern of advantagePatterns) {
       let match;
-      while ((match = pattern.exec(input)) !== null) {
-        advantages.push(match[1].trim());
+      let matchCount = 0;
+      const maxMatches = 20; // マッチ数の制限
+      
+      while ((match = pattern.exec(limitedInput)) !== null && matchCount < maxMatches) {
+        const advantage = match[1].trim();
+        if (advantage.length > 0 && advantage.length <= 100) {
+          advantages.push(advantage);
+        }
+        matchCount++;
       }
+      
+      // 正規表現の状態をリセット
+      pattern.lastIndex = 0;
     }
 
-    return advantages;
+    return advantages.slice(0, 10); // 結果も制限
   }
 
   private detectTone(input: string): 'professional' | 'friendly' | 'casual' | 'premium' {
@@ -266,7 +281,7 @@ export const intelligentLPGeneratorTool = tool({
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         errorDetails: {
           type: error?.constructor?.name || 'UnknownError',
-          stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+          stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined,
           timestamp: new Date().toISOString()
         },
         analysisResult: null,

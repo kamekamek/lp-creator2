@@ -49,8 +49,8 @@ export const makeImagePromptsTool = createTool({
   description: 'ランディングページの画像に対応する詳細な画像生成プロンプトを作成する',
   inputSchema: makeImagePromptsSchema,
   outputSchema: makeImagePromptsOutputSchema,
-  execute: async (context) => {
-    const { html, copyContent, brandDirection, targetAudience, wireframe } = context.params;
+  execute: async ({ context }) => {
+    const { html, copyContent, brandDirection, targetAudience, wireframe } = context;
     
     // HTMLから画像要素を解析
     const imageElements = extractImageElementsFromHTML(html);

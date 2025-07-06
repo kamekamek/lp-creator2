@@ -802,8 +802,8 @@ export const generateCSSTool = createTool({
   description: 'プロフェッショナルなランディングページのCSSを生成する（モジュール化対応）',
   inputSchema: generateCSSSchema,
   outputSchema: generateCSSOutputSchema,
-  execute: async (context) => {
-    const { html, fileStructure, technicalSpecs, designDirection } = context.params;
+  execute: async ({ context }) => {
+    const { html, fileStructure, technicalSpecs, designDirection } = context;
     
     // モジュール化されたCSS
     const cssModules = {

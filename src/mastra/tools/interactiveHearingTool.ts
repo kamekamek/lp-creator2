@@ -55,16 +55,7 @@ export const interactiveHearingTool = tool({
       console.error('Hearing tool execution error:', error);
       return {
         success: false,
-        error: error.message || 'ヒアリング処理中にエラーが発生しました',
-        currentStage: stage
-      };
-    }
-  }
-    } catch (error) {
-      console.error('Hearing tool execution error:', error);
-      return {
-        success: false,
-        error: error.message || 'ヒアリング処理中にエラーが発生しました',
+        error: error instanceof Error ? error.message : 'ヒアリング処理中にエラーが発生しました',
         currentStage: stage
       };
     }
@@ -164,15 +155,15 @@ class HearingEngine {
   }
   
   calculateCompletion(data: any): number {
-    const requiredFields = Object.keys(this.hearingItems.必須情報);
-    const strategyFields = Object.keys(this.hearingItems.戦略情報);
+    const requiredFields = this.hearingItems.必須情報;
+    const strategyFields = this.hearingItems.戦略情報;
     
     const requiredCount = requiredFields.filter(field => 
-      data.必須情報?.[field as keyof typeof data.必須情報]
+      data.必須情報?.[field.key as keyof typeof data.必須情報]
     ).length;
     
     const strategyCount = strategyFields.filter(field => 
-      data.戦略情報?.[field as keyof typeof data.戦略情報]
+      data.戦略情報?.[field.key as keyof typeof data.戦略情報]
     ).length;
     
     const totalPossible = requiredFields.length + strategyFields.length;
@@ -285,8 +276,57 @@ class HearingEngine {
   
   private mapResponseToData(analyzedResponse: any): any {
     // 解析された回答をデータ構造にマッピング
-    // 実際にはより高度な処理が必要
-    return {};
+    const { keywords, sentiment, entities, originalResponse } = analyzedResponse;
+    
+    const mappedData: any = {
+      必須情報: {},
+      戦略情報: {}
+    };
+    
+    // キーワードベースのマッピング
+    if (keywords.includes('サービス') || keywords.includes('商品')) {
+      mappedData.必須情報.商材サービス内容 = originalResponse;
+    }
+    
+    if (keywords.includes('悩み') || keywords.includes('課題') || keywords.includes('問題')) {
+      mappedData.必須情報.ターゲット顧客の悩み = originalResponse;
+    }
+    
+    if (keywords.includes('目標') || keywords.includes('コンバージョン') || keywords.includes('成果')) {
+      mappedData.必須情報.希望コンバージョン = originalResponse;
+    }
+    
+    // エンティティベースのマッピング
+    entities.forEach((entity: any) => {
+      if (entity.type === 'industry') {
+        mappedData.戦略情報.業界特性 = entity.value;
+      }
+      if (entity.type === 'number') {
+        mappedData.戦略情報.予算規模 = entity.value;
+      }
+    });
+    
+    // 感情分析に基づくトーン設定
+    if (sentiment === 'positive') {
+      mappedData.戦略情報.希望トーン = 'friendly';
+    } else if (sentiment === 'negative') {
+      mappedData.戦略情報.希望トーン = 'professional';
+    }
+    
+    // 空の値を除去
+    Object.keys(mappedData.必須情報).forEach(key => {
+      if (!mappedData.必須情報[key]) {
+        delete mappedData.必須情報[key];
+      }
+    });
+    
+    Object.keys(mappedData.戦略情報).forEach(key => {
+      if (!mappedData.戦略情報[key]) {
+        delete mappedData.戦略情報[key];
+      }
+    });
+    
+    return mappedData;
   }
   
   private getNextRequiredQuestion(data: any): string {

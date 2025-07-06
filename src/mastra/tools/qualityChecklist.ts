@@ -77,8 +77,8 @@ export const qualityChecklistTool = createTool({
   description: 'ランディングページの品質を総合的にチェックし、Lighthouse・SEO・アクセシビリティスコアを評価する',
   inputSchema: qualityChecklistSchema,
   outputSchema: qualityChecklistOutputSchema,
-  execute: async (context) => {
-    const { html, css, javascript, imagePrompts, projectUrl } = context.params;
+  execute: async ({ context }) => {
+    const { html, css, javascript, imagePrompts, projectUrl } = context;
     
     // HTMLコード解析
     const htmlAnalysis = analyzeHTML(html);
@@ -93,14 +93,7 @@ export const qualityChecklistTool = createTool({
     const imageAnalysis = analyzeImages(imagePrompts);
 
     // 詳細チェック結果
-    const checkResults: Array<{
-      category: string;
-      item: string;
-      status: 'pass' | 'fail' | 'warning' | 'not_applicable';
-      score: number;
-      details: string;
-      recommendations: string[];
-    }> = [];
+    const checkResults: CheckResult[] = [];
 
     // === パフォーマンスチェック ===
     
@@ -337,8 +330,8 @@ function analyzeImages(imagePrompts: any[]) {
 }
 
 // SEO解析関数
-function analyzeSEO(html: string) {
-  const checks = [];
+function analyzeSEO(html: string): CheckResult[] {
+  const checks: CheckResult[] = [];
   
   // Title tag
   const hasTitle = /<title>/.test(html);
@@ -409,8 +402,8 @@ function analyzeSEO(html: string) {
 }
 
 // アクセシビリティ解析関数
-function analyzeAccessibility(html: string) {
-  const checks = [];
+function analyzeAccessibility(html: string): CheckResult[] {
+  const checks: CheckResult[] = [];
 
   // Alt attributes
   const imgTags = html.match(/<img[^>]*>/g) || [];
@@ -469,8 +462,8 @@ function analyzeAccessibility(html: string) {
 }
 
 // ベストプラクティス解析関数
-function analyzeBestPractices(html: string, css: string, javascript: string) {
-  const checks = [];
+function analyzeBestPractices(html: string, css: string, javascript: string): CheckResult[] {
+  const checks: CheckResult[] = [];
 
   // HTTPS usage (meta)
   const hasHttpsLinks = !html.includes('http://');
