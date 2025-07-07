@@ -14,6 +14,7 @@ interface LPViewerProps {
   enableFullscreen?: boolean;
   onTextUpdate?: (elementId: string, newText: string) => void;
   onAIImprove?: (elementId: string, currentText: string) => void;
+  isModalOpen?: boolean;
 }
 
 export const LPViewer: React.FC<LPViewerProps> = ({ 
@@ -23,26 +24,24 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   height = '100%',
   enableFullscreen = true,
   onTextUpdate,
-  onAIImprove
+  onAIImprove,
+  isModalOpen = false
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { isEditMode, selectedElementId, selectElement } = useEditMode();
   
-  // インライン編集の状態管理
   const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
   const [hoverMenuVisible, setHoverMenuVisible] = useState(false);
   const [hoverMenuPosition, setHoverMenuPosition] = useState({ x: 0, y: 0 });
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
+  // themeObserverRef は未使用のためコメントアウトまたは削除検討
 
-  // フルスクリーン切り替え
   const toggleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
-
     try {
       if (!isFullscreen) {
-        // フルスクリーンに入る
         if (containerRef.current.requestFullscreen) {
           await containerRef.current.requestFullscreen();
         } else if ((containerRef.current as any).webkitRequestFullscreen) {
@@ -51,7 +50,6 @@ export const LPViewer: React.FC<LPViewerProps> = ({
           await (containerRef.current as any).mozRequestFullScreen();
         }
       } else {
-        // フルスクリーンを抜ける
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
@@ -65,7 +63,6 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     }
   }, [isFullscreen]);
 
-  // フルスクリーン状態の監視
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!(
@@ -75,11 +72,9 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       );
       setIsFullscreen(isCurrentlyFullscreen);
     };
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -87,26 +82,24 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     };
   }, []);
 
-  // テキスト抽出ヘルパー
   const extractTextFromElement = useCallback((elementId: string): string => {
-    if (!iframeRef.current) return '';
-    
-    const doc = iframeRef.current.contentDocument;
+    const doc = iframeRef.current?.contentDocument;
     if (!doc) return '';
-    
     const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
     return element?.textContent?.trim() || '';
   }, []);
 
-  // インライン編集開始
   const startInlineEdit = useCallback((elementId: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
     setInlineEditingId(elementId);
     setHoverMenuVisible(false);
     selectElement(elementId);
   }, [selectElement]);
 
-  // インライン編集保存
   const saveInlineEdit = useCallback((elementId: string, newText: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
     if (onTextUpdate) {
       onTextUpdate(elementId, newText);
     }
@@ -114,14 +107,16 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     selectElement(null);
   }, [onTextUpdate, selectElement]);
 
-  // インライン編集キャンセル
   const cancelInlineEdit = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
     setInlineEditingId(null);
     selectElement(null);
   }, [selectElement]);
 
-  // AI改善処理
   const handleAIImprove = useCallback((elementId: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
     const currentText = extractTextFromElement(elementId);
     if (onAIImprove && currentText) {
       onAIImprove(elementId, currentText);
@@ -129,620 +124,479 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     setHoverMenuVisible(false);
   }, [extractTextFromElement, onAIImprove]);
 
-  // iframe内要素のイベント設定（新しいインライン編集対応）
+  const handleClick = useCallback((editableId: string | null) => {
+    if (!editableId) return;
+    selectElement(editableId);
+    // 他のクリック時のロジックがあればここに追加
+  }, [selectElement]);
+
   const setupEditableElements = useCallback(() => {
-    if (!iframeRef.current) return;
-
     const iframe = iframeRef.current;
-    const doc = iframe.contentDocument;
-    if (!doc) return;
-
-    // コンテンツが読み込まれていない場合は処理をスキップ
-    if (!doc.body || doc.body.children.length === 0) {
-      console.log('⚠️ iframe content not ready, skipping setup');
+    if (!iframe) {
+      console.warn('setupEditableElements: iframe not available. Skipping setup.');
       return;
     }
+    const doc = iframe.contentDocument;
+    if (!doc) {
+      console.warn('setupEditableElements: iframe document not available. Skipping setup.');
+      return;
+    }
+    if (!doc.body) {
+      console.warn('setupEditableElements: iframe body not available. Skipping setup.');
+      return;
+    }
+    if (doc.body.children.length === 0 && doc.readyState !== 'complete') {
+        console.log('⚠️ iframe body is empty or not fully loaded, skipping setupEditableElements');
+        return;
+    }
 
-    try {
-      console.log('🎯 Setting up inline editable elements...');
-
-      // 既存のイベントリスナーを削除
-      const existingListeners = doc.querySelectorAll('[data-edit-listener]');
-      existingListeners.forEach(el => {
-        el.removeAttribute('data-edit-listener');
-      });
-
-      // 編集可能な要素を取得
-      const editableElements = doc.querySelectorAll('[data-editable-id]');
-      console.log(`📝 Found ${editableElements.length} editable elements`);
+    console.log('🎯 Setting up inline editable elements...');
+    const editableElements = doc.querySelectorAll<HTMLElement>('[data-editable-id]');
+    console.log(`📝 Found ${editableElements.length} editable elements`);
+    console.log('🔧 [FIX] Using optimized DOM manipulation - no more cloning!');
 
     editableElements.forEach((element) => {
-      const editableId = element.getAttribute('data-editable-id');
+      const editableId = element.dataset.editableId;
       if (!editableId) return;
 
-      // ダブルクリックでインライン編集開始
-      const handleDoubleClick = (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        console.log(`✏️ Double-clicked element: ${editableId}`);
-        startInlineEdit(editableId);
-      };
+      // 🔧 [FIX] クローン・置き換えを削除してDOM操作を最小化
+      // イベントリスナーは適切にクリーンアップしてパフォーマンスを向上
+      const currentElement = element;
 
-      // ホバーでスマートメニュー表示
-      const handleMouseEnter = (e: Event) => {
-        if (!isEditMode || inlineEditingId) return;
-        
-        try {
-          const rect = element.getBoundingClientRect();
-          const iframeRect = iframe.getBoundingClientRect();
-          
-          // 位置計算の安全性確認
-          if (rect && iframeRect) {
+      if (isEditMode) {
+        currentElement.contentEditable = 'true';
+        currentElement.spellcheck = false;
+
+          // 🔧 [FIX] 重複リスナー登録を防止して最適化
+        if (!currentElement.hasAttribute('data-edit-listener')) {
+          const handleDoubleClick = (e: MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`✏️ Double-clicked element: ${editableId}`);
+            startInlineEdit(editableId);
+          };
+
+          const handleMouseEnter = (e: MouseEvent) => {
+            if (inlineEditingId || isModalOpen) return;
+            const rect = currentElement.getBoundingClientRect();
+            const iframeRect = iframe.getBoundingClientRect();
             setHoveredElementId(editableId);
             setHoverMenuPosition({
               x: iframeRect.left + rect.right + 10,
-              y: iframeRect.top + rect.top
+              y: iframeRect.top + rect.top,
             });
             setHoverMenuVisible(true);
-            
-            // ホバー効果
-            element.classList.add('edit-hover');
-          }
-        } catch (error) {
-          console.error('❌ Error in handleMouseEnter:', error);
-        }
-      };
+            currentElement.classList.add('edit-hover');
+          };
 
-      // ホバー終了
-      const handleMouseLeave = (e: Event) => {
-        try {
-          element.classList.remove('edit-hover');
+          const handleMouseLeave = () => {
+            currentElement.classList.remove('edit-hover');
+            setTimeout(() => {
+              if (hoveredElementId === editableId && !document.querySelector('.smart-hover-menu:hover')) {
+                 setHoverMenuVisible(false);
+              }
+            }, 100);
+          };
           
-          // 少し遅延してメニューを隠す（メニューに移動する時間を確保）
-          setTimeout(() => {
-            if (hoveredElementId === editableId) {
-              setHoverMenuVisible(false);
-              setHoveredElementId(null);
+          const handleBlur = (e: FocusEvent) => {
+            e.stopPropagation();
+            if (!inlineEditingId || inlineEditingId !== editableId) {
+              selectElement(editableId);
             }
-          }, 100);
-        } catch (error) {
-          console.error('❌ Error in handleMouseLeave:', error);
-        }
-      };
+          };
 
-      element.addEventListener('dblclick', handleDoubleClick);
-      element.addEventListener('mouseenter', handleMouseEnter);
-      element.addEventListener('mouseleave', handleMouseLeave);
-      element.setAttribute('data-edit-listener', 'true');
+          currentElement.addEventListener('dblclick', handleDoubleClick as EventListener);
+          currentElement.addEventListener('mouseenter', handleMouseEnter as EventListener);
+          currentElement.addEventListener('mouseleave', handleMouseLeave as EventListener);
+          currentElement.addEventListener('click', () => handleClick(editableId));
+          currentElement.setAttribute('data-edit-listener', 'true');
+        }
+      } else {
+        currentElement.contentEditable = 'false';
+        currentElement.removeAttribute('data-edit-listener');
+        currentElement.classList.remove('edit-hover', 'edit-highlight', 'editing');
+      }
+
+      // ハイライトと編集中クラスの管理
+      if (selectedElementId === editableId && isEditMode) {
+        currentElement.classList.add('edit-highlight');
+      } else {
+        currentElement.classList.remove('edit-highlight');
+      }
+      if (inlineEditingId === editableId && isEditMode) {
+        currentElement.classList.add('editing');
+      } else {
+        currentElement.classList.remove('editing');
+      }
     });
 
-    // 編集モードのスタイル管理
-    const existingStyle = doc.getElementById('edit-mode-styles');
-    
+    let style = doc.getElementById('edit-mode-styles') as HTMLStyleElement;
     if (isEditMode) {
-      // 編集モードON: スタイルを注入
-      if (!existingStyle) {
-        const style = doc.createElement('style');
+      if (!style) {
+        style = doc.createElement('style');
         style.id = 'edit-mode-styles';
         style.textContent = `
-          /* 基本的な編集可能要素のスタイル */
-          [data-editable-id] {
-            transition: all 0.15s ease;
-            position: relative;
-            border-radius: 4px;
-          }
-          
-          /* ホバー時の自然なハイライト */
           [data-editable-id]:hover.edit-hover {
-            background-color: rgba(59, 130, 246, 0.05);
-            outline: 1px solid rgba(59, 130, 246, 0.2);
-            outline-offset: 1px;
-            cursor: text;
+            outline: 1px dashed #007bff;
+            cursor: pointer;
           }
-          
-          /* ダブルクリックのヒント */
-          [data-editable-id].edit-hover:after {
-            content: "ダブルクリックで編集";
-            position: absolute;
-            top: -24px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            white-space: nowrap;
-            z-index: 1000;
-            opacity: 0;
-            animation: fadeInTooltip 0.3s ease 0.5s forwards;
+          [data-editable-id].edit-highlight {
+            outline: 2px solid #007bff !important;
+            box-shadow: 0 0 8px rgba(0,123,255,0.5);
           }
-          
-          @keyframes fadeInTooltip {
-            to { opacity: 1; }
-          }
-          
-          /* インライン編集中の要素 */
           [data-editable-id].editing {
-            background-color: rgba(59, 130, 246, 0.1);
-            outline: 2px solid #3b82f6;
-            outline-offset: 2px;
-          }
-          
-          /* テキスト色を明確に黒に設定 */
-          [data-editable-id] {
-            color: #000000 !important;
-          }
-          
-          /* 見出し要素の色も確実に黒に */
-          [data-editable-id] h1,
-          [data-editable-id] h2,
-          [data-editable-id] h3,
-          [data-editable-id] h4,
-          [data-editable-id] h5,
-          [data-editable-id] h6,
-          [data-editable-id] p,
-          [data-editable-id] span,
-          [data-editable-id] div {
-            color: #000000 !important;
+             outline: 2px solid #28a745 !important; /* 編集中は緑色の枠 */
           }
         `;
-        doc.head.appendChild(style);
+        if (doc && doc.head) {
+          doc.head.appendChild(style);
+        }
       }
     } else {
-      // 編集モードOFF: スタイルを削除
-      if (existingStyle) {
-        existingStyle.remove();
+      if (style) {
+        style.remove();
       }
+      setHoverMenuVisible(false); // 編集モード解除時はホバーメニューも非表示
     }
-    } catch (error) {
-      console.error('❌ Error setting up editable elements:', error);
-      // エラーが発生しても続行できるようにする
-    }
-  }, [isEditMode, selectElement, selectedElementId, hoveredElementId, inlineEditingId, startInlineEdit]);
+  }, [isEditMode, selectElement, inlineEditingId, startInlineEdit, selectedElementId]);
 
-  // 選択された要素のハイライトを更新
+  // iframeのコンテンツを初期化・更新する
   useEffect(() => {
     if (!iframeRef.current) return;
-    
-    const doc = iframeRef.current.contentDocument;
-    if (!doc) return;
+    const iframe = iframeRef.current;
+    const doc = iframe.contentDocument;
 
-    // 全ての要素のハイライトを削除
-    const allEditableElements = doc.querySelectorAll('[data-editable-id]');
-    allEditableElements.forEach(el => {
-      el.classList.remove('edit-highlight');
-    });
+    if (doc && htmlContent) {
+      // HTMLサニタイゼーション処理を関数に分割
+      const decodeHtmlEntities = (content: string): string => {
+        return content
+          .replace(/&quot;/g, '"')
+          .replace(/&#x27;/g, "'")
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&'); // 最後に処理することが重要
+      };
 
-    // 選択された要素をハイライト
-    if (selectedElementId) {
-      const selectedElement = doc.querySelector(`[data-editable-id="${selectedElementId}"]`);
-      if (selectedElement) {
-        selectedElement.classList.add('edit-highlight');
-        selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  }, [selectedElementId]);
+      const fixBrokenSvgPaths = (content: string): string => {
+        return content
+          .replace(/d="\\*"/g, 'd=""')
+          .replace(/d="\\+"([^"]*)"\\*"/g, 'd="$1"')
+          .replace(/d="\\"([^"]*)\\""/g, 'd="$1"');
+      };
 
-  // LPHTMLをiframeに展開する
-  useEffect(() => {
-    if (iframeRef.current && htmlContent) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        // HTMLコンテンツのエスケープ処理を修正
-        let processedContent = htmlContent;
-        
-        // 二重エンコーディングされたURLを修正
-        processedContent = processedContent.replace(/&quot;/g, '"');
-        processedContent = processedContent.replace(/&#x27;/g, "'");
-        processedContent = processedContent.replace(/&lt;/g, '<');
-        processedContent = processedContent.replace(/&gt;/g, '>');
-        processedContent = processedContent.replace(/&amp;/g, '&');
-        
-        // 不正なSVGパス属性を修正（より厳密なパターン）
-        processedContent = processedContent.replace(/d="\\*"/g, 'd=""');
-        processedContent = processedContent.replace(/d="\\+"([^"]*)"\\*"/g, 'd="$1"');
-        processedContent = processedContent.replace(/d="\\"([^"]*)\\""/g, 'd="$1"');
-        processedContent = processedContent.replace(/d="\\\"([^"]*)\\\"/g, 'd="$1"');
-        
-        // 不正なイメージソースを修正（data URIも含む）
-        processedContent = processedContent.replace(/src="\\"([^"]*)\\""/g, 'src="$1"');
-        processedContent = processedContent.replace(/src="\\\"([^"]*)\\\"/g, 'src="$1"');
-        processedContent = processedContent.replace(/href="\\"([^"]*)\\""/g, 'href="$1"');
-        processedContent = processedContent.replace(/href="\\\"([^"]*)\\\"/g, 'href="$1"');
-        
-        // data URIの二重クォートエスケープを修正
-        processedContent = processedContent.replace(/"data:image\/svg\+xml,[^"]*"/g, (match) => {
+      const fixBrokenAttributes = (content: string): string => {
+        return content
+          .replace(/src="\\"([^"]*)\\""/g, 'src="$1"')
+          .replace(/href="\\"([^"]*)\\""/g, 'href="$1"');
+      };
+
+      const fixSvgDataUrls = (content: string): string => {
+        return content.replace(/"data:image\/svg\+xml,[^"]*"/g, (match: string) => {
           return match.replace(/\\"/g, '"').replace(/""/g, '"');
         });
-        
-        // 不正な外部リソースパスを修正
-        processedContent = processedContent.replace(/src="[^"]*\.jpg"\/"/g, 'src=""');
-        processedContent = processedContent.replace(/src="\/[^"]*\.jpg\/"/g, 'src=""');
-        processedContent = processedContent.replace(/href="\/[^"]*\.jpg\/"/g, 'href=""');
-        
-        // 空のsrc属性を持つ画像を隠す
-        processedContent = processedContent.replace(/<img[^>]*src=""[^>]*>/g, '<div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center"><span class="text-gray-500">画像プレースホルダー</span></div>');
-        
-        // htmlContentに<style>タグやHTML構造が含まれているか確認
-        const hasStyleTag = processedContent.includes('<style>') && processedContent.includes('</style>');
-        const hasHtmlStructure = processedContent.includes('<section') || processedContent.includes('<div') || processedContent.includes('<body');
-        
-        // 完全なHTMLドキュメントかどうかを確認
-        const isCompleteHtml = processedContent.trim().startsWith('<!DOCTYPE') || processedContent.trim().startsWith('<html');
-        
-        if (isCompleteHtml) {
-          // 完全なHTMLドキュメントの場合はそのまま表示
-          doc.open();
-          doc.write(processedContent);
-          doc.close();
-        } else if (hasStyleTag && hasHtmlStructure) {
-          // スタイルタグとHTML構造が含まれている場合は、最小限のHTMLドキュメントで包む
-          const minimalTemplate = `
-            <!DOCTYPE html>
-            <html lang="ja">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <script src="https://cdn.tailwindcss.com"></script>
-              <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-              ${cssContent}
-              <style>
-                body {
-                  margin: 0;
-                  padding: 0;
-                  font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
-                  overflow-x: hidden;
-                  line-height: 1.6;
-                  color: #333;
+      };
+
+      const replaceEmptyImages = (content: string): string => {
+        return content.replace(
+          /<img[^>]*src=""[^>]*>/g, 
+          '<div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center"><span class="text-gray-500">画像プレースホルダー</span></div>'
+        );
+      };
+
+      const sanitizeHtmlContent = (content: string): string => {
+        let processedContent = content;
+        processedContent = decodeHtmlEntities(processedContent);
+        processedContent = fixBrokenSvgPaths(processedContent);
+        processedContent = fixBrokenAttributes(processedContent);
+        processedContent = fixSvgDataUrls(processedContent);
+        processedContent = replaceEmptyImages(processedContent);
+        return processedContent;
+      };
+
+      let processedContent = sanitizeHtmlContent(htmlContent);
+
+      const hasStyleTag = processedContent.includes('<style>') && processedContent.includes('</style>');
+      const hasHtmlStructure = processedContent.includes('<section') || processedContent.includes('<div') || processedContent.includes('<body');
+      const isCompleteHtml = processedContent.trim().startsWith('<!DOCTYPE') || processedContent.trim().startsWith('<html');
+
+      // Escape characters that could break template literals for finalHtml and cssContent
+      processedContent = processedContent.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+      const escapedCssContent = cssContent.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+      let finalHtml = '';
+      if (isCompleteHtml) {
+        finalHtml = processedContent;
+      } else if (hasStyleTag && hasHtmlStructure) {
+        finalHtml = `
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+              // 🔧 [CRITICAL FIX] Tailwind ダークモードを強制無効化
+              tailwind.config = {
+                darkMode: false
+              }
+            </script>
+            <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+            <style>
+              /* 🔧 [CRITICAL FIX] prefers-color-scheme を iframe 内で強制無効化 */
+              @media (prefers-color-scheme: dark) {
+                html, body { 
+                  background: white !important; 
+                  color: black !important; 
                 }
-                /* スクロールバーのカスタマイズ */
-                ::-webkit-scrollbar {
-                  width: 8px;
-                }
-                ::-webkit-scrollbar-track {
-                  background: #f1f1f1;
-                }
-                ::-webkit-scrollbar-thumb {
-                  background: #888;
-                  border-radius: 4px;
-                }
-                ::-webkit-scrollbar-thumb:hover {
-                  background: #555;
-                }
-                /* LP専用スタイル */
-                .lp-section {
-                  width: 100%;
-                  min-height: 50vh;
-                  box-sizing: border-box;
-                }
-                /* アニメーション */
-                .lp-section {
-                  opacity: 0;
-                  animation: fadeInUp 0.6s ease-out forwards;
-                }
-                .lp-section:nth-child(2) { animation-delay: 0.1s; }
-                .lp-section:nth-child(3) { animation-delay: 0.2s; }
-                .lp-section:nth-child(4) { animation-delay: 0.3s; }
-                .lp-section:nth-child(5) { animation-delay: 0.4s; }
-                .lp-section:nth-child(6) { animation-delay: 0.5s; }
-                
-                @keyframes fadeInUp {
-                  from {
-                    opacity: 0;
-                    transform: translateY(30px);
-                  }
-                  to {
-                    opacity: 1;
-                    transform: translateY(0);
-                  }
-                }
-                
-                /* フルスクリーン時のスタイル */
-                .fullscreen-mode {
-                  background: #fff;
-                  width: 100vw;
-                  height: 100vh;
-                  overflow-y: auto;
-                }
-              </style>
-            </head>
-            <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-              ${processedContent}
-            </body>
-            </html>
-          `;
-          doc.open();
-          doc.write(minimalTemplate);
-          doc.close();
-        } else if (hasHtmlStructure) {
-          // HTML構造のみある場合はデフォルトのスタイルを適用
-          const defaultTemplate = `
-            <!DOCTYPE html>
-            <html lang="ja">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <script src="https://cdn.tailwindcss.com"></script>
-              <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-              ${cssContent}
-              <style>
-                body {
-                  margin: 0;
-                  padding: 0;
-                  font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
-                  overflow-x: hidden;
-                  line-height: 1.6;
-                  color: #333;
-                  background: #fff;
-                }
-                main {
-                  width: 100%;
-                  height: 100%;
-                }
-                /* LP全体のスタイル */
+              }
+              ${escapedCssContent}
+              body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
+                overflow-x: hidden;
+                line-height: 1.6;
+                color: #111827; /* USER MEMORY: text-black or text-gray-900 */
+              }
+              main {
+                width: 100%;
+                height: 100%;
+              }
+              section {
+                width: 100%;
+                min-height: 50vh;
+                padding: 2rem;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+              }
+              .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 1rem;
+              }
+              @media (max-width: 768px) {
                 section {
-                  width: 100%;
-                  min-height: 50vh;
-                  padding: 2rem;
-                  box-sizing: border-box;
-                  display: flex;
-                  flex-direction: column;
-                  justify-content: center;
+                  padding: 1rem;
+                  min-height: 40vh;
                 }
-                /* デフォルトのレスポンシブデザイン */
-                .container {
-                  max-width: 1200px;
-                  margin: 0 auto;
-                  padding: 0 1rem;
+              }
+              ::-webkit-scrollbar {
+                width: 8px;
+              }
+              ::-webkit-scrollbar-track {
+                background: #f1f1f1;
+              }
+              ::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 4px;
+              }
+              ::-webkit-scrollbar-thumb:hover {
+                background: #555;
+              }
+              .lp-section {
+                width: 100%;
+                min-height: 50vh;
+                box-sizing: border-box;
+                opacity: 0;
+                animation: fadeInUp 0.6s ease-out forwards;
+              }
+              .lp-section:nth-child(2) { animation-delay: 0.1s; }
+              .lp-section:nth-child(3) { animation-delay: 0.2s; }
+              .lp-section:nth-child(4) { animation-delay: 0.3s; }
+              .lp-section:nth-child(5) { animation-delay: 0.4s; }
+              .lp-section:nth-child(6) { animation-delay: 0.5s; }
+              @keyframes fadeInUp {
+                from {
+                  opacity: 0;
+                  transform: translateY(30px);
                 }
-                @media (max-width: 768px) {
-                  section {
-                    padding: 1rem;
-                    min-height: 40vh;
-                  }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
                 }
-                /* スクロールバー */
-                ::-webkit-scrollbar {
-                  width: 8px;
+              }
+              .fullscreen-mode body, .fullscreen-mode {
+                background: #fff;
+                width: 100vw;
+                height: 100vh;
+                overflow-y: auto;
+              }
+            </style>
+          </head>
+          <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
+            ${processedContent}
+          </body>
+          </html>
+        `;
+      } else if (hasHtmlStructure) {
+        finalHtml = `
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+              // 🔧 [CRITICAL FIX] Tailwind ダークモードを強制無効化
+              tailwind.config = {
+                darkMode: false
+              }
+            </script>
+            <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+            <style>
+              /* 🔧 [CRITICAL FIX] prefers-color-scheme を iframe 内で強制無効化 */
+              @media (prefers-color-scheme: dark) {
+                html, body { 
+                  background: white !important; 
+                  color: black !important; 
                 }
-                ::-webkit-scrollbar-track {
-                  background: #f1f1f1;
+              }
+              /* Minimal styles if no cssContent is provided but HTML structure exists */
+              body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
+                overflow-x: hidden;
+                line-height: 1.6;
+                color: #111827; /* USER MEMORY: text-black or text-gray-900 */
+              }
+              main { width: 100%; height: 100%; }
+              section { width: 100%; min-height: 50vh; padding: 2rem; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+              .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+              @media (max-width: 768px) { section { padding: 1rem; min-height: 40vh; } }
+              ::-webkit-scrollbar { width: 8px; }
+              ::-webkit-scrollbar-track { background: #f1f1f1; }
+              ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+              ::-webkit-scrollbar-thumb:hover { background: #555; }
+              .lp-section {
+                opacity: 0;
+                animation: fadeInUp 0.6s ease-out forwards;
+              }
+              .lp-section:nth-child(2) { animation-delay: 0.1s; }
+              .lp-section:nth-child(3) { animation-delay: 0.2s; }
+              .lp-section:nth-child(4) { animation-delay: 0.3s; }
+              .lp-section:nth-child(5) { animation-delay: 0.4s; }
+              .lp-section:nth-child(6) { animation-delay: 0.5s; }
+              @keyframes fadeInUp {
+                from {
+                  opacity: 0;
+                  transform: translateY(30px);
                 }
-                ::-webkit-scrollbar-thumb {
-                  background: #888;
-                  border-radius: 4px;
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
                 }
-                ::-webkit-scrollbar-thumb:hover {
-                  background: #555;
-                }
-              </style>
-            </head>
-            <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-              <main>
-                ${processedContent}
-              </main>
-            </body>
-            </html>
-          `;
-          doc.open();
-          doc.write(defaultTemplate);
-          doc.close();
-        } else {
-          // プレーンテキストの場合はBasicなHTMLで囲む
-          const basicTemplate = `
-            <!DOCTYPE html>
-            <html lang="ja">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <script src="https://cdn.tailwindcss.com"></script>
-              ${cssContent}
-              <style>
-                body {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                  line-height: 1.6;
-                  color: #333;
-                  max-width: 800px;
-                  margin: 0 auto;
-                  padding: 2rem;
-                }
-              </style>
-            </head>
-            <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-              <div>${processedContent}</div>
-            </body>
-            </html>
-          `;
-          doc.open();
-          doc.write(basicTemplate);
-          doc.close();
-        }
-        
-        // HTML更新後に編集可能要素を設定（安全な遅延）
-        setTimeout(() => {
-          // iframeがまだ存在し、コンテンツがロードされていることを確認
-          if (iframeRef.current && iframeRef.current.contentDocument?.body) {
-            setupEditableElements();
-          }
-        }, 200);
+              }
+              .fullscreen-mode body, .fullscreen-mode {
+                background: #fff;
+                width: 100vw;
+                height: 100vh;
+                overflow-y: auto;
+              }
+            </style>
+          </head>
+          <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
+            <main>${processedContent}</main>
+          </body>
+          </html>
+        `;
+      } else {
+        // プレーンテキストまたは非常に単純なHTMLの場合
+        finalHtml = `
+        <!DOCTYPE html>
+        <html lang="ja">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: sans-serif; padding: 1rem; color: #333; }
+            .fullscreen-mode body, .fullscreen-mode { background: #fff; width: 100vw; height: 100vh; overflow-y: auto; }
+          </style>
+        </head>
+        <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
+          ${processedContent}
+        </body>
+        </html>
+        `;
       }
-    }
-  }, [htmlContent, cssContent, isFullscreen, setupEditableElements]);
 
-  // 編集モードが変更された時の処理
-  useEffect(() => {
-    if (!htmlContent) return;
-    
-    const handleEditModeChange = () => {
-      if (!iframeRef.current) return;
-      
-      const iframe = iframeRef.current;
-      const doc = iframe.contentDocument;
-      if (!doc || !doc.body) return;
-      
-      console.log(`🔄 Edit mode changed: ${isEditMode ? 'ON' : 'OFF'}`);
-      
-      // 編集モードOFF時の清理
-      if (!isEditMode) {
-        // ホバーメニューを隠す
-        setHoverMenuVisible(false);
-        setHoveredElementId(null);
-        
-        // インライン編集を終了
-        setInlineEditingId(null);
-        
-        // 選択を解除
-        selectElement(null);
-        
-        // 全ての編集クラスを削除
-        const editableElements = doc.querySelectorAll('[data-editable-id]');
-        editableElements.forEach(el => {
-          el.classList.remove('edit-hover', 'edit-highlight', 'editing');
-        });
-        
-        // イベントリスナーを削除
-        const elementsWithListeners = doc.querySelectorAll('[data-edit-listener]');
-        elementsWithListeners.forEach(el => {
-          el.removeAttribute('data-edit-listener');
-        });
-      }
-      
-      // 少し遅延を入れてスタイルとイベントを設定
-      setTimeout(() => {
-        try {
-          setupEditableElements();
-        } catch (error) {
-          console.error('❌ Error in edit mode setup:', error);
-        }
-      }, 50);
+  if (doc) {
+    doc.open();
+    doc.write(finalHtml);
+    doc.close(); // ドキュメントのロードを完了させる
+  } else {
+    console.warn('Attempted to write to iframe but document was null.');
+  }
+}
+
+}, [htmlContent, cssContent, isFullscreen]); // 🔧 [CRITICAL FIX] setupEditableElements削除でiframe再描画を防止
+
+// isEditMode, selectedElementId, inlineEditingId, htmlContent が変更されたときに setupEditableElements を呼び出す
+useEffect(() => {
+  const iframe = iframeRef.current;
+  const handleLoad = () => {
+    if (iframe?.contentDocument?.body && iframe?.contentDocument?.readyState === 'complete') {
+      console.log('iframe loaded, setting up editable elements via load event');
+      setupEditableElements();
+    } else if (iframe?.contentDocument?.body) {
+      console.log('iframe load event fired, body present, but readyState not complete, attempting setup');
+      setupEditableElements();
+    }
+  };
+
+  if (iframe) {
+    if (iframe.contentDocument?.body && iframe.contentDocument?.readyState === 'complete') {
+      console.log('iframe already loaded with body, setting up editable elements immediately');
+      setupEditableElements();
+    } else {
+      iframe.addEventListener('load', handleLoad);
+    }
+    return () => {
+      iframe.removeEventListener('load', handleLoad);
     };
-    
-    handleEditModeChange();
-  }, [isEditMode, htmlContent, setupEditableElements, selectElement]);
+  }
+}, [isEditMode, selectedElementId, inlineEditingId]); // 🔧 [CRITICAL FIX] 不要な依存削除で連鎖的再描画を防止
 
-  // コンテナからマウスが離れた時の処理
-  const handleContainerMouseLeave = useCallback(() => {
-    if (isEditMode) {
-      console.log('🖱️ Mouse left container, cleaning up hover effects');
-      
-      // ホバーメニューを隠す
-      setHoverMenuVisible(false);
-      setHoveredElementId(null);
-      
-      // iframe内の全てのhover効果を削除
-      if (iframeRef.current) {
-        const doc = iframeRef.current.contentDocument;
-        if (doc) {
-          const hoveredElements = doc.querySelectorAll('.edit-hover');
-          hoveredElements.forEach(el => {
-            el.classList.remove('edit-hover');
-          });
-        }
-      }
-    }
-  }, [isEditMode]);
-
-  return (
-    <div 
-      ref={containerRef}
-      className={`relative w-full h-full ${isFullscreen ? 'bg-black' : 'bg-white'}`}
-      style={{ width, height }}
-      onMouseLeave={handleContainerMouseLeave}
-    >
-      {/* 編集モードインジケーター */}
-      {isEditMode && (
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-md">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium">編集モード</span>
-        </div>
-      )}
-
-      {/* 選択された要素の情報 */}
-      {isEditMode && selectedElementId && (
-        <div className="absolute top-16 left-4 z-10 bg-white border border-gray-200 rounded-lg shadow-md p-3 max-w-xs">
-          <div className="text-sm text-gray-600 mb-1">選択中の要素:</div>
-          <div className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{selectedElementId}</div>
-        </div>
-      )}
-
-      {/* フルスクリーンボタン */}
-      {enableFullscreen && (
-        <button
-          onClick={toggleFullscreen}
-          className={`absolute top-4 right-4 z-10 p-2 rounded-lg shadow-md transition-all duration-200 ${
-            isFullscreen 
-              ? 'bg-black bg-opacity-70 hover:bg-opacity-90 text-white' 
-              : 'bg-white hover:bg-gray-100 text-gray-700'
-          }`}
-          title={isFullscreen ? 'フルスクリーンを終了' : 'フルスクリーン表示'}
-        >
-          {isFullscreen ? (
-            <Minimize2 className="h-5 w-5" />
-          ) : (
-            <Maximize2 className="h-5 w-5" />
-          )}
-        </button>
-      )}
-
-      {/* スマートホバーメニュー */}
+return (
+  <div ref={containerRef} className="relative w-full h-full" style={{ width: isFullscreen ? '100vw' : width, height: isFullscreen ? '100vh' : height }}>
+    <iframe
+      ref={iframeRef}
+      title="LP Preview"
+      className="w-full h-full border-0"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+    />
+    {enableFullscreen && (
+      <button
+        onClick={toggleFullscreen}
+        className="absolute top-2 right-2 p-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors z-50"
+        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+      >
+        {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+      </button>
+    )}
+    {inlineEditingId && (
+      <InlineTextEditor
+        elementId={inlineEditingId!} 
+        initialText={extractTextFromElement(inlineEditingId!)}
+        onSave={(newText) => saveInlineEdit(inlineEditingId!, newText)}
+        onCancel={cancelInlineEdit}
+        isActive={!!inlineEditingId}
+        // TODO: positionを適切に計算して渡す。現状は画面中央などに表示される想定。
+      />
+    )}
+    {hoverMenuVisible && hoveredElementId && (
       <SmartHoverMenu
-        elementId={hoveredElementId || ''}
-        isVisible={hoverMenuVisible && !!hoveredElementId && isEditMode}
+        isVisible={hoverMenuVisible}
+        elementId={hoveredElementId!}
         position={hoverMenuPosition}
-        onEdit={() => hoveredElementId && startInlineEdit(hoveredElementId)}
-        onAIImprove={() => hoveredElementId && handleAIImprove(hoveredElementId)}
-        onClose={() => {
-          setHoverMenuVisible(false);
-          setHoveredElementId(null);
-        }}
+        onEdit={() => startInlineEdit(hoveredElementId!)}
+        onAIImprove={() => handleAIImprove(hoveredElementId!)}
+        onClose={() => setHoverMenuVisible(false)}
+        className="smart-hover-menu"
       />
-
-      {/* インライン編集エディター */}
-      {inlineEditingId && (
-        <div className="absolute inset-0 z-30 bg-black bg-opacity-20 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-medium text-black mb-2">テキストを編集</h3>
-              <p className="text-sm text-gray-600">要素: {inlineEditingId}</p>
-            </div>
-            <InlineTextEditor
-              initialText={extractTextFromElement(inlineEditingId)}
-              elementId={inlineEditingId}
-              isActive={true}
-              onSave={(newText) => saveInlineEdit(inlineEditingId, newText)}
-              onCancel={cancelInlineEdit}
-              onAIImprove={onAIImprove ? (text) => onAIImprove(inlineEditingId, text) : undefined}
-              placeholder="新しいテキストを入力してください..."
-            />
-          </div>
-        </div>
-      )}
-
-      {/* メインのiframe */}
-      <iframe
-        ref={iframeRef}
-        className={`w-full h-full border-none rounded-lg ${
-          isFullscreen ? 'rounded-none' : ''
-        }`}
-        style={{ 
-          backgroundColor: '#fff',
-          minHeight: isFullscreen ? '100vh' : '600px'
-        }}
-        sandbox="allow-scripts allow-same-origin allow-forms"
-        title="Landing Page Preview"
-      />
-
-      {/* フルスクリーン時のESCキーヒント */}
-      {isFullscreen && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg text-sm">
-            ESCキーでフルスクリーンを終了
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    )}
+  </div>
+);
 };

@@ -23,7 +23,7 @@ type LPStructure = z.infer<typeof lpStructureSchema>;
 export async function generateLPStructure(topic: string): Promise<LPStructure> {
   try {
     const { object: structure } = await generateObject({
-      model: createAnthropic()('claude-3-5-sonnet-20240620'),
+      model: createAnthropic()('claude-opus-4-20250514'),
       schema: lpStructureSchema,
       maxTokens: 1500,
       temperature: 0.7,

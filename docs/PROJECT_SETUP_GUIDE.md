@@ -1,129 +1,196 @@
 # LP Creator - プロジェクトセットアップガイド
 
 - **作成日:** 2025年06月12日
+- **最終更新:** 2025年06月14日
 - **目的:** このドキュメントは、「LP Creator」プロジェクトの初期セットアップ手順を定義し、開発をスムーズに開始するためのガイドです。
 
 ---
 
-## ステップ1: プロジェクトの新規作成
+## ✅ プロジェクト概要
 
-まず、`Open-SuperAgent` とは**別の場所**に、LP Creator用の新しいディレクトリを作成し、Next.jsプロジェクトを初期化します。
+LP Creatorは、Mastraフレームワークを活用したAI駆動のランディングページ生成アプリケーションです。
+
+### 主要機能
+- **クイック作成モード**: 簡単で高速なランディングページ生成
+- **プロフェッショナルHPワークフロー**: マーケティング心理学とSEO最適化を組み込んだ包括的な作成プロセス
+- **リアルタイムプレビュー**: 生成されたページの即座のプレビュー
+- **自然な編集システム**: Notion/Word風のインライン編集機能
+
+---
+
+## ✅ 完了済みセットアップ
+
+### 1. プロジェクト構造
+```
+lp-creator/
+├── app/                          # Next.js App Router
+│   ├── api/
+│   │   ├── chat/                 # メイン生成API
+│   │   ├── lp-creator/chat/      # Mastraエージェント API
+│   │   └── pro-hp-workflow/      # プロワークフローAPI
+│   ├── components/               # UIコンポーネント
+│   │   ├── AIChatPanel.tsx       # AIチャットインターフェース
+│   │   ├── LPViewer.tsx          # プレビューパネル
+│   │   ├── ProHPWorkflowPanel.tsx # プロワークフローUI
+│   │   └── EditModal.tsx         # 編集機能
+│   └── page.tsx                  # メインページ（タブ切り替え）
+├── src/mastra/                   # Mastraフレームワーク設定
+│   ├── agents/
+│   │   └── lpCreatorAgent.ts     # メインAIエージェント
+│   ├── tools/                    # AIツール群
+│   │   ├── enhancedLPGeneratorTool.ts
+│   │   ├── collectStrategyInfo.ts
+│   │   ├── generateConceptWireframe.ts
+│   │   └── [その他のツール...]
+│   ├── workflows/
+│   │   └── proHPWorkflow.ts      # プロワークフロー実装
+│   └── index.ts                  # Mastra設定
+└── docs/                         # プロジェクト文書
+```
+
+### 2. 技術スタック
+- **フレームワーク**: Next.js 15 (App Router)
+- **AI フレームワーク**: Mastra
+- **AIプロバイダー**: OpenAI, Claude, Google AI
+- **スタイリング**: Tailwind CSS
+- **データベース**: LibSQL (メモリ機能用)
+- **TypeScript**: 完全対応
+
+### 3. 実装済み機能
+
+#### ✅ Mastraフレームワーク統合
+- **エージェント**: 複数AIプロバイダー対応の動的モデル選択
+- **ツール**: 15個の専門化されたLP生成ツール
+- **ワークフロー**: 7ステップのプロフェッショナルHP作成プロセス
+- **メモリ**: LibSQLを使用した会話履歴管理
+
+#### ✅ プロフェッショナルHPワークフロー
+```
+1. 戦略収集 → 2. コンセプト設計 → 3. コピーライティング
+       ↓              ↓                    ↓
+4. ファイル構造 → 5. HTML生成 → 6. CSS生成 → 7. 最終品質チェック
+```
+
+#### ✅ UI/UX機能
+- **分割パネル**: チャット（左）+ プレビュー（右）
+- **タブシステム**: クイック作成 vs プロワークフロー
+- **インライン編集**: ダブルクリックによる即座の編集
+- **スマートホバーメニュー**: ✏️編集, 🤖AI改善, 🎨スタイル
+
+#### ✅ API エンドポイント
+- `/api/lp-creator/chat` - Mastraエージェント統合
+- `/api/pro-hp-workflow` - プロワークフロー実行
+- `/api/chat` - 基本的なチャット機能
+
+---
+
+## 🚀 開発開始方法
+
+### 1. 依存関係のインストール
+```bash
+cd /Users/kamenonagare/kameno-dev/lp-creator
+pnpm install
+```
+
+### 2. 環境変数の設定
+```bash
+# .env.local を作成し、以下を設定
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_claude_api_key
+GOOGLE_GENERATIVE_AI_API_KEY=your_google_ai_key
+```
+
+### 3. 開発サーバーの起動
+```bash
+pnpm dev
+```
+
+### 4. アプリケーションへのアクセス
+- **URL**: http://localhost:3000
+- **機能確認**:
+  - クイック作成タブでシンプルなLP生成
+  - プロワークフロータブで包括的なHP作成
+
+---
+
+## 📋 TypeScript設定
+
+### ✅ 型安全性の確保
+```bash
+# TypeScript チェック
+pnpm tsc --noEmit
+
+# リンティング
+pnpm lint
+```
+
+### 主要な型定義
+- **Mastraワークフロー**: Zod スキーマによる厳密な型定義
+- **API レスポンス**: 完全型付けされたレスポンス構造
+- **ツール入出力**: 各ツールの入力・出力スキーマ
+
+---
+
+## 🛠 開発コマンド
 
 ```bash
-# 1. Open-SuperAgentプロジェクトの外に移動します
-cd /Users/kamenonagare/kameno-dev/
+# 開発サーバー起動
+pnpm dev
 
-# 2. LP Creator用の新しいディレクトリを作成し、そこに移動します
-mkdir lp-creator
-cd lp-creator
+# プロダクションビルド
+pnpm build
 
-# 3. Next.js 15 プロジェクトを初期化します
-npx create-next-app@latest .
+# プロダクション実行
+pnpm start
+
+# 型チェック
+pnpm tsc --noEmit
+
+# リンティング
+pnpm lint
+
+# テスト実行（E2E）
+pnpm test:e2e
 ```
 
-`create-next-app` の実行中に、以下の質問が表示されます。このように設定してください。
+---
 
-```
-✔ Would you like to use TypeScript? … Yes
-✔ Would you like to use ESLint? … Yes
-✔ Would you like to use Tailwind CSS? … Yes
-✔ Would you like to use `src/` directory? … No
-✔ Would you like to use App Router? (recommended) … Yes
-✔ Would you like to customize the default import alias (@/*)? … No
-```
+## 📈 次のステップ
 
-## ステップ2: ディレクトリ構造の整備
+### 1. 機能拡張
+- **画像生成統合**: AI画像生成プロンプトの実装
+- **SEO最適化**: より高度なSEO機能
+- **ダウンロード機能**: 完成したプロジェクトのZip配布
 
-計画書に基づき、AI関連のロジックやコンポーネントを格納するためのディレクトリを作成します。
+### 2. パフォーマンス最適化
+- **Core Web Vitals**: パフォーマンス指標の改善
+- **画像最適化**: Next.js Image最適化
+- **コード分割**: 動的インポートの活用
 
-```bash
-# プロジェクトのルートディレクトリ（lp-creator/）で実行
-mkdir -p ai/tools
-mkdir -p app/components
-mkdir -p app/contexts
-```
+### 3. 品質向上
+- **テストカバレッジ**: ユニットテスト・E2Eテストの追加
+- **エラーハンドリング**: より堅牢なエラー処理
+- **ユーザビリティ**: UIの継続的改善
 
-## ステップ3: `Open-SuperAgent` からの知見の移植（再実装）
+---
 
-ここが最も重要なステップです。`Open-SuperAgent` の優れたロジックを参考に、新しいファイルとして実装します。**ファイルの直接コピーはライセンス違反になるため絶対に行わないでください。**
+## 📖 関連ドキュメント
 
-### 3.1. `ai/unified-lp-generator.ts` の作成
+- **[PRO_HP_WORKFLOW_PLAN.md](./PRO_HP_WORKFLOW_PLAN.md)** - プロワークフローの詳細仕様
+- **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** - プロジェクト全体概要
+- **[CLAUDE.md](../CLAUDE.md)** - Claude Code向け開発ガイド
 
-- **目的**: LP全体のHTMLを生成するコアなAIツールを作成します。
-- **参考ファイル**: `Open-SuperAgent/src/mastra/tools/htmlSlideTool.ts`
-- **実装のポイント**:
-  1.  Vercel AI SDK の `generateObject` を使用して、構造化された出力を得られるようにします。
-  2.  `htmlSlideTool.ts` のプロンプトを参考に、「LP全体を生成するための詳細な指示」を記述します。出力形式（HTML/CSSの構造、Tailwind CSSの利用など）を厳密に指定することが品質の鍵です。
-  3.  初期バージョンでは、まずLP全体を一度に生成するシンプルな実装を目指します。
+---
 
-```typescript
-// ai/unified-lp-generator.ts の実装イメージ
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
-import { z } from 'zod';
+## 📝 開発ノート
 
-export async function generateUnifiedLP(topic: string) {
-  const { object } = await generateObject({
-    model: openai('gpt-4o'),
-    schema: z.object({
-      htmlContent: z.string().describe('Complete HTML content for the landing page, using Tailwind CSS for styling.'),
-      cssContent: z.string().optional().describe('Any additional CSS required.'),
-    }),
-    prompt: `Create a complete, single-page landing page about "${topic}". The page should be visually appealing, responsive, and use Tailwind CSS classes directly in the HTML. The structure should include a hero section, features, testimonials, and a call-to-action.`,
-  });
-  return object;
-}
-```
+### 重要な実装ポイント
+1. **Mastraツール実行**: 現在は簡略化実装、将来的に完全統合予定
+2. **TypeScript型安全性**: ワークフロー全体で型安全性を維持
+3. **ユーザー確認ポイント**: プロワークフローには3つのユーザー確認段階
+4. **即座の反映**: 編集変更は即座にプレビューに反映
 
-### 3.2. `app/api/chat/route.ts` の編集
-
-- **目的**: フロントエンドからのリクエストを受け取り、AIツールを呼び出すAPIエンドポイントを構築します。
-- **参考ファイル**: `Open-SuperAgent/app/api/chat/route.ts`
-- **実装のポイント**:
-  1.  Vercel AI SDKの `streamUI` または `streamObject` を使用して、フロントエンドにレスポンスを返します。
-  2.  POSTリクエストからユーザーのプロンプト（トピック）を受け取ります。
-  3.  `generateUnifiedLP` 関数を呼び出し、その結果をフロントエンドにストリーミングします。
-
-```typescript
-// app/api/chat/route.ts の実装イメージ
-import { generateUnifiedLP } from '@/ai/unified-lp-generator';
-import { streamUI } from 'ai/rsc';
-import { z } from 'zod';
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-  const lastUserMessage = messages[messages.length - 1].content;
-
-  const result = await streamUI({
-    model: openai('gpt-4o'), // このモデルは直接使わないが、SDKの形式上必要
-    text: `Generating a landing page for ${lastUserMessage}...`,
-    tools: {
-      displayGeneratedLp: {
-        description: 'Displays the generated landing page content.',
-        parameters: z.object({
-          html: z.string(),
-        }),
-        generate: async function* ({ html }) {
-          yield <div>Loading...</div>;
-          const lpObject = await generateUnifiedLP(lastUserMessage);
-          return <div>{lpObject.htmlContent}</div>; // ここは後でiframeに渡す
-        },
-      },
-    },
-  });
-
-  return result.value;
-}
-```
-
-### 3.3. フロントエンドコンポーネントの作成
-
-- **目的**: AIとの対話UIと、生成されたLPのプレビューUIを作成します。
-- **実装のポイント**:
-  - **`app/page.tsx`**: メインのレイアウトを定義。`useActions` フックを使ってAPIを呼び出します。
-  - **`app/components/ChatPanel.tsx`**: チャット入力フォームとメッセージ履歴を表示します。
-  - **`app/components/UnifiedLPViewer.tsx`**: APIから受け取ったHTMLを `iframe` の `srcDoc` に設定して、安全にプレビュー表示します。
-
-## 4. 次のステップ
-
-このガイドに従ってプロジェクトの雛形が完成したら、`LP_CREATOR_PLAN.md` の**フェーズ1**のタスクリストを参考に、各コンポーネントの具体的な実装を進めていきましょう。
+### デバッグ情報
+- **ログ**: 非本番環境でのみ詳細ログ出力
+- **開発者ツール**: ブラウザコンソールでのデバッグ情報
+- **TypeScript**: 厳密な型チェックによるエラー早期発見
