@@ -97,6 +97,24 @@ const MainView = ({
     forcePanelOpen: false
   });
 
+  // 🔍 [THEME DEBUG] メディアクエリ変更の監視
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleDarkModeChange = (e: MediaQueryListEvent) => {
+      console.log('🚨 [THEME] prefers-color-scheme changed to:', e.matches ? 'dark' : 'light');
+      console.log('🚨 [THEME] Body background after change:', getComputedStyle(document.body).backgroundColor);
+    };
+    
+    darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
+    
+    console.log('🔍 [THEME] Initial system preference:', darkModeMediaQuery.matches ? 'dark' : 'light');
+    
+    return () => {
+      darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
+    };
+  }, []);
+
   // 編集機能の状態管理
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingText, setEditingText] = useState('');
@@ -149,44 +167,40 @@ const MainView = ({
     selectElement(null);
   };
 
-  // テキスト更新処理（AI連携）
-  const handleTextUpdate = async (newText: string) => {
-    if (!selectedElementId) return;
+  // 🔧 [CRITICAL FIX] 即座DOM更新 + オプショナルAI改善  
+  const handleTextUpdate = async (elementId: string, newText: string) => {
+    if (!elementId) return;
 
     setIsUpdating(true);
     try {
-      console.log('🔄 Updating element via AI:', selectedElementId, 'with text:', newText);
+      console.log('💫 [IMMEDIATE UPDATE] Updating element directly:', elementId, 'with text:', newText);
       
-      // AI経由で更新を実行
-      const updatePrompt = `要素「${selectedElementId}」のテキストを「${newText}」に更新してください。`;
+      // 🎯 Step 1: 即座にiframe内DOMを直接更新
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
+      const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
       
-      // チャット経由でAIに更新を依頼
-      sendPrompt(updatePrompt);
+      if (element) {
+        element.textContent = newText;
+        const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
+        
+        console.log('✅ [IMMEDIATE UPDATE] DOM updated successfully');
+        setLpToolState(prev => ({
+          ...prev,
+          htmlContent: updatedHTML
+        }));
+      } else {
+        console.error('❌ [IMMEDIATE UPDATE] Element not found:', elementId);
+      }
       
       handleEditModalClose();
-    } catch (error) {
-      console.error('Error updating text via AI:', error);
       
-      // フォールバック: 直接HTML更新
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
-        const element = doc.querySelector(`[data-editable-id="${selectedElementId}"]`);
-        
-        if (element) {
-          element.textContent = newText;
-          const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
-          
-          setLpToolState(prev => ({
-            ...prev,
-            htmlContent: updatedHTML
-          }));
-        }
-        
-        handleEditModalClose();
-      } catch (fallbackError) {
-        console.error('Fallback update also failed:', fallbackError);
-      }
+      // 🎯 Step 2: オプショナル - AIに改善提案を依頼（バックグラウンド）
+      // const improvementPrompt = `要素「${elementId}」のテキスト「${newText}」をより良く改善してください。`;
+      // sendPrompt(improvementPrompt);
+      
+    } catch (error) {
+      console.error('❌ [IMMEDIATE UPDATE] Failed:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -419,9 +433,21 @@ const MainView = ({
             <button
               onClick={() => {
                 console.log('🔍 [DEBUG] Edit mode toggle clicked - current state:', isEditMode);
+                console.log('🔍 [THEME] System prefers dark:', window.matchMedia('(prefers-color-scheme: dark)').matches);
+                console.log('🔍 [THEME] Body background color:', getComputedStyle(document.body).backgroundColor);
+                console.log('🔍 [THEME] HTML classes:', document.documentElement.className);
+                console.log('🔍 [THEME] Body classes:', document.body.className);
+                
                 toggleEditMode();
                 selectElement(null);
-                console.log('🔍 [DEBUG] Edit mode toggle completed - new state:', !isEditMode);
+                
+                // 状態変更後の確認
+                setTimeout(() => {
+                  console.log('🔍 [DEBUG] Edit mode toggle completed - new state:', !isEditMode);
+                  console.log('🔍 [THEME] After toggle - Body background:', getComputedStyle(document.body).backgroundColor);
+                  console.log('🔍 [THEME] After toggle - HTML classes:', document.documentElement.className);
+                  console.log('🔍 [THEME] After toggle - Body classes:', document.body.className);
+                }, 10);
               }}
               className={`px-3 py-1.5 rounded-md text-sm font-semibold text-white transition-colors ${
                 isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
@@ -629,26 +655,48 @@ const MainView = ({
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-hidden">
-          {lpToolState.isActive && lpToolState.htmlContent ? (
-            <div className="h-full overflow-y-auto">
-              <LPViewer 
-                htmlContent={lpToolState.htmlContent} 
-                cssContent={lpToolState.cssContent}
-                onTextUpdate={handleTextUpdate}
-                onAIImprove={(elementId, currentText) => {
-                  const prompt = `要素「${elementId}」のテキスト「${currentText}」をAIで改善してください。`;
-                  sendPrompt(prompt);
-                }}
-                isModalOpen={isEditModalOpen}
-              />
+        <div className="flex-1 overflow-hidden relative">
+          {/* 🔧 [CRITICAL FIX] 条件付きレンダリングを削除してiframe再生成を防止 */}
+          <div className="h-full overflow-y-auto">
+            <LPViewer 
+              htmlContent={lpToolState.htmlContent || ''} // 空文字でフォールバック
+              cssContent={lpToolState.cssContent || ''}
+              onTextUpdate={handleTextUpdate}
+              onAIImprove={(elementId, currentText) => {
+                const prompt = `要素「${elementId}」のテキスト「${currentText}」をAIで改善してください。`;
+                sendPrompt(prompt);
+              }}
+              isModalOpen={isEditModalOpen}
+            />
+          </div>
+          
+          {/* 🔧 [EMERGENCY FIX] オーバーレイを一時的に無効化 */}
+          {false && (!lpToolState.isActive || !lpToolState.htmlContent) && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur-sm z-10">
+              <div className="text-center">
+                <p className="text-lg mb-2 text-gray-900">プレビューエリア</p>
+                <p className="text-sm text-gray-900">LPを生成すると、こちらに表示されます</p>
+                <div className="mt-4 text-xs text-gray-500">
+                  <div>• フルスクリーン表示対応</div>
+                  <div>• HTML/PDF出力機能</div>
+                  <div>• リアルタイムプレビュー</div>
+                </div>
+                {/* デバッグ情報 */}
+                <div className="mt-4 text-xs text-red-500">
+                  <div>Debug: lpToolState.isActive = {lpToolState.isActive.toString()}</div>
+                  <div>Debug: htmlContent length = {lpToolState.htmlContent?.length || 0}</div>
+                </div>
+              </div>
             </div>
-          ) : (
+          )}
+          
+          {/* デバッグ情報をプレビューエリア内に表示 */}
+          {(!lpToolState.isActive || !lpToolState.htmlContent) && (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
-                <p className="text-lg mb-2">プレビューエリア</p>
-                <p className="text-sm">LPを生成すると、こちらに表示されます</p>
-                <div className="mt-4 text-xs text-gray-400">
+                <p className="text-lg mb-2 text-gray-900">プレビューエリア</p>
+                <p className="text-sm text-gray-900">LPを生成すると、こちらに表示されます</p>
+                <div className="mt-4 text-xs text-gray-500">
                   <div>• フルスクリーン表示対応</div>
                   <div>• HTML/PDF出力機能</div>
                   <div>• リアルタイムプレビュー</div>
@@ -669,47 +717,57 @@ const MainView = ({
         isOpen={isEditModalOpen}
         elementId={selectedElementId}
         currentText={editingText}
-        onSave={handleTextUpdate}
+        onSave={(newText) => {
+          if (selectedElementId) {
+            handleTextUpdate(selectedElementId, newText);
+          }
+        }}
         onClose={handleEditModalClose}
         isLoading={isUpdating}
       />
 
       {/* バリエーションセレクター */}
-      {showVariantSelector && (
-        <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
-          {console.log('🔍 [DEBUG] VariantSelector overlay is being rendered')}
-          <VariantSelector
-            variants={variants}
-            selectedVariantId={selectedVariant?.id}
-            onSelectVariant={handleSelectVariant}
-          />
-          <button
-            onClick={() => {
-              console.log('🔍 [DEBUG] VariantSelector close button clicked');
-              setShowVariantSelector(false);
-            }}
-            className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {showVariantSelector && (() => {
+        console.log('🔍 [DEBUG] VariantSelector overlay is being rendered');
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
+            <VariantSelector
+              variants={variants}
+              selectedVariantId={selectedVariant?.id}
+              onSelectVariant={handleSelectVariant}
+            />
+            <button
+              onClick={() => {
+                console.log('🔍 [DEBUG] VariantSelector close button clicked');
+                setShowVariantSelector(false);
+              }}
+              className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100"
+            >
+              ✕
+            </button>
+          </div>
+        );
+      })()}
 
       {/* AI提案パネル */}
-      {console.log('🔍 [DEBUG] AISuggestionPanel render - isVisible:', showAISuggestions, 'suggestions count:', aiSuggestions.length)}
-      <AISuggestionPanel
-        suggestions={aiSuggestions}
-        onApplySuggestion={handleApplyAISuggestion}
-        onDismissSuggestion={(id) => {
-          console.log('🔍 [DEBUG] Dismissing AI suggestion:', id);
-          setAiSuggestions(prev => prev.filter(s => s.id !== id));
-        }}
-        isVisible={showAISuggestions}
-        onClose={() => {
-          console.log('🔍 [DEBUG] Closing AI suggestion panel');
-          setShowAISuggestions(false);
-        }}
-      />
+      {(() => {
+        console.log('🔍 [DEBUG] AISuggestionPanel render - isVisible:', showAISuggestions, 'suggestions count:', aiSuggestions.length);
+        return (
+          <AISuggestionPanel
+            suggestions={aiSuggestions}
+            onApplySuggestion={handleApplyAISuggestion}
+            onDismissSuggestion={(id) => {
+              console.log('🔍 [DEBUG] Dismissing AI suggestion:', id);
+              setAiSuggestions(prev => prev.filter(s => s.id !== id));
+            }}
+            isVisible={showAISuggestions}
+            onClose={() => {
+              console.log('🔍 [DEBUG] Closing AI suggestion panel');
+              setShowAISuggestions(false);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

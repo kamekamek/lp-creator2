@@ -334,8 +334,21 @@ export const LPViewer: React.FC<LPViewerProps> = ({
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+              // 🔧 [CRITICAL FIX] Tailwind ダークモードを強制無効化
+              tailwind.config = {
+                darkMode: false
+              }
+            </script>
             <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
             <style>
+              /* 🔧 [CRITICAL FIX] prefers-color-scheme を iframe 内で強制無効化 */
+              @media (prefers-color-scheme: dark) {
+                html, body { 
+                  background: white !important; 
+                  color: black !important; 
+                }
+              }
               ${escapedCssContent}
               body {
                 margin: 0;
@@ -425,8 +438,21 @@ export const LPViewer: React.FC<LPViewerProps> = ({
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+              // 🔧 [CRITICAL FIX] Tailwind ダークモードを強制無効化
+              tailwind.config = {
+                darkMode: false
+              }
+            </script>
             <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
             <style>
+              /* 🔧 [CRITICAL FIX] prefers-color-scheme を iframe 内で強制無効化 */
+              @media (prefers-color-scheme: dark) {
+                html, body { 
+                  background: white !important; 
+                  color: black !important; 
+                }
+              }
               /* Minimal styles if no cssContent is provided but HTML structure exists */
               body {
                 margin: 0;
