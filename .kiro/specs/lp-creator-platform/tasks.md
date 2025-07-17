@@ -1,120 +1,120 @@
-# Implementation Plan
+# 実装計画
 
-- [ ] 1. Set up core AI tool infrastructure and interfaces
-  - Create TypeScript interfaces for all LP generation models (LPGenerationRequest, LPGenerationResult, LPVariant)
-  - Implement base Mastra tool configuration and helper utilities
-  - Set up error handling interfaces (AIGenerationError, SecurityError, PerformanceError)
-  - Create unit tests for core interfaces and utilities
-  - _Requirements: 1.1, 1.4, 5.2_
+- [x] 1. コアAIツールインフラストラクチャとインターフェースの構築
+  - LP生成モデルのTypeScriptインターフェースを作成 (LPGenerationRequest, LPGenerationResult, LPVariant)
+  - Mastraツールの基本設定とヘルパーユーティリティを実装
+  - エラーハンドリングインターフェースを設定 (AIGenerationError, SecurityError, PerformanceError)
+  - コアインターフェースとユーティリティのユニットテストを作成
+  - _要件: 1.1, 1.4, 5.2_
 
-- [ ] 2. Implement enhanced LP generator tool with marketing psychology
-  - Code enhancedLPGeneratorTool with PASONA and 4U principles integration
-  - Implement business type and target audience auto-detection logic
-  - Add HTML/CSS/JavaScript unified generation functionality
-  - Create comprehensive error handling and retry mechanisms
-  - Write unit tests for LP generation logic and marketing psychology application
-  - _Requirements: 1.1, 1.2, 1.3, 1.4_
+- [ ] 2. マーケティング心理学を活用した拡張LP生成ツールの実装
+  - PASONA法則と4U原則を統合したenhancedLPGeneratorToolをコーディング
+  - ビジネスタイプとターゲットオーディエンスの自動検出ロジックを実装
+  - HTML/CSS/JavaScript統合生成機能を追加
+  - 包括的なエラーハンドリングとリトライメカニズムを作成
+  - LP生成ロジックとマーケティング心理学適用のユニットテストを作成
+  - _要件: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 3. Build intelligent multi-variant LP generation system
-  - Implement intelligentLPGeneratorTool for generating up to 3 design variations
-  - Code variant scoring and recommendation algorithm
-  - Create variant comparison and selection logic
-  - Add variant metadata and feature tracking
-  - Write integration tests for multi-variant generation workflow
-  - _Requirements: 3.1, 3.2_
+- [ ] 3. インテリジェント複数バリエーションLP生成システムの構築
+  - 最大3つのデザインバリエーションを生成するintelligentLPGeneratorToolを実装
+  - バリエーションスコアリングと推奨アルゴリズムをコーディング
+  - バリエーション比較と選択ロジックを作成
+  - バリエーションメタデータと機能追跡を追加
+  - 複数バリエーション生成ワークフローの統合テストを作成
+  - _要件: 3.1, 3.2_
 
-- [ ] 4. Create secure preview and rendering engine
-  - Implement LPViewer component with iframe sandbox security
-  - Code HTML sanitization using DOMPurify integration
-  - Add CSP (Content Security Policy) configuration
-  - Implement safe rendering with sandbox attributes (allow-scripts, allow-same-origin, allow-forms)
-  - Create security tests for XSS and injection attack prevention
-  - _Requirements: 2.1, 5.1, 5.3_
+- [ ] 4. セキュアなプレビューとレンダリングエンジンの作成
+  - iframeサンドボックスセキュリティを持つLPViewerコンポーネントを実装
+  - DOMPurify統合を使用したHTMLサニタイゼーションをコーディング
+  - CSP（Content Security Policy）設定を追加
+  - サンドボックス属性による安全なレンダリングを実装 (allow-scripts, allow-same-origin, allow-forms)
+  - XSSとインジェクション攻撃防止のセキュリティテストを作成
+  - _要件: 2.1, 5.1, 5.3_
 
-- [ ] 5. Build real-time editing system with element detection
-  - Implement editable element detection and highlighting system
-  - Code EditModal component with inline text editing functionality
-  - Create element selection and identification logic using data-editable-id attributes
-  - Add immediate DOM update functionality for instant preview reflection
-  - Write integration tests for editing workflow and DOM manipulation
-  - _Requirements: 2.2, 2.3, 2.4_
+- [ ] 5. 要素検出機能付きリアルタイム編集システムの構築
+  - 編集可能要素の検出とハイライトシステムを実装
+  - インライン文字編集機能を持つEditModalコンポーネントをコーディング
+  - data-editable-id属性を使用した要素選択と識別ロジックを作成
+  - 即座のプレビュー反映のための即時DOM更新機能を追加
+  - 編集ワークフローとDOM操作の統合テストを作成
+  - _要件: 2.2, 2.3, 2.4_
 
-- [ ] 6. Implement AI-powered improvement suggestion system
-  - Code AISuggestionPanel component with content analysis capabilities
-  - Implement AISuggestionGenerator for analyzing HTML/CSS content
-  - Create suggestion categorization (content, design, structure, SEO)
-  - Add suggestion application logic with targeted content updates
-  - Write unit tests for suggestion generation and application algorithms
-  - _Requirements: 3.3, 3.4_
+- [ ] 6. AI搭載改善提案システムの実装
+  - コンテンツ分析機能を持つAISuggestionPanelコンポーネントをコーディング
+  - HTML/CSSコンテンツを分析するAISuggestionGeneratorを実装
+  - 提案の分類化を作成（コンテンツ、デザイン、構造、SEO）
+  - ターゲットコンテンツ更新を含む提案適用ロジックを追加
+  - 提案生成と適用アルゴリズムのユニットテストを作成
+  - _要件: 3.3, 3.4_
 
-- [ ] 7. Build structured workflow and interactive hearing system
-  - Implement StructuredWorkflowPanel with step-by-step process management
-  - Code interactive hearing functionality for client requirement gathering
-  - Create concept proposal generation and user confirmation workflow
-  - Add backward navigation capability for workflow step modification
-  - Write integration tests for complete structured workflow process
-  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+- [ ] 7. 構造化ワークフローとインタラクティブヒアリングシステムの構築
+  - ステップバイステップのプロセス管理を持つStructuredWorkflowPanelを実装
+  - クライアント要件収集のためのインタラクティブヒアリング機能をコーディング
+  - コンセプト提案生成とユーザー確認ワークフローを作成
+  - ワークフローステップ修正のための後方ナビゲーション機能を追加
+  - 完全な構造化ワークフロープロセスの統合テストを作成
+  - _要件: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 8. Create export and download functionality
-  - Implement HTML file generation with integrated CSS styling
-  - Code download functionality with proper file naming based on page titles
-  - Add complete HTML file export with all dependencies included
-  - Create file generation utilities for clean, standalone HTML output
-  - Write unit tests for export functionality and file integrity
-  - _Requirements: 6.1, 6.2, 6.3_
+- [ ] 8. エクスポートとダウンロード機能の作成
+  - 統合CSSスタイリングを持つHTMLファイル生成を実装
+  - ページタイトルに基づく適切なファイル名でのダウンロード機能をコーディング
+  - すべての依存関係を含む完全なHTMLファイルエクスポートを追加
+  - クリーンでスタンドアロンのHTML出力のためのファイル生成ユーティリティを作成
+  - エクスポート機能とファイル整合性のユニットテストを作成
+  - _要件: 6.1, 6.2, 6.3_
 
-- [ ] 9. Implement responsive design and mobile optimization
-  - Code mobile-first responsive design system using TailwindCSS
-  - Implement adaptive breakpoints for different screen sizes
-  - Add touch-optimized interface elements for mobile devices
-  - Create responsive preview functionality with device simulation
-  - Write cross-device compatibility tests using Playwright
-  - _Requirements: 7.1, 7.2, 7.3_
+- [ ] 9. レスポンシブデザインとモバイル最適化の実装
+  - TailwindCSSを使用したモバイルファーストレスポンシブデザインシステムをコーディング
+  - 異なる画面サイズに対応するアダプティブブレークポイントを実装
+  - モバイルデバイス用のタッチ最適化インターフェース要素を追加
+  - デバイスシミュレーション機能を持つレスポンシブプレビュー機能を作成
+  - Playwrightを使用したクロスデバイス互換性テストを作成
+  - _要件: 7.1, 7.2, 7.3_
 
-- [ ] 10. Build performance optimization and memory management
-  - Implement code splitting for heavy components (VariantSelector, AISuggestionPanel)
-  - Code memory cleanup strategies for large HTML content processing
-  - Add streaming and progressive loading for LP generation
-  - Implement performance monitoring and benchmarking utilities
-  - Create performance tests with defined benchmarks (< 10s generation, < 100ms editing)
-  - _Requirements: 5.2_
+- [ ] 10. パフォーマンス最適化とメモリ管理の構築
+  - 重いコンポーネント（VariantSelector, AISuggestionPanel）のコード分割を実装
+  - 大きなHTMLコンテンツ処理のメモリクリーンアップ戦略をコーディング
+  - LP生成のストリーミングとプログレッシブローディングを追加
+  - パフォーマンスモニタリングとベンチマークユーティリティを実装
+  - 定義されたベンチマーク（10秒未満の生成、100ms未満の編集）でのパフォーマンステストを作成
+  - _要件: 5.2_
 
-- [ ] 11. Integrate state management and chat session handling
-  - Implement centralized state management using React Context and useChat hook
-  - Code edit mode and chat session separation logic
-  - Add message parsing and LP tool result detection from AI responses
-  - Create state synchronization between chat, editing, and preview components
-  - Write integration tests for complete state management workflow
-  - _Requirements: 2.1, 2.4, 3.1, 4.1_
+- [ ] 11. 状態管理とチャットセッションハンドリングの統合
+  - React ContextとuseChatフックを使用した集中状態管理を実装
+  - 編集モードとチャットセッション分離ロジックをコーディング
+  - AIレスポンスからのメッセージ解析とLPツール結果検出を追加
+  - チャット、編集、プレビューコンポーネント間の状態同期を作成
+  - 完全な状態管理ワークフローの統合テストを作成
+  - _要件: 2.1, 2.4, 3.1, 4.1_
 
-- [ ] 12. Implement accessibility compliance and WCAG standards
-  - Code WCAG 2.1 AA compliance features (keyboard navigation, screen reader support)
-  - Add automatic accessibility enhancements to generated content
-  - Implement proper heading hierarchy and ARIA landmark generation
-  - Create color contrast validation and text resize support
-  - Write accessibility tests using automated testing tools
-  - _Requirements: 7.3_
+- [ ] 12. アクセシビリティ準拠とWCAG標準の実装
+  - WCAG 2.1 AA準拠機能（キーボードナビゲーション、スクリーンリーダーサポート）をコーディング
+  - 生成コンテンツへの自動アクセシビリティ強化を追加
+  - 適切な見出し階層とARIAランドマーク生成を実装
+  - 色コントラスト検証とテキストリサイズサポートを作成
+  - 自動テストツールを使用したアクセシビリティテストを作成
+  - _要件: 7.3_
 
-- [ ] 13. Build comprehensive error handling and user feedback system
-  - Implement user-friendly error messages and retry functionality
-  - Code timeout handling with appropriate fallback mechanisms
-  - Add loading states and progress indicators for long-running operations
-  - Create error recovery workflows with model switching capabilities
-  - Write error handling tests for various failure scenarios
-  - _Requirements: 1.4, 5.2, 5.4_
+- [ ] 13. 包括的なエラーハンドリングとユーザーフィードバックシステムの構築
+  - ユーザーフレンドリーなエラーメッセージとリトライ機能を実装
+  - 適切なフォールバックメカニズムを持つタイムアウトハンドリングをコーディング
+  - 長時間実行操作のローディング状態とプログレスインジケーターを追加
+  - モデル切り替え機能を持つエラー回復ワークフローを作成
+  - さまざまな失敗シナリオのエラーハンドリングテストを作成
+  - _要件: 1.4, 5.2, 5.4_
 
-- [ ] 14. Create end-to-end testing suite and quality assurance
-  - Implement complete E2E test suite using Playwright for all user workflows
-  - Code cross-browser compatibility tests (Chrome, Firefox, Safari)
-  - Add performance regression tests with automated benchmarking
-  - Create security penetration tests for XSS and injection vulnerabilities
-  - Write comprehensive integration tests covering all component interactions
-  - _Requirements: All requirements validation_
+- [ ] 14. エンドツーエンドテストスイートと品質保証の作成
+  - すべてのユーザーワークフローに対応するPlaywrightを使用した完全なE2Eテストスイートを実装
+  - クロスブラウザ互換性テスト（Chrome、Firefox、Safari）をコーディング
+  - 自動ベンチマーキング機能を持つパフォーマンス回帰テストを追加
+  - XSSとインジェクション脆弱性のセキュリティペネトレーションテストを作成
+  - すべてのコンポーネントインタラクションをカバーする包括的統合テストを作成
+  - _要件: すべての要件検証_
 
-- [ ] 15. Optimize deployment and production readiness
-  - Implement Edge Runtime configuration for optimal performance
-  - Code CDN caching strategies for static assets and generated content
-  - Add production error monitoring and logging systems
-  - Create deployment scripts and environment configuration
-  - Write production readiness tests and monitoring dashboards
-  - _Requirements: 5.2, 5.4_
+- [ ] 15. デプロイメントと本番運用準備の最適化
+  - 最適パフォーマンスのためのEdge Runtime設定を実装
+  - 静的アセットと生成コンテンツのCDNキャッシュ戦略をコーディング
+  - 本番環境エラーモニタリングとログシステムを追加
+  - デプロイメントスクリプトと環境設定を作成
+  - 本番運用準備テストとモニタリングダッシュボードを作成
+  - _要件: 5.2, 5.4_

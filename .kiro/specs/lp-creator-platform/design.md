@@ -57,9 +57,9 @@ graph TB
 | Security | iframe sandbox + CSP | Complete isolation of AI-generated HTML |
 | Performance | Edge Runtime + Streaming | Real-time response and optimization |
 
-## Components and Interfaces
+## コンポーネントとインターフェース
 
-### Core Components
+### コアコンポーネント
 
 #### 1. Main Application (`page.tsx`)
 - **Purpose**: メインアプリケーションコンテナ
@@ -112,9 +112,9 @@ interface AISuggestionPanelProps {
   isVisible: boolean;
 }
 ```
-### Data Models
+### データモデル
 
-#### LP Generation Models
+#### LP生成モデル
 
 ```typescript
 interface LPGenerationRequest {
@@ -144,7 +144,7 @@ interface LPVariant extends LPGenerationResult {
 }
 ```
 
-#### Editing Models
+#### 編集モデル
 
 ```typescript
 interface EditableElement {
@@ -168,7 +168,7 @@ interface EditOperation {
 }
 ```
 
-#### AI Suggestion Models
+#### AI提案モデル
 
 ```typescript
 interface AISuggestion {
