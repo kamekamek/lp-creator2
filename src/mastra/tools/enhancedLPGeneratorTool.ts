@@ -1,8 +1,9 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { generateUnifiedLP } from './lpGeneratorTool';
-import { LPGenerationRequest, LPGenerationResult, AIGenerationError, BusinessContext } from '../../types/lp-core';
+import { LPGenerationResult, AIGenerationError, BusinessContext } from '../../types/lp-core';
 import { sanitizeHTML, handleAIError, applyPasonaFormula, apply4UPrinciple, enhanceAccessibility, monitorPerformance } from './utils/lpToolHelpers';
+import { analyzeBusinessContext } from './utils/businessContextAnalyzer';
 
 /**
  * マーケティング心理学を活用した拡張LP生成ツール
@@ -26,14 +27,20 @@ export const enhancedLPGeneratorTool = tool({
     console.log(`🚀 Enhanced LP Generator: Starting generation for "${topic}"`);
     const performanceMonitor = monitorPerformance();
     
-    // ビジネスコンテキストの構築
+    // 自動ビジネスコンテキスト分析（パラメータが不足している場合）
+    const autoAnalyzedContext = analyzeBusinessContext(topic);
+    console.log(`🔍 Auto-analyzed business context:`, autoAnalyzedContext);
+    
+    // ビジネスコンテキストの構築（手動指定 > 自動分析 > デフォルト値の優先順位）
     const businessContext: BusinessContext = {
-      industry: industry || '一般',
-      targetAudience: targetAudience || '一般ユーザー',
-      businessGoal: businessGoal || 'コンバージョン向上',
-      competitiveAdvantage: competitiveAdvantage ? [competitiveAdvantage] : [],
-      tone: 'professional'
+      industry: industry || autoAnalyzedContext.industry || '一般',
+      targetAudience: targetAudience || autoAnalyzedContext.targetAudience || '一般ユーザー',
+      businessGoal: businessGoal || autoAnalyzedContext.businessGoal || 'コンバージョン向上',
+      competitiveAdvantage: competitiveAdvantage ? [competitiveAdvantage] : autoAnalyzedContext.competitiveAdvantage || [],
+      tone: autoAnalyzedContext.tone || 'professional'
     };
+    
+    console.log(`📊 Final business context:`, businessContext);
     
     // マーケティング心理学の適用
     let enhancedTopic = topic;

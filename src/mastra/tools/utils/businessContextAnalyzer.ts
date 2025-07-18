@@ -76,6 +76,30 @@ export class BusinessContextAnalyzer {
     'premium': ['高級', 'プレミアム', 'エグゼクティブ', 'ラグジュアリー', '上質', '洗練']
   };
 
+  // 業界別のペルソナ特性
+  private industryPersonas = {
+    saas: {
+      painPoints: ['複雑な業務プロセス', '非効率なシステム', '高いコスト', 'データ管理の課題'],
+      motivations: ['効率化', '自動化', 'コスト削減', 'データ活用'],
+      decisionFactors: ['使いやすさ', '導入のしやすさ', 'ROI', 'サポート品質']
+    },
+    ecommerce: {
+      painPoints: ['商品選びの難しさ', '購入の不安', '配送の遅れ', '返品の手間'],
+      motivations: ['お得な買い物', '時間節約', '品質保証', '特別な体験'],
+      decisionFactors: ['価格', '品質', '配送速度', 'レビュー評価']
+    },
+    consulting: {
+      painPoints: ['複雑な経営課題', '専門知識の不足', '時間的制約', '成果の不確実性'],
+      motivations: ['業績向上', '問題解決', 'リスク軽減', '競争優位性'],
+      decisionFactors: ['実績', '専門性', '信頼性', 'コストパフォーマンス']
+    },
+    general: {
+      painPoints: ['時間不足', 'コスト', '品質の懸念', '選択の難しさ'],
+      motivations: ['問題解決', '生活向上', '安心', '満足感'],
+      decisionFactors: ['価格', '品質', '利便性', '信頼性']
+    }
+  };
+
   /**
    * ユーザー入力を分析してビジネスコンテキストを抽出する
    * @param input ユーザー入力テキスト
@@ -197,6 +221,27 @@ export class BusinessContextAnalyzer {
       pattern.lastIndex = 0;
     }
 
+    // キーワードベースの競合優位性抽出（パターンマッチングで見つからない場合のバックアップ）
+    if (advantages.length === 0) {
+      const advantageKeywords = [
+        '最安', '最速', '最高品質', '特許', '独自技術', '実績', '経験', 
+        '専門', '24時間', '無料', '保証', '安心', '信頼', '実績No.1'
+      ];
+      
+      for (const keyword of advantageKeywords) {
+        if (limitedInput.includes(keyword)) {
+          // キーワードの前後のコンテキストを抽出
+          const index = limitedInput.indexOf(keyword);
+          const start = Math.max(0, index - 20);
+          const end = Math.min(limitedInput.length, index + 30);
+          const context = limitedInput.substring(start, end);
+          
+          advantages.push(context);
+          if (advantages.length >= 3) break; // 最大3つまで
+        }
+      }
+    }
+
     return advantages.slice(0, 10); // 結果も制限
   }
 
@@ -206,7 +251,10 @@ export class BusinessContextAnalyzer {
    * @returns 検出されたトーン
    */
   private detectTone(input: string): 'professional' | 'friendly' | 'casual' | 'premium' {
-    let bestMatch = { tone: 'professional' as const, count: 0 };
+    let bestMatch: { tone: 'professional' | 'friendly' | 'casual' | 'premium', count: number } = { 
+      tone: 'professional', 
+      count: 0 
+    };
     
     for (const [tone, keywords] of Object.entries(this.toneKeywords)) {
       const matchCount = keywords.filter(keyword => input.includes(keyword)).length;
@@ -219,6 +267,80 @@ export class BusinessContextAnalyzer {
     }
     
     return bestMatch.tone;
+  }
+
+  /**
+   * 業界に基づいたペルソナ特性を取得する
+   * @param industry 業界
+   * @returns ペルソナ特性
+   */
+  getPersonaTraits(industry: string): {
+    painPoints: string[];
+    motivations: string[];
+    decisionFactors: string[];
+  } {
+    return this.industryPersonas[industry as keyof typeof this.industryPersonas] || 
+           this.industryPersonas.general;
+  }
+
+  /**
+   * 業界とターゲットに基づいたマーケティングメッセージを生成する
+   * @param industry 業界
+   * @param targetAudience ターゲットオーディエンス
+   * @param businessGoal ビジネス目標
+   * @returns マーケティングメッセージ
+   */
+  generateMarketingMessage(industry: string, targetAudience: string, businessGoal: string): string {
+    const persona = this.getPersonaTraits(industry);
+    
+    // 業界別のメッセージテンプレート
+    const messageTemplates = {
+      saas: `${targetAudience}の${persona.painPoints[0]}を解決し、${persona.motivations[0]}を実現する革新的なソリューション。`,
+      ecommerce: `${targetAudience}に${persona.motivations[0]}と${persona.motivations[1]}を提供する、厳選された商品ラインナップ。`,
+      consulting: `${targetAudience}の${persona.painPoints[0]}を解決し、${businessGoal}を達成するための専門的なサポート。`,
+      general: `${targetAudience}の${persona.painPoints[0]}を解決し、${businessGoal}を実現します。`
+    };
+    
+    return messageTemplates[industry as keyof typeof messageTemplates] || messageTemplates.general;
+  }
+
+  /**
+   * 業界とターゲットに基づいたCTAを生成する
+   * @param industry 業界
+   * @param businessGoal ビジネス目標
+   * @returns CTA
+   */
+  generateCTA(industry: string, businessGoal: string): string {
+    // 目標別のCTAテンプレート
+    const ctaTemplates: Record<string, Record<string, string>> = {
+      'リード獲得': {
+        saas: '無料デモを今すぐ体験',
+        ecommerce: '今すぐショッピングを始める',
+        consulting: '無料相談を予約する',
+        general: '今すぐ問い合わせる'
+      },
+      '売上向上': {
+        saas: '今すぐ始める',
+        ecommerce: '今すぐ購入する',
+        consulting: '詳細を見る',
+        general: '今すぐ注文する'
+      },
+      'ブランド認知': {
+        saas: '詳細を見る',
+        ecommerce: 'コレクションを見る',
+        consulting: '事例を見る',
+        general: '詳しく知る'
+      },
+      '会員登録': {
+        saas: '無料アカウントを作成',
+        ecommerce: '会員登録して特典を受ける',
+        consulting: 'メンバーシップに登録',
+        general: '今すぐ登録'
+      }
+    };
+    
+    const goalTemplates = ctaTemplates[businessGoal] || ctaTemplates['リード獲得'];
+    return goalTemplates[industry] || goalTemplates.general;
   }
 }
 
@@ -234,4 +356,25 @@ export const businessContextAnalyzer = new BusinessContextAnalyzer();
  */
 export function analyzeBusinessContext(input: string): BusinessContext {
   return businessContextAnalyzer.analyzeInput(input);
+}
+
+/**
+ * 業界とターゲットに基づいたマーケティングメッセージを生成する関数
+ * @param industry 業界
+ * @param targetAudience ターゲットオーディエンス
+ * @param businessGoal ビジネス目標
+ * @returns マーケティングメッセージ
+ */
+export function generateMarketingMessage(industry: string, targetAudience: string, businessGoal: string): string {
+  return businessContextAnalyzer.generateMarketingMessage(industry, targetAudience, businessGoal);
+}
+
+/**
+ * 業界とターゲットに基づいたCTAを生成する関数
+ * @param industry 業界
+ * @param businessGoal ビジネス目標
+ * @returns CTA
+ */
+export function generateCTA(industry: string, businessGoal: string): string {
+  return businessContextAnalyzer.generateCTA(industry, businessGoal);
 }
