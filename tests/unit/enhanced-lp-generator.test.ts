@@ -17,7 +17,16 @@ jest.mock('../../src/mastra/tools/lpGeneratorTool', () => ({
 }));
 
 jest.mock('../../src/mastra/tools/utils/businessContextAnalyzer');
-jest.mock('../../src/mastra/tools/utils/lpToolHelpers');
+jest.mock('../../src/mastra/tools/utils/lpToolHelpers', () => ({
+  sanitizeHTML: jest.fn((html) => html),
+  handleAIError: jest.fn(() => ({ action: 'retry', message: 'Mock error handling' })),
+  applyPasonaFormula: jest.fn((content) => `PASONA: ${content}`),
+  apply4UPrinciple: jest.fn((content) => `4U: ${content}`),
+  enhanceAccessibility: jest.fn((html) => html),
+  monitorPerformance: jest.fn(() => ({
+    end: jest.fn(() => ({ duration: 1000 }))
+  }))
+}));
 
 const mockAnalyzeBusinessContext = analyzeBusinessContext as jest.MockedFunction<typeof analyzeBusinessContext>;
 const mockApplyPasonaFormula = applyPasonaFormula as jest.MockedFunction<typeof applyPasonaFormula>;

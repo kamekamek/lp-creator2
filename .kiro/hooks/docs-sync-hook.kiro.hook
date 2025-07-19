@@ -1,0 +1,28 @@
+{
+  "enabled": true,
+  "name": "Documentation Sync",
+  "description": "Monitors TypeScript source files, React components, API routes, and configuration files for changes and automatically updates project documentation in README.md and /docs folder to reflect code changes",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.ts",
+      "*.tsx",
+      "*.js",
+      "*.jsx",
+      "app/**/*.tsx",
+      "app/**/*.ts",
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "package.json",
+      "tsconfig.json",
+      "next.config.mjs",
+      "next.config.ts",
+      "mastra.config.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source code files have been modified. Please review the changes and update the project documentation accordingly. Focus on:\n\n1. Update README.md if there are significant feature changes, new components, or architectural updates\n2. Update relevant files in the /docs folder, particularly:\n   - PROJECT_OVERVIEW.md for feature changes\n   - PROJECT_SETUP_GUIDE.md for configuration changes\n   - Any technical documentation that relates to the modified code\n\nEnsure the documentation accurately reflects the current state of the codebase, including new features, API changes, component updates, and configuration modifications. Keep the documentation clear and helpful for developers and users."
+  }
+}
