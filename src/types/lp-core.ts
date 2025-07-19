@@ -54,6 +54,41 @@ export interface LPVariant extends LPGenerationResult {
   description: string;
   features: string[];
   designFocus: 'modern-clean' | 'conversion-optimized' | 'content-rich';
+  recommendation?: {
+    reason: string;
+    targetUseCase: string;
+    strengths: string[];
+  };
+}
+
+/**
+ * バリエーション生成リクエストのインターフェース
+ */
+export interface VariantGenerationRequest {
+  topic: string;
+  targetAudience?: string;
+  businessGoal?: string;
+  industry?: string;
+  competitiveAdvantage?: string;
+  designStyle?: 'modern' | 'minimalist' | 'corporate' | 'creative' | 'tech' | 'startup';
+  variantCount?: number; // 1-3の範囲
+  focusAreas?: ('modern-clean' | 'conversion-optimized' | 'content-rich')[];
+}
+
+/**
+ * バリエーション生成結果のインターフェース
+ */
+export interface VariantGenerationResult {
+  success: boolean;
+  variants: LPVariant[];
+  recommendedVariant: string; // variantId
+  metadata: {
+    generatedAt: string;
+    processingTime: number;
+    totalVariants: number;
+    version: string;
+  };
+  error?: string;
 }
 
 /**

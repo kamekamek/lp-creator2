@@ -1,298 +1,394 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { generateUnifiedLP } from './lpGeneratorTool';
-import type { BusinessContext, Variant, GenerationResult } from '../../types/lp-generator';
+import { enhancedLPGeneratorTool } from './enhancedLPGeneratorTool';
+import { LPVariant, VariantGenerationResult, BusinessContext } from '../../types/lp-core';
+import { analyzeBusinessContext } from './utils/businessContextAnalyzer';
+import { monitorPerformance } from './utils/lpToolHelpers';
 
-// ビジネスコンテキスト分析器
-class BusinessContextAnalyzer {
-  private industryKeywords = {
-    saas: ['ソフトウェア', 'アプリ', 'プラットフォーム', 'ツール', 'システム', 'AI', 'クラウド', 'API'],
-    ecommerce: ['販売', '商品', 'ショップ', 'EC', '通販', 'オンライン', '商材', '店舗'],
-    consulting: ['コンサル', 'アドバイス', '支援', '改善', '最適化', '戦略', 'サポート'],
-    education: ['教育', '学習', 'スクール', '講座', 'セミナー', 'トレーニング', 'コース'],
-    healthcare: ['健康', '医療', '治療', 'ヘルスケア', 'ウェルネス', 'メディカル'],
-    finance: ['金融', '投資', '保険', 'ファイナンス', '資産', '運用', 'ローン'],
-    realestate: ['不動産', '物件', 'マンション', '住宅', '土地', '賃貸', '売買']
-  };
-
-  private audienceKeywords = {
-    '個人事業主': ['フリーランス', '個人', 'ソロ', '起業家', '独立'],
-    '中小企業': ['中小企業', 'SMB', '小規模', 'スモール'],
-    'エンタープライズ': ['大企業', '法人', '企業向け', 'B2B', 'ビジネス'],
-    '一般消費者': ['個人向け', 'B2C', '消費者', 'ユーザー', '顧客']
-  };
-
-  private goalKeywords = {
-    'リード獲得': ['問い合わせ', 'リード', '資料請求', '相談', 'お問い合わせ'],
-    '売上向上': ['販売', '売上', '収益', '購入', '買う', '注文'],
-    'ブランド認知': ['認知', 'ブランディング', '知名度', 'PR', '宣伝'],
-    '会員登録': ['登録', 'サインアップ', '会員', 'メンバー', 'アカウント']
-  };
-
-  analyzeInput(input: string): {
-    industry: string;
-    targetAudience: string;
-    businessGoal: string;
-    competitiveAdvantage: string[];
-    tone: 'professional' | 'friendly' | 'casual' | 'premium';
-  } {
-    const normalizedInput = input.toLowerCase();
-    
-    // 業界の推定
-    const industry = this.detectIndustry(normalizedInput);
-    
-    // ターゲット層の推定
-    const targetAudience = this.detectAudience(normalizedInput);
-    
-    // ビジネス目標の推定
-    const businessGoal = this.detectGoal(normalizedInput);
-    
-    // 競合優位性の抽出
-    const competitiveAdvantage = this.extractAdvantages(input);
-    
-    // トーンの推定
-    const tone = this.detectTone(normalizedInput);
-
-    return {
-      industry,
-      targetAudience,
-      businessGoal,
-      competitiveAdvantage,
-      tone
-    };
-  }
-
-  private detectIndustry(input: string): string {
-    for (const [industry, keywords] of Object.entries(this.industryKeywords)) {
-      if (keywords.some(keyword => input.includes(keyword))) {
-        return industry;
-      }
-    }
-    return 'general';
-  }
-
-  private detectAudience(input: string): string {
-    for (const [audience, keywords] of Object.entries(this.audienceKeywords)) {
-      if (keywords.some(keyword => input.includes(keyword))) {
-        return audience;
-      }
-    }
-    return '一般ユーザー';
-  }
-
-  private detectGoal(input: string): string {
-    for (const [goal, keywords] of Object.entries(this.goalKeywords)) {
-      if (keywords.some(keyword => input.includes(keyword))) {
-        return goal;
-      }
-    }
-    return 'コンバージョン向上';
-  }
-
-  private extractAdvantages(input: string): string[] {
-    // ReDoS脆弱性を修正：より具体的で制限されたパターンを使用
-    const advantagePatterns = [
-      /(?:特徴|強み|メリット|優位性)(?:は|：)([^。、\n]{1,100}?)(?:[。、]|$)/g,
-      /(?:他社との違い|差別化)(?:は|：)([^。、\n]{1,100}?)(?:[。、]|$)/g,
-      /(?:独自の|オリジナル|特別な)([^。、\n]{1,100}?)(?:[。、]|$)/g
-    ];
-
-    const advantages: string[] = [];
-    
-    // 処理する文字列の長さを制限してReDoS攻撃を防止
-    const limitedInput = input.substring(0, 5000);
-    
-    for (const pattern of advantagePatterns) {
-      let match;
-      let matchCount = 0;
-      const maxMatches = 20; // マッチ数の制限
-      
-      while ((match = pattern.exec(limitedInput)) !== null && matchCount < maxMatches) {
-        const advantage = match[1].trim();
-        if (advantage.length > 0 && advantage.length <= 100) {
-          advantages.push(advantage);
-        }
-        matchCount++;
-      }
-      
-      // 正規表現の状態をリセット
-      pattern.lastIndex = 0;
-    }
-
-    return advantages.slice(0, 10); // 結果も制限
-  }
-
-  private detectTone(input: string): 'professional' | 'friendly' | 'casual' | 'premium' {
-    if (input.includes('高級') || input.includes('プレミアム') || input.includes('エグゼクティブ')) {
-      return 'premium';
-    }
-    if (input.includes('親しみやすい') || input.includes('フレンドリー') || input.includes('気軽')) {
-      return 'friendly';
-    }
-    if (input.includes('カジュアル') || input.includes('ラフ') || input.includes('リラックス')) {
-      return 'casual';
-    }
-    return 'professional';
-  }
-}
-
-// コンテンツ生成戦略
-class ContentStrategy {
-  generatePromptStrategy(context: any): any {
-    const { industry, targetAudience, businessGoal, tone } = context;
-
-    const strategies = {
-      saas: {
-        hero: '効率性と生産性向上を前面に出し、具体的な数値やROIを示す',
-        features: '機能の技術的な詳細よりも、ユーザーが得る価値に焦点を当てる',
-        cta: '無料トライアルやデモの提供を強調'
-      },
-      ecommerce: {
-        hero: '商品の魅力と顧客の課題解決を強調',
-        features: '商品の品質、配送、サポートの安心感を訴求',
-        cta: '限定性や緊急性を演出（在庫限り、期間限定など）'
-      },
-      consulting: {
-        hero: '専門性と実績を前面に出し、信頼性を重視',
-        features: 'サービスプロセスと成功事例を具体的に説明',
-        cta: '無料相談や診断の提供'
-      }
-    };
-
-    return strategies[industry as keyof typeof strategies] || strategies.saas;
-  }
-}
-
-// ヘルパー関数
-function generateEnhancedPrompt(userInput: string, context: any, strategy: any, focusAreas: string[]): string {
-  return `
-【ビジネス要件】
-原文: ${userInput}
-
-【分析結果】
-- 業界: ${context.industry}
-- ターゲット: ${context.targetAudience}
-- 目標: ${context.businessGoal}
-- トーン: ${context.tone}
-- 競合優位性: ${context.competitiveAdvantage.join(', ')}
-
-【重点領域】
-${focusAreas.join(', ')}
-
-【コンテンツ戦略】
-${JSON.stringify(strategy, null, 2)}
-
-上記の分析結果に基づいて、ターゲットユーザーに響く高品質なランディングページを生成してください。
-特に${context.tone}なトーンで、${context.businessGoal}を達成するための構成にしてください。
-  `.trim();
-}
-
-function addVariationSeed(basePrompt: string, seedIndex: number): string {
-  const variations = [
-    '（レイアウト重視：視覚的に洗練されたデザイン）',
-    '（コンバージョン重視：CTA最適化とフォーム配置）',
-    '（コンテンツ重視：詳細な説明と信頼性構築）'
-  ];
-
-  return `${basePrompt}\n\n【デザインバリエーション】\n${variations[seedIndex] || variations[0]}`;
-}
-
-function extractTopicName(input: string): string {
-  // 簡単なトピック名抽出ロジック
-  const sentences = input.split(/[。．]/);
-  const firstSentence = sentences[0];
-  
-  // サービス名やプロダクト名を推定
-  const serviceMatch = firstSentence.match(/(.+?)(?:の|を|について|に関して)/);
-  if (serviceMatch) {
-    return serviceMatch[1].trim();
-  }
-  
-  return firstSentence.substring(0, 30) + '...';
-}
-
-function getDesignFocus(variantIndex: number): string {
-  const focuses = ['modern-clean', 'conversion-optimized', 'content-rich'];
-  return focuses[variantIndex] || focuses[0];
-}
-
-// メインツール
+/**
+ * インテリジェント複数バリエーションLP生成ツール
+ * 最大3つのデザインバリエーションを生成し、スコアリングと推奨を提供
+ */
 export const intelligentLPGeneratorTool = tool({
-  description: 'readdy.ai風の自然言語理解機能を持つインテリジェントなランディングページ生成ツール。ユーザーの自由な記述から業界、ターゲット、目標を自動推定し、最適化されたLPを生成します。',
+  description: '複数のデザインバリエーション（最大3つ）を生成し、ビジネス目標に基づいて最適なバリエーションを推奨するインテリジェントLP生成ツール',
   parameters: z.object({
-    userInput: z.string().describe('ユーザーの自然言語による要望（例：「AI画像生成ツールのサービスを個人クリエイター向けに販売したい。月額制で、他社より高品質な画像が生成できることが強み」）'),
-    designVariants: z.number().optional().default(2).describe('生成するデザインバリエーション数（1-3）'),
-    focusAreas: z.array(z.enum(['conversion', 'branding', 'information', 'engagement'])).optional().describe('重点を置く要素')
+    topic: z.string().describe('ランディングページのメインテーマ、ビジネス、製品/サービス'),
+    targetAudience: z.string().optional().describe('ターゲットオーディエンスまたは顧客ペルソナ'),
+    businessGoal: z.string().optional().describe('主要なビジネス目標'),
+    industry: z.string().optional().describe('業界またはビジネスカテゴリ'),
+    competitiveAdvantage: z.string().optional().describe('独自の販売提案または競争上の優位性'),
+    designStyle: z.enum(['modern', 'minimalist', 'corporate', 'creative', 'tech', 'startup']).optional().default('modern').describe('ベースとなるデザインスタイル'),
+    variantCount: z.number().min(1).max(3).optional().default(3).describe('生成するバリエーション数（1-3）'),
+    focusAreas: z.array(z.enum(['modern-clean', 'conversion-optimized', 'content-rich'])).optional().describe('重点的に生成するデザインフォーカス領域'),
   }),
-  execute: async ({ userInput, designVariants = 2, focusAreas = ['conversion'] }) => {
-    console.log(`🧠 Intelligent LP Generator: Analyzing input - "${userInput.substring(0, 100)}..."`);
+  execute: async ({ topic, targetAudience, businessGoal, industry, competitiveAdvantage, designStyle, variantCount, focusAreas }) => {
+    console.log(`🚀 Intelligent LP Generator: Starting generation of ${variantCount} variants for "${topic}"`);
+    const performanceMonitor = monitorPerformance();
     
     try {
-      // 1. ビジネスコンテキストの分析
-      const analyzer = new BusinessContextAnalyzer();
-      const context = analyzer.analyzeInput(userInput);
+      // ビジネスコンテキストの分析
+      const businessContext = analyzeBusinessContext(topic);
+      console.log(`🔍 Business context analyzed:`, businessContext);
       
-      console.log('📊 Analyzed context:', context);
-
-      // 2. コンテンツ戦略の決定
-      const strategy = new ContentStrategy();
-      const promptStrategy = strategy.generatePromptStrategy(context);
-
-      // 3. 強化されたプロンプトの生成
-      const enhancedPrompt = generateEnhancedPrompt(userInput, context, promptStrategy, focusAreas);
-
-      // 4. 複数バリエーションの生成
-      const variants = [];
-      for (let i = 0; i < Math.min(designVariants, 3); i++) {
-        const variantPrompt = addVariationSeed(enhancedPrompt, i);
-        const result = await generateUnifiedLP({ topic: variantPrompt });
+      // バリエーション設定の決定
+      const variantConfigs = generateVariantConfigurations(
+        variantCount || 3,
+        focusAreas,
+        businessContext,
+        { targetAudience, businessGoal, industry, competitiveAdvantage, designStyle }
+      );
+      
+      console.log(`📋 Generated ${variantConfigs.length} variant configurations`);
+      
+      // 並列でバリエーションを生成
+      const variantPromises = variantConfigs.map(async (config, index) => {
+        console.log(`⚡ Generating variant ${index + 1}: ${config.designFocus}`);
         
-        variants.push({
-          id: `variant_${i + 1}`,
-          title: `${extractTopicName(userInput)} - バリエーション${i + 1}`,
-          ...result,
-          variantSeed: i,
-          designFocus: getDesignFocus(i)
-        });
-      }
-
-      console.log(`✅ Generated ${variants.length} variants successfully`);
-
-      return {
+        try {
+          const result = await enhancedLPGeneratorTool.execute({
+            topic: config.enhancedTopic,
+            targetAudience: config.targetAudience,
+            businessGoal: config.businessGoal,
+            industry: config.industry,
+            competitiveAdvantage: config.competitiveAdvantage,
+            designStyle: config.designStyle,
+            useMarketingPsychology: config.marketingPsychology
+          });
+          
+          if (result.success) {
+            const variant: LPVariant = {
+              ...result,
+              variantId: `variant_${index + 1}_${config.designFocus}`,
+              score: calculateVariantScore(result, config.designFocus, businessContext),
+              description: config.description,
+              features: config.features,
+              designFocus: config.designFocus,
+              recommendation: generateRecommendation(config.designFocus, businessContext)
+            };
+            
+            console.log(`✅ Variant ${index + 1} generated successfully (score: ${variant.score})`);
+            return variant;
+          } else {
+            throw new Error(result.error || 'Variant generation failed');
+          }
+        } catch (error) {
+          console.error(`❌ Variant ${index + 1} generation failed:`, error);
+          // フォールバック用の基本バリエーションを生成
+          return generateFallbackVariant(config, index + 1, error);
+        }
+      });
+      
+      // すべてのバリエーションの完了を待機
+      const variants = await Promise.all(variantPromises);
+      
+      // 推奨バリエーションの決定
+      const recommendedVariant = selectRecommendedVariant(variants, businessContext);
+      
+      const performanceResult = performanceMonitor.end();
+      console.log(`🎉 Intelligent LP Generator completed in ${performanceResult.duration}ms`);
+      
+      const result: VariantGenerationResult = {
         success: true,
-        analysisResult: context,
-        variants,
-        recommendedVariant: 0, // 最初のバリエーションを推奨
+        variants: variants.sort((a, b) => b.score - a.score), // スコア順でソート
+        recommendedVariant: recommendedVariant.variantId,
         metadata: {
-          originalInput: userInput,
-          analyzedContext: context,
-          contentStrategy: promptStrategy,
-          focusAreas,
           generatedAt: new Date().toISOString(),
-          version: '3.0-intelligent'
+          processingTime: performanceResult.duration,
+          totalVariants: variants.length,
+          version: '1.0-intelligent-variants'
         }
       };
-
+      
+      return result;
+      
     } catch (error) {
-      console.error('❌ Intelligent LP Generator failed:', error);
+      console.error(`❌ Intelligent LP Generator failed:`, error);
+      
+      const performanceResult = performanceMonitor.end();
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        errorDetails: {
-          type: error?.constructor?.name || 'UnknownError',
-          stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined,
-          timestamp: new Date().toISOString()
-        },
-        analysisResult: null,
         variants: [],
+        recommendedVariant: '',
         metadata: {
-          originalInput: userInput,
-          error: true,
           generatedAt: new Date().toISOString(),
-          version: '3.0-intelligent'
-        }
+          processingTime: performanceResult.duration,
+          totalVariants: 0,
+          version: '1.0-intelligent-variants'
+        },
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
   }
 });
+
+/**
+ * バリエーション設定を生成する
+ */
+function generateVariantConfigurations(
+  count: number,
+  focusAreas: ('modern-clean' | 'conversion-optimized' | 'content-rich')[] | undefined,
+  businessContext: BusinessContext,
+  userParams: any
+) {
+  // デフォルトのフォーカス領域
+  const defaultFocusAreas: ('modern-clean' | 'conversion-optimized' | 'content-rich')[] = [
+    'modern-clean',
+    'conversion-optimized', 
+    'content-rich'
+  ];
+  
+  const targetFocusAreas = focusAreas && focusAreas.length > 0 ? focusAreas : defaultFocusAreas;
+  const selectedFocusAreas = targetFocusAreas.slice(0, count);
+  
+  return selectedFocusAreas.map((focus, index) => {
+    const config = generateVariantConfig(focus, businessContext, userParams, index);
+    return config;
+  });
+}
+
+/**
+ * 個別のバリエーション設定を生成する
+ */
+function generateVariantConfig(
+  designFocus: 'modern-clean' | 'conversion-optimized' | 'content-rich',
+  businessContext: BusinessContext,
+  userParams: any,
+  index: number
+) {
+  const baseConfig = {
+    designFocus,
+    targetAudience: userParams.targetAudience || businessContext.targetAudience,
+    businessGoal: userParams.businessGoal || businessContext.businessGoal,
+    industry: userParams.industry || businessContext.industry,
+    competitiveAdvantage: userParams.competitiveAdvantage || businessContext.competitiveAdvantage.join('、'),
+  };
+  
+  switch (designFocus) {
+    case 'modern-clean':
+      return {
+        ...baseConfig,
+        enhancedTopic: `${userParams.topic} - モダンでクリーンなデザインに重点を置いた、視覚的に美しく洗練されたランディングページ`,
+        designStyle: 'modern' as const,
+        description: 'モダンでクリーンなデザインに重点を置いた、視覚的に美しく洗練されたバリエーション',
+        features: ['洗練されたビジュアルデザイン', 'ミニマルで読みやすいレイアウト', 'モダンなタイポグラフィ', '適切なホワイトスペース活用'],
+        marketingPsychology: { pasona: true, fourU: false }
+      };
+      
+    case 'conversion-optimized':
+      return {
+        ...baseConfig,
+        enhancedTopic: `${userParams.topic} - コンバージョン最適化に重点を置いた、行動喚起と成果重視のランディングページ`,
+        designStyle: 'startup' as const,
+        description: 'コンバージョン最適化に重点を置いた、行動喚起と成果重視のバリエーション',
+        features: ['強力なCTAボタン配置', '緊急性を演出する要素', 'ソーシャルプルーフ強化', 'フォーム最適化'],
+        marketingPsychology: { pasona: true, fourU: true }
+      };
+      
+    case 'content-rich':
+      return {
+        ...baseConfig,
+        enhancedTopic: `${userParams.topic} - 情報豊富なコンテンツに重点を置いた、詳細で包括的なランディングページ`,
+        designStyle: 'corporate' as const,
+        description: '情報豊富なコンテンツに重点を置いた、詳細で包括的なバリエーション',
+        features: ['詳細な製品説明', '豊富なFAQセクション', '事例・実績の充実', '段階的な情報提示'],
+        marketingPsychology: { pasona: false, fourU: true }
+      };
+      
+    default:
+      return {
+        ...baseConfig,
+        enhancedTopic: userParams.topic,
+        designStyle: userParams.designStyle || 'modern' as const,
+        description: 'バランスの取れた標準的なバリエーション',
+        features: ['バランスの取れたデザイン', '標準的な機能セット'],
+        marketingPsychology: { pasona: true, fourU: true }
+      };
+  }
+}
+
+/**
+ * バリエーションのスコアを計算する
+ */
+function calculateVariantScore(
+  result: any,
+  designFocus: 'modern-clean' | 'conversion-optimized' | 'content-rich',
+  businessContext: BusinessContext
+): number {
+  let baseScore = 70; // ベーススコア
+  
+  // ビジネス目標との適合性
+  const goalAlignment = calculateGoalAlignment(designFocus, businessContext.businessGoal);
+  baseScore += goalAlignment;
+  
+  // 業界との適合性
+  const industryAlignment = calculateIndustryAlignment(designFocus, businessContext.industry);
+  baseScore += industryAlignment;
+  
+  // 生成品質（HTMLの長さ、構造の複雑さなど）
+  const qualityScore = calculateQualityScore(result);
+  baseScore += qualityScore;
+  
+  // ランダム要素を少し追加（同点を避けるため）
+  const randomFactor = Math.random() * 2 - 1; // -1 to 1
+  baseScore += randomFactor;
+  
+  return Math.min(100, Math.max(0, Math.round(baseScore)));
+}
+
+/**
+ * ビジネス目標との適合性を計算
+ */
+function calculateGoalAlignment(designFocus: string, businessGoal: string): number {
+  const alignmentMatrix: Record<string, Record<string, number>> = {
+    'modern-clean': {
+      'ブランド認知': 15,
+      '情報提供': 10,
+      'リード獲得': 5,
+      '売上向上': 5,
+      '会員登録': 8
+    },
+    'conversion-optimized': {
+      'リード獲得': 15,
+      '売上向上': 15,
+      '会員登録': 12,
+      'アプリインストール': 10,
+      'ブランド認知': 3
+    },
+    'content-rich': {
+      '情報提供': 15,
+      'ブランド認知': 10,
+      'リード獲得': 8,
+      '採用': 12,
+      'コスト削減': 10
+    }
+  };
+  
+  return alignmentMatrix[designFocus]?.[businessGoal] || 5;
+}
+
+/**
+ * 業界との適合性を計算
+ */
+function calculateIndustryAlignment(designFocus: string, industry: string): number {
+  const alignmentMatrix: Record<string, Record<string, number>> = {
+    'modern-clean': {
+      'saas': 10,
+      'tech': 12,
+      'creative': 15,
+      'startup': 10,
+      'beauty': 12
+    },
+    'conversion-optimized': {
+      'ecommerce': 15,
+      'saas': 12,
+      'finance': 10,
+      'consulting': 8,
+      'marketing': 12
+    },
+    'content-rich': {
+      'education': 15,
+      'healthcare': 12,
+      'legal': 15,
+      'consulting': 12,
+      'finance': 10
+    }
+  };
+  
+  return alignmentMatrix[designFocus]?.[industry] || 5;
+}
+
+/**
+ * 生成品質スコアを計算
+ */
+function calculateQualityScore(result: any): number {
+  let score = 0;
+  
+  // HTMLの長さ（適度な長さが良い）
+  const htmlLength = result.htmlContent?.length || 0;
+  if (htmlLength > 1000 && htmlLength < 10000) {
+    score += 5;
+  } else if (htmlLength > 500) {
+    score += 3;
+  }
+  
+  // CSSの存在
+  if (result.cssContent && result.cssContent.length > 100) {
+    score += 3;
+  }
+  
+  // 構造の存在
+  if (result.structure && result.structure.sections && result.structure.sections.length > 2) {
+    score += 4;
+  }
+  
+  return score;
+}
+
+/**
+ * 推奨バリエーションを選択する
+ */
+function selectRecommendedVariant(variants: LPVariant[], businessContext: BusinessContext): LPVariant {
+  // スコアが最も高いバリエーションを推奨
+  return variants.reduce((best, current) => 
+    current.score > best.score ? current : best
+  );
+}
+
+/**
+ * バリエーションの推奨理由を生成する
+ */
+function generateRecommendation(
+  designFocus: 'modern-clean' | 'conversion-optimized' | 'content-rich',
+  businessContext: BusinessContext
+) {
+  const recommendations = {
+    'modern-clean': {
+      reason: 'ブランドイメージの向上と視覚的な印象を重視する場合に最適',
+      targetUseCase: 'ブランド認知向上、プレミアム商品・サービスの紹介',
+      strengths: ['洗練されたデザイン', '高いブランド価値の演出', 'ユーザビリティの向上']
+    },
+    'conversion-optimized': {
+      reason: '具体的な行動（購入、登録、問い合わせ）を促進したい場合に最適',
+      targetUseCase: 'リード獲得、売上向上、会員登録促進',
+      strengths: ['高いコンバージョン率', '明確な行動喚起', '緊急性の演出']
+    },
+    'content-rich': {
+      reason: '詳細な情報提供と信頼性の構築を重視する場合に最適',
+      targetUseCase: '複雑な商品・サービスの説明、B2B営業支援',
+      strengths: ['包括的な情報提供', '信頼性の構築', '意思決定支援']
+    }
+  };
+  
+  return recommendations[designFocus];
+}
+
+/**
+ * フォールバック用のバリエーションを生成する
+ */
+function generateFallbackVariant(config: any, index: number, error: any): LPVariant {
+  return {
+    variantId: `fallback_variant_${index}`,
+    htmlContent: `<section class="py-16 bg-gray-50">
+      <div class="container mx-auto px-4 text-center">
+        <h2 class="text-3xl font-bold text-gray-800 mb-4">バリエーション ${index}</h2>
+        <p class="text-gray-600 mb-4">このバリエーションは現在生成中です。</p>
+        <p class="text-sm text-gray-500">フォーカス: ${config.designFocus}</p>
+      </div>
+    </section>`,
+    cssContent: '',
+    title: `${config.designFocus} バリエーション`,
+    metadata: {
+      generatedAt: new Date(),
+      model: 'fallback',
+      processingTime: 0
+    },
+    score: 30, // 低いスコア
+    description: config.description,
+    features: config.features,
+    designFocus: config.designFocus,
+    recommendation: generateRecommendation(config.designFocus, {} as BusinessContext),
+    success: false,
+    error: error instanceof Error ? error.message : 'Generation failed'
+  };
+}
