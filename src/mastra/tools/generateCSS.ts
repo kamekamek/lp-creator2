@@ -750,8 +750,70 @@ function combineCSSModules(modules: string[], options: { minify?: boolean } = {}
   return combined;
 }
 
-// クリティカルCSS抽出関数
-function extractCriticalCSS(fullCSS: string): { critical: string; nonCritical: string } {
+// クリティカルCSS抽出関数（CSSTree使用）
+async function extractCriticalCSS(fullCSS: string): Promise<{ critical: string; nonCritical: string }> {
+  try {
+    const csstree = await import('css-tree');
+    
+    const criticalSelectors = [
+      'html', 'body', ':root',
+      '.container', '.header', '.navbar', '.hero',
+      '.btn', '.btn-primary', '.skip-link',
+      'h1', 'h2', 'h3', 'p', 'a'
+    ];
+    
+    // CSSをASTに解析
+    const ast = csstree.parse(fullCSS);
+    const criticalRules: any[] = [];
+    const nonCriticalRules: any[] = [];
+    
+    // ASTを走査してルールを分類
+    csstree.walk(ast, function(node: any) {
+      if (node.type === 'Rule') {
+        const selectors = node.prelude;
+        let isCritical = false;
+        
+        // セレクターをチェック
+        csstree.walk(selectors, function(selectorNode: any) {
+          if (selectorNode.type === 'TypeSelector' || selectorNode.type === 'ClassSelector' || selectorNode.type === 'IdSelector') {
+            const selectorText = csstree.generate(selectorNode);
+            if (criticalSelectors.some(cs => selectorText.includes(cs) || cs.includes(selectorText))) {
+              isCritical = true;
+            }
+          }
+        });
+        
+        if (isCritical) {
+          criticalRules.push(node);
+        } else {
+          nonCriticalRules.push(node);
+        }
+      }
+    });
+    
+    // Critical CSSとNon-Critical CSSを生成
+    const criticalAST = {
+      type: 'StyleSheet',
+      children: new csstree.List(criticalRules)
+    };
+    
+    const nonCriticalAST = {
+      type: 'StyleSheet', 
+      children: new csstree.List(nonCriticalRules)
+    };
+    
+    return {
+      critical: csstree.generate(criticalAST),
+      nonCritical: csstree.generate(nonCriticalAST)
+    };
+  } catch (error) {
+    console.warn('CSSTree parsing failed, using fallback method:', error);
+    return fallbackExtractCriticalCSS(fullCSS);
+  }
+}
+
+// フォールバック用のシンプルなCSS抽出関数
+function fallbackExtractCriticalCSS(fullCSS: string): { critical: string; nonCritical: string } {
   const criticalSelectors = [
     'html', 'body', ':root',
     '.container', '.header', '.navbar', '.hero',
@@ -763,31 +825,52 @@ function extractCriticalCSS(fullCSS: string): { critical: string; nonCritical: s
   const criticalLines: string[] = [];
   const nonCriticalLines: string[] = [];
   
-  let inCriticalBlock = false;
+  let currentRule = '';
+  let isInRule = false;
   let braceCount = 0;
   
   for (const line of lines) {
     const trimmedLine = line.trim();
     
     if (trimmedLine.includes('{')) {
-      const selector = trimmedLine.substring(0, trimmedLine.indexOf('{')).trim();
-      inCriticalBlock = criticalSelectors.some(cs => selector.includes(cs));
-      braceCount = 1;
-    } else if (trimmedLine.includes('}')) {
-      braceCount--;
-      if (braceCount === 0) {
-        inCriticalBlock = false;
-      }
-    } else if (trimmedLine.includes('{') && trimmedLine.includes('}')) {
-      // 単行ルール
-      const selector = trimmedLine.substring(0, trimmedLine.indexOf('{')).trim();
-      inCriticalBlock = criticalSelectors.some(cs => selector.includes(cs));
+      isInRule = true;
+      braceCount++;
+      currentRule = trimmedLine.substring(0, trimmedLine.indexOf('{')).trim();
     }
     
-    if (inCriticalBlock || braceCount > 0 && inCriticalBlock) {
-      criticalLines.push(line);
+    if (trimmedLine.includes('}')) {
+      braceCount--;
+      if (braceCount === 0) {
+        isInRule = false;
+        
+        // ルールが完了したので分類
+        const isCritical = criticalSelectors.some(cs => 
+          currentRule.includes(cs) || cs.includes(currentRule)
+        );
+        
+        if (isCritical) {
+          criticalLines.push(line);
+        } else {
+          nonCriticalLines.push(line);
+        }
+        currentRule = '';
+        continue;
+      }
+    }
+    
+    if (isInRule) {
+      const isCritical = criticalSelectors.some(cs => 
+        currentRule.includes(cs) || cs.includes(currentRule)
+      );
+      
+      if (isCritical) {
+        criticalLines.push(line);
+      } else {
+        nonCriticalLines.push(line);
+      }
     } else {
-      nonCriticalLines.push(line);
+      // ルール外の行（コメントなど）
+      criticalLines.push(line);
     }
   }
   
@@ -822,7 +905,7 @@ export const generateCSSTool = createTool({
     ]);
     
     // クリティカルCSS抽出
-    const { critical, nonCritical } = extractCriticalCSS(fullCSS);
+    const { critical, nonCritical } = await extractCriticalCSS(fullCSS);
     
     return {
       css: fullCSS,

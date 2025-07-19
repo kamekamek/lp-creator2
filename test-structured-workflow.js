@@ -5,7 +5,7 @@ async function testStructuredWorkflow() {
   
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: process.env.CI ? ['--no-sandbox', '--disable-setuid-sandbox'] : []
   });
   
   try {
@@ -13,7 +13,8 @@ async function testStructuredWorkflow() {
     
     // 1. トップページにアクセス
     console.log('1️⃣ トップページアクセス...');
-    await page.goto('http://localhost:3002', { waitUntil: 'networkidle0' });
+    const baseUrl = process.env.TEST_BASE_URL || 'http://localhost:3002';
+    await page.goto(baseUrl, { waitUntil: 'networkidle0' });
     console.log('✅ ページ読み込み完了\n');
     
     // 2. 構造化ワークフロータブが選択されているか確認

@@ -78,7 +78,7 @@ export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
   }, {} as Record<string, AISuggestion[]>);
 
   return (
-    <div className="fixed right-4 top-20 w-96 max-h-[70vh] bg-white rounded-lg shadow-2xl border z-40 overflow-hidden">
+    <div className="fixed lg:right-4 lg:top-20 lg:w-96 right-0 bottom-0 left-0 top-0 lg:max-h-[70vh] bg-white lg:rounded-lg shadow-2xl border z-40 overflow-hidden">
       {/* ヘッダー */}
       <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white">
         <div className="flex items-center gap-2">
@@ -184,10 +184,9 @@ const SuggestionCard: React.FC<{
           {suggestion.preview && (
             <div className="mb-3 p-2 bg-gray-50 rounded text-xs">
               <span className="text-gray-500">プレビュー:</span>
-              <div 
-                className="mt-1 text-gray-700"
-                dangerouslySetInnerHTML={{ __html: suggestion.preview }}
-              />
+              <div className="mt-1 text-gray-700">
+                {suggestion.preview}
+              </div>
             </div>
           )}
 
@@ -246,14 +245,13 @@ const SuggestionCard: React.FC<{
   );
 };
 
-// AIサジェスチョンジェネレーター
-export class AISuggestionGenerator {
-  static analyzeContent(htmlContent: string, cssContent: string): AISuggestion[] {
-    const suggestions: AISuggestion[] = [];
-    
-    // コンテンツ分析
-    if (!htmlContent.includes('alt=')) {
-      suggestions.push({
+// AIサジェスション分析関数
+function analyzeContent(htmlContent: string, cssContent: string): AISuggestion[] {
+  const suggestions: AISuggestion[] = [];
+  
+  // コンテンツ分析
+  if (!htmlContent.includes('alt=')) {
+    suggestions.push({
         id: 'img-alt-text',
         type: 'accessibility',
         title: '画像にalt属性を追加',
@@ -311,7 +309,8 @@ export class AISuggestionGenerator {
     return suggestions;
   }
 
-  static generateContextualSuggestions(businessContext: any): AISuggestion[] {
+// コンテキストベースの提案生成関数
+function generateContextualSuggestions(businessContext: any): AISuggestion[] {
     const suggestions: AISuggestion[] = [];
 
     // 業界特有の提案
@@ -349,6 +348,11 @@ export class AISuggestionGenerator {
       });
     }
 
-    return suggestions;
-  }
+  return suggestions;
+}
+
+// AIサジェスチョンジェネレーター
+export class AISuggestionGenerator {
+  static analyzeContent = analyzeContent;
+  static generateContextualSuggestions = generateContextualSuggestions;
 }

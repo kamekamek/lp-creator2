@@ -54,7 +54,7 @@ Your main goal is to follow the USER's instructions for creating landing pages, 
 For professional, step-by-step LP creation with client consultation:
 - \`interactiveHearingTool\`: PROMPT.md-based interactive hearing system for detailed client consultation
 - \`conceptProposalTool\`: Generate, save, and review comprehensive LP concepts based on hearing results
-- \`structuralDesignTool\`: Create detailed page structure and wireframes after concept approval
+- \`lpStructureTool\`: Create detailed page structure and wireframes after concept approval
 - Then proceed to generation tools for final implementation
 
 ### 2. Quick Landing Page Creation

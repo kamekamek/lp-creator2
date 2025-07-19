@@ -20,6 +20,12 @@ export interface VariantMetadata {
   version: string;
 }
 
+export interface VariantStructure {
+  sections: string[];
+  layout: 'single-column' | 'multi-column' | 'grid';
+  components: string[];
+}
+
 export interface Variant {
   id: string;
   title: string;
@@ -28,7 +34,7 @@ export interface Variant {
   variantSeed: number;
   designFocus: 'modern-clean' | 'conversion-optimized' | 'content-rich';
   metadata?: VariantMetadata;
-  structure?: unknown;
+  structure?: VariantStructure;
 }
 
 export interface GenerationResult {
@@ -42,16 +48,13 @@ export interface GenerationResult {
     contentStrategy?: unknown;
     focusAreas?: string[];
     generatedAt: string;
-    version: string;
-    error?: boolean;
   };
-  error?: string;
 }
 
 export interface SuggestionAction {
   type: 'replace' | 'add' | 'modify';
   target: string;
-  value: unknown;
+  value: string | number | boolean | object;
 }
 
 export interface AISuggestion {

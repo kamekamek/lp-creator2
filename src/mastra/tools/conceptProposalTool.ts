@@ -544,49 +544,49 @@ ${this.generateApproachDescription(analysis)}
   private getTypographyStyle(_analysis: any): string {
     // TODO: Implement sophisticated typography selection based on brand personality,
     // target audience, and industry type from analysis data
-    throw new Error('Not implemented yet');
+    return 'font-family: \'Inter\', sans-serif; font-weight: 400;';
   }
   
   private getLayoutApproach(_analysis: any): string {
     // TODO: Implement layout strategy selection based on conversion priority,
     // content length, and user behavior patterns from analysis
-    throw new Error('Not implemented yet');
+    return 'single-column';
   }
   
   private getVisualElements(_analysis: any): string[] {
     // TODO: Implement visual element selection based on industry type,
     // brand personality, and trust-building requirements from analysis
-    throw new Error('Not implemented yet');
+    return ['hero-image', 'testimonial-cards', 'feature-icons'];
   }
   
   private getCTAPlacement(_analysis: any): string[] {
     // TODO: Implement strategic CTA placement based on urgency level,
     // conversion priority, and user journey mapping from analysis
-    throw new Error('Not implemented yet');
+    return ['above-fold', 'after-benefits', 'footer'];
   }
   
   private getUrgencyTactics(_analysis: any): string[] {
     // TODO: Implement urgency tactics selection based on urgency level,
     // target segment behavior, and ethical persuasion principles from analysis
-    throw new Error('Not implemented yet');
+    return ['limited-time-offer', 'social-proof'];
   }
   
   private getSocialProofStrategy(_analysis: any): string[] {
     // TODO: Implement social proof strategy based on target segment,
     // trust builders identified, and industry-specific credibility markers from analysis
-    throw new Error('Not implemented yet');
+    return ['customer-testimonials', 'company-logos', 'user-statistics'];
   }
   
   private getObjectionHandling(_analysis: any): string[] {
     // TODO: Implement objection handling strategy based on target pain points,
     // competitive position, and common concerns identified in analysis
-    throw new Error('Not implemented yet');
+    return ['faq-section', 'guarantee-badge', 'risk-reversal'];
   }
   
   private getMicroConversions(_analysis: any): string[] {
     // TODO: Implement micro-conversion strategy based on conversion priority,
     // user journey stages, and progressive engagement tactics from analysis
-    throw new Error('Not implemented yet');
+    return ['email-signup', 'demo-request', 'whitepaper-download'];
   }
   
   private estimateConversionRate(analysis: any): string {

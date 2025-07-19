@@ -11,6 +11,11 @@ export const writeCopyAndUX = createTool({
   inputSchema: z.object({
     persona: z.string(),
     strategy: z.string(),
+    industry: z.string().optional(),
+    targetAudience: z.string().optional(),
+    businessGoal: z.string().optional(),
+    competitiveAdvantages: z.array(z.string()).optional(),
+    tone: z.enum(['professional', 'friendly', 'premium']).optional(),
   }),
   outputSchema: z.object({
     copyDocument: z.string(),

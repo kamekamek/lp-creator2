@@ -3,6 +3,16 @@
 import { useChat } from '@ai-sdk/react';
 import type { Message } from 'ai';
 import React, { useState, FormEvent, ChangeEvent, useEffect } from 'react';
+
+// AI SDKのMessage型を拡張してpartsプロパティを含める
+interface ExtendedMessage extends Message {
+  parts?: Array<{
+    type: string;
+    toolName?: string;
+    result?: any;
+    [key: string]: any;
+  }>;
+}
 import { flushSync } from 'react-dom';
 import { useEditMode } from './contexts/EditModeContext';
 import { LPTool } from './components/LPTool';
@@ -23,7 +33,7 @@ interface InitialViewProps {
 }
 
 interface MainViewProps {
-  messages: Message[]; // Using Message type from ai package
+  messages: ExtendedMessage[]; // Using ExtendedMessage type with parts property
   input: string;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
@@ -182,7 +192,8 @@ const MainView = ({
       
       if (element) {
         element.textContent = newText;
-        const updatedHTML = doc.body?.innerHTML || doc.documentElement.outerHTML;
+        // body要素のinnerHTMLを使用（ランディングページのコンテンツのみ更新）
+        const updatedHTML = doc.body?.innerHTML || '';
         
         console.log('✅ [IMMEDIATE UPDATE] DOM updated successfully');
         setLpToolState(prev => ({
@@ -838,8 +849,27 @@ export default function Page() {
     flushSync(() => {
       setInput(prompt);
     });
-    const fakeEvt = { preventDefault: () => {} } as FormEvent<HTMLFormElement>;
-    originalHandleSubmit(fakeEvt);
+    
+    // 型安全なイベントオブジェクトを作成
+    const syntheticEvent: FormEvent<HTMLFormElement> = {
+      preventDefault: () => {},
+      currentTarget: document.createElement('form') as HTMLFormElement,
+      target: document.createElement('form') as HTMLFormElement,
+      bubbles: false,
+      cancelable: false,
+      defaultPrevented: false,
+      eventPhase: 0,
+      isTrusted: false,
+      nativeEvent: new Event('submit'),
+      timeStamp: Date.now(),
+      type: 'submit',
+      stopPropagation: () => {},
+      isDefaultPrevented: () => false,
+      isPropagationStopped: () => false,
+      persist: () => {}
+    };
+    
+    originalHandleSubmit(syntheticEvent);
   };
 
   return (

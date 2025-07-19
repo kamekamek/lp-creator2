@@ -25,10 +25,12 @@
     "@mastra/loggers": "^0.10.2",
     "@mastra/mcp": "^0.10.3",
     "@radix-ui/react-progress": "^1.1.7",
+    "@types/dompurify": "^3.0.5",
     "@types/jsdom": "^21.1.7",
     "ai": "^4.3.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.2.6",
     "jsdom": "^26.1.0",
     "lucide-react": "^0.515.0",
     "mastra": "^0.10.5",
@@ -50,12 +52,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "csstree": "^0.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
     "puppeteer": "^24.10.2",
     "tailwindcss": "^4",
+    "terser": "^5.43.1",
     "typescript": "5.8.3"
   }
 }

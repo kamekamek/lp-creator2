@@ -41,9 +41,65 @@ export const handleAIError = (error: AIGenerationError) => {
 /**
  * HTMLサニタイゼーション関数
  * 生成されたHTMLを安全に処理する
- * Node.js環境用の基本的なサニタイゼーション実装
+ * DOMPurifyを使用したサニタイゼーション
  */
-export const sanitizeHTML = (html: string): string => {
+export const sanitizeHTML = async (html: string): Promise<string> => {
+  try {
+    // Node.js環境かブラウザ環境かを判定
+    if (typeof window === 'undefined') {
+      // Server-side: JSDOM + DOMPurify
+      const [{ JSDOM }, DOMPurify] = await Promise.all([
+        import('jsdom'),
+        import('dompurify')
+      ]);
+      
+      const window = new JSDOM('').window;
+      const purify = DOMPurify.default(window as any);
+      
+      return purify.sanitize(html, {
+        ALLOWED_TAGS: [
+          'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'a', 'img', 'button', 'section', 'header', 'footer', 'nav',
+          'ul', 'ol', 'li', 'strong', 'em', 'br', 'svg', 'path',
+          'main', 'article', 'aside', 'figure', 'figcaption', 'blockquote',
+          'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'form', 'input',
+          'label', 'select', 'option', 'textarea'
+        ],
+        ALLOWED_ATTR: [
+          'id', 'class', 'style', 'href', 'src', 'alt', 'title', 'data-*',
+          'aria-*', 'role', 'type', 'name', 'value', 'placeholder', 'for'
+        ],
+        FORBID_ATTR: ['onclick', 'onerror', 'onload']
+      });
+    } else {
+      // Client-side: DOMPurify
+      const DOMPurify = await import('dompurify');
+      return DOMPurify.default.sanitize(html, {
+        ALLOWED_TAGS: [
+          'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          'a', 'img', 'button', 'section', 'header', 'footer', 'nav',
+          'ul', 'ol', 'li', 'strong', 'em', 'br', 'svg', 'path',
+          'main', 'article', 'aside', 'figure', 'figcaption', 'blockquote',
+          'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'form', 'input',
+          'label', 'select', 'option', 'textarea'
+        ],
+        ALLOWED_ATTR: [
+          'id', 'class', 'style', 'href', 'src', 'alt', 'title', 'data-*',
+          'aria-*', 'role', 'type', 'name', 'value', 'placeholder', 'for'
+        ],
+        FORBID_ATTR: ['onclick', 'onerror', 'onload']
+      });
+    }
+  } catch (error) {
+    console.error('DOMPurify sanitization failed, using basic sanitization:', error);
+    return basicSanitizeHTML(html);
+  }
+};
+
+/**
+ * 基本的なHTMLサニタイゼーション（フォールバック用）
+ */
+function basicSanitizeHTML(html: string): string {
   // 危険なタグとスクリプトを除去
   let sanitized = html
     // スクリプトタグを除去
@@ -77,7 +133,7 @@ export const sanitizeHTML = (html: string): string => {
   });
 
   return sanitized;
-};
+}
 
 /**
  * パフォーマンスエラーハンドリング関数
@@ -137,31 +193,43 @@ export const handleSecurityError = (error: SecurityError) => {
 /**
  * HTMLからdata-editable-id属性を持つ要素を抽出する関数
  */
-export const extractEditableElements = (html: string): { id: string, content: string }[] => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const editableElements = doc.querySelectorAll('[data-editable-id]');
-  
-  return Array.from(editableElements).map(element => ({
-    id: element.getAttribute('data-editable-id') || '',
-    content: element.textContent || ''
-  }));
+export const extractEditableElements = async (html: string): Promise<{ id: string, content: string }[]> => {
+  try {
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+    const editableElements = doc.querySelectorAll('[data-editable-id]');
+    
+    return Array.from(editableElements).map(element => ({
+      id: element.getAttribute('data-editable-id') || '',
+      content: element.textContent || ''
+    }));
+  } catch (error) {
+    console.error('Error extracting editable elements:', error);
+    return [];
+  }
 };
 
 /**
  * HTMLの特定の要素のテキストを更新する関数
  */
-export const updateElementText = (html: string, elementId: string, newText: string): string => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
-  
-  if (element) {
-    element.textContent = newText;
-    return doc.documentElement.outerHTML;
+export const updateElementText = async (html: string, elementId: string, newText: string): Promise<string> => {
+  try {
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+    const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
+    
+    if (element) {
+      element.textContent = newText;
+      return dom.serialize();
+    }
+    
+    return html;
+  } catch (error) {
+    console.error('Error updating element text:', error);
+    return html;
   }
-  
-  return html;
 };
 
 /**
@@ -331,37 +399,43 @@ ${specificity}
 /**
  * 生成されたHTMLにアクセシビリティ機能を追加する関数
  */
-export const enhanceAccessibility = (html: string): string => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  
-  // 画像にalt属性がない場合は追加
-  const images = doc.querySelectorAll('img:not([alt])');
-  images.forEach(img => {
-    img.setAttribute('alt', '画像の説明');
-  });
-  
-  // リンクにaria-labelがない場合は追加
-  const links = doc.querySelectorAll('a:not([aria-label])');
-  links.forEach(link => {
-    if (link.textContent) {
-      link.setAttribute('aria-label', link.textContent);
-    }
-  });
-  
-  // フォーム要素にlabelがない場合は追加
-  const formElements = doc.querySelectorAll('input, select, textarea');
-  formElements.forEach(element => {
-    const id = element.getAttribute('id');
-    if (id && !doc.querySelector(`label[for="${id}"]`)) {
-      const label = doc.createElement('label');
-      label.setAttribute('for', id);
-      label.textContent = `${element.getAttribute('placeholder') || 'ラベル'}`;
-      element.parentNode?.insertBefore(label, element);
-    }
-  });
-  
-  return doc.documentElement.outerHTML;
+export const enhanceAccessibility = async (html: string): Promise<string> => {
+  try {
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+    
+    // 画像にalt属性がない場合は追加
+    const images = doc.querySelectorAll('img:not([alt])');
+    images.forEach(img => {
+      img.setAttribute('alt', '画像の説明');
+    });
+    
+    // リンクにaria-labelがない場合は追加
+    const links = doc.querySelectorAll('a:not([aria-label])');
+    links.forEach(link => {
+      if (link.textContent) {
+        link.setAttribute('aria-label', link.textContent);
+      }
+    });
+    
+    // フォーム要素にlabelがない場合は追加
+    const formElements = doc.querySelectorAll('input, select, textarea');
+    formElements.forEach(element => {
+      const id = element.getAttribute('id');
+      if (id && !doc.querySelector(`label[for="${id}"]`)) {
+        const label = doc.createElement('label');
+        label.setAttribute('for', id);
+        label.textContent = `${element.getAttribute('placeholder') || 'ラベル'}`;
+        element.parentNode?.insertBefore(label, element);
+      }
+    });
+    
+    return dom.serialize();
+  } catch (error) {
+    console.error('Error enhancing accessibility:', error);
+    return html;
+  }
 };
 
 /**

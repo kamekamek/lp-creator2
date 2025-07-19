@@ -92,7 +92,7 @@ ${getSectionSpecificRequirements(sectionType, promptArgs)}
         prompt: baseDesignPrompt,
         maxTokens: 4000,
         temperature: 0.7,
-      });
+      }, {});
 
       console.log(`✅ LP Section ${sectionIndex} (${sectionType}) HTML generated successfully`);
       

@@ -1,6 +1,76 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
+// OpenAI response type definition
+interface OpenAIResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+  error?: {
+    message: string;
+  };
+}
+
+// Robust fallback response creation
+function createFallbackResponse(content: string): { strategySummary: string; personaCard: string; competitorMatrix: string } {
+  // Try different parsing strategies
+  const strategies = [
+    // Strategy 1: Split by section markers
+    () => {
+      const sections = content.split(/^---$/m);
+      if (sections.length >= 3) {
+        return {
+          strategySummary: sections[0]?.trim() || '',
+          personaCard: sections[1]?.trim() || '',
+          competitorMatrix: sections[2]?.trim() || ''
+        };
+      }
+      return null;
+    },
+    // Strategy 2: Look for markdown headers
+    () => {
+      const strategySummaryMatch = content.match(/## 戦略サマリー[\s\S]*?(?=## |$)/);
+      const personaCardMatch = content.match(/## ペルソナカード[\s\S]*?(?=## |$)/);
+      const competitorMatrixMatch = content.match(/## 競合分析[\s\S]*?(?=## |$)/);
+      
+      if (strategySummaryMatch || personaCardMatch || competitorMatrixMatch) {
+        return {
+          strategySummary: strategySummaryMatch?.[0]?.replace(/## 戦略サマリー/, '').trim() || '',
+          personaCard: personaCardMatch?.[0]?.replace(/## ペルソナカード/, '').trim() || '',
+          competitorMatrix: competitorMatrixMatch?.[0]?.replace(/## 競合分析/, '').trim() || ''
+        };
+      }
+      return null;
+    },
+    // Strategy 3: Use entire content as strategy summary
+    () => ({
+      strategySummary: content.trim(),
+      personaCard: '',
+      competitorMatrix: ''
+    })
+  ];
+
+  for (const strategy of strategies) {
+    try {
+      const result = strategy();
+      if (result && (result.strategySummary || result.personaCard || result.competitorMatrix)) {
+        return result;
+      }
+    } catch (error) {
+      console.warn('Fallback strategy failed:', error);
+    }
+  }
+
+  // Final fallback
+  return {
+    strategySummary: content.trim() || '<戦略サマリー生成に失敗しました>',
+    personaCard: '<ペルソナカード生成に失敗しました>',
+    competitorMatrix: '<競合分析マトリクス生成に失敗しました>'
+  };
+}
+
 /**
  * ステップ 1: ユーザーヒアリング回答を受け取り、
  * 戦略サマリー / ペルソナ / 競合分析 を生成するツール。
@@ -24,7 +94,7 @@ export const collectStrategyInfo = createTool({
     const prompt = `あなたはプロのマーケター兼コピーライターです。以下のヒアリング回答を基に、戦略サマリー・ペルソナカード・競合分析マトリクスを生成してください。
 
 ## 入力情報
-${answers.map((a, i) => `- Q${i + 1}: ${a}`).join("\n")}
+${answers.map((a, i) => `- Q${i + 1}: ${JSON.stringify(a)}`).join("\n")}
 
 ## 出力形式
 必ず以下のJSON形式で出力してください。他のテキストは含めないでください：
@@ -35,12 +105,19 @@ ${answers.map((a, i) => `- Q${i + 1}: ${a}`).join("\n")}
   "competitorMatrix": "競合分析マトリクスの内容をMarkdown形式で記述"
 }`;
 
+    // API key validation
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+
     try {
+      // Use fetch API instead of OpenAI SDK
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
@@ -55,17 +132,18 @@ ${answers.map((a, i) => `- Q${i + 1}: ${a}`).join("\n")}
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await response.json() as OpenAIResponse;
 
       if (data.error) {
         throw new Error(`OpenAI API error: ${data.error.message}`);
       }
 
-      const content: string = data.choices?.[0]?.message?.content ?? '';
+      // Type-safe content extraction
+      const firstChoice = data.choices?.[0];
+      if (!firstChoice?.message?.content) {
+        throw new Error('Invalid response structure from OpenAI API');
+      }
+      const content: string = firstChoice.message.content;
 
       // JSONパースを使用して構造化データを取得
       try {
@@ -85,15 +163,8 @@ ${answers.map((a, i) => `- Q${i + 1}: ${a}`).join("\n")}
         console.error('[collectStrategyInfo] JSON parse error:', parseError);
         console.error('[collectStrategyInfo] Raw content:', content);
         
-        // JSONパースに失敗した場合は、従来の方法でフォールバック
-        const sections = content.split(/^---$/m);
-        const [strategySummary = '', personaCard = '', competitorMatrix = ''] = sections;
-
-        return {
-          strategySummary: strategySummary.trim(),
-          personaCard: personaCard.trim(),
-          competitorMatrix: competitorMatrix.trim(),
-        };
+        // JSONパースに失敗した場合のロバストなフォールバック
+        return createFallbackResponse(content);
       }
     } catch (err) {
       console.error('[collectStrategyInfo] OpenAI error', err);

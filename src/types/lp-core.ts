@@ -83,7 +83,7 @@ export interface VariantGenerationResult {
   variants: LPVariant[];
   recommendedVariant: string; // variantId
   metadata: {
-    generatedAt: string;
+    generatedAt: Date;
     processingTime: number;
     totalVariants: number;
     version: string;
@@ -128,7 +128,7 @@ export interface EditOperation {
   operation: 'update' | 'delete' | 'insert';
   oldValue: string;
   newValue: string;
-  timestamp: Date;
+  timestamp: string; // ISO 8601形式
 }
 
 /**

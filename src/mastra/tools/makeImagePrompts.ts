@@ -338,7 +338,6 @@ HTML統合時の実装例:
   },
 });
 
-import { JSDOM } from 'jsdom';
 
 // HTMLから画像要素を抽出するヘルパー関数
 function extractImageElementsFromHTML(html: string): Array<{

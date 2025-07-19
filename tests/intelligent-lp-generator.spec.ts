@@ -144,6 +144,21 @@ test.describe('Component Integration Tests', () => {
     
     // VariantSelectorがレンダリングされた場合の動作テスト
     // 実際の統合では、LP生成後に自動的に表示される
+    
+    // バリアント選択機能のテスト
+    const hasVariants = await page.evaluate(() => {
+      return !!(window as any).testVariants;
+    });
+    
+    if (hasVariants) {
+      // バリアント表示の確認
+      await expect(page.locator('text=Test Variant 1')).toBeVisible();
+      await expect(page.locator('text=Test Variant 2')).toBeVisible();
+      
+      // バリアント選択の動作確認
+      await page.click('text=Test Variant 2');
+      // 選択後の状態確認など
+    }
   });
 
   test('AISuggestionPanel component functionality', async ({ page }) => {

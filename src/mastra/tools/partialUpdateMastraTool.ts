@@ -139,7 +139,7 @@ ${context || 'なし'}
         prompt: prompt,
         maxTokens: 500,
         temperature: 0.7,
-      });
+      }, {});
       
       // 生成されたコンテンツで要素を更新
       targetElement.textContent = newContent.trim();

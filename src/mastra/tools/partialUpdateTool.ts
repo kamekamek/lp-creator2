@@ -2,6 +2,9 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 
+// モデル設定の定数化
+const MODEL = 'claude-opus-4-20250514';
+
 // Previously defined schemas (can be imported from lpGeneratorTool if refactored)
 const sectionSchema = z.object({
   type: z.enum(['hero', 'features', 'testimonials', 'cta', 'faq', 'footer']),
@@ -21,7 +24,7 @@ const sectionHtmlSchema = z.object({
  */
 async function regenerateSectionHtml(section: z.infer<typeof sectionSchema>, modificationPrompt: string, sectionIndex: number) {
   const { object } = await generateObject({
-    model: createAnthropic()('claude-opus-4-20250514'),
+    model: createAnthropic()(MODEL),
     schema: sectionHtmlSchema,
     prompt: `You are tasked with modifying a specific section of an existing landing page. 
     The user wants to change an element within this section.

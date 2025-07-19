@@ -5,6 +5,10 @@ import { LPGenerationResult, AIGenerationError, BusinessContext } from '../../ty
 import { sanitizeHTML, handleAIError, applyPasonaFormula, apply4UPrinciple, enhanceAccessibility, monitorPerformance } from './utils/lpToolHelpers';
 import { analyzeBusinessContext } from './utils/businessContextAnalyzer';
 
+// Configuration constants
+const DEFAULT_MODEL = process.env.LP_GENERATOR_MODEL || 'claude-3-5-sonnet-20241022';
+const TOOL_VERSION = process.env.LP_TOOL_VERSION || '3.0-enhanced-marketing';
+
 /**
  * マーケティング心理学を活用した拡張LP生成ツール
  * PASONA法則と4U原則を統合し、高品質なランディングページを生成する
@@ -67,8 +71,8 @@ export const enhancedLPGeneratorTool = tool({
       });
       
       // HTMLのサニタイズとアクセシビリティ強化
-      const sanitizedHtml = sanitizeHTML(result.htmlContent);
-      const accessibleHtml = enhanceAccessibility(sanitizedHtml);
+      const sanitizedHtml = await sanitizeHTML(result.htmlContent);
+      const accessibleHtml = await enhanceAccessibility(sanitizedHtml);
       
       const performanceResult = performanceMonitor.end();
       console.log(`✅ Enhanced LP Generator: Successfully generated LP for "${topic}" in ${performanceResult.duration}ms`);
@@ -80,7 +84,7 @@ export const enhancedLPGeneratorTool = tool({
         title: `${topic} - プロフェッショナルランディングページ`,
         metadata: {
           generatedAt: new Date(),
-          model: 'claude-3-5-sonnet-20241022',
+          model: DEFAULT_MODEL,
           processingTime: performanceResult.duration,
           businessContext
         }
@@ -100,15 +104,25 @@ export const enhancedLPGeneratorTool = tool({
           competitiveAdvantage,
           designStyle,
           generatedAt: new Date().toISOString(),
-          version: '3.0-enhanced-marketing'
+          version: TOOL_VERSION
         }
       };
     } catch (error) {
       console.error(`❌ Enhanced LP Generator failed for "${topic}":`, error);
       
+      // ヘルパー関数
+      const determineErrorType = (error: unknown): 'model_timeout' | 'rate_limit' | 'invalid_response' | 'content_policy' => {
+        if (error instanceof Error) {
+          if (error.message.includes('timeout')) return 'model_timeout';
+          if (error.message.includes('rate limit')) return 'rate_limit';
+          if (error.message.includes('content policy')) return 'content_policy';
+        }
+        return 'invalid_response';
+      };
+
       // エラーハンドリング
       const aiError: AIGenerationError = {
-        type: 'model_timeout',
+        type: determineErrorType(error),
         message: error instanceof Error ? error.message : 'Unknown error occurred',
         retryable: true,
         timestamp: new Date()
@@ -141,9 +155,9 @@ export const enhancedLPGeneratorTool = tool({
           errorType: aiError.type,
           errorMessage: aiError.message,
           generatedAt: new Date().toISOString(),
-          version: '3.0-enhanced-marketing'
+          version: TOOL_VERSION
         }
       };
     }
-  }
+  },
 });

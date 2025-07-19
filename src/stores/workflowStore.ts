@@ -123,6 +123,14 @@ const initialState: WorkflowState = {
 
 // セッションID生成
 function generateSessionId(): string {
+  if (typeof window !== 'undefined' && window.crypto) {
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    return `workflow_${Date.now()}_${Array.from(array, byte =>
+      byte.toString(16).padStart(2, '0')
+    ).join('')}`;
+  }
+  // Fallback for non-browser environments
   return `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 

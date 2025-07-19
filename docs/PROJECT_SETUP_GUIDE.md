@@ -54,6 +54,7 @@ lp-creator/
 - **AIプロバイダー**: OpenAI, Claude, Google AI
 - **スタイリング**: Tailwind CSS
 - **データベース**: LibSQL (メモリ機能用)
+- **セキュリティ**: DOMPurify + JSDOM + CSP + iframe sandbox
 - **TypeScript**: 完全対応
 
 ### 3. 実装済み機能
@@ -100,16 +101,23 @@ ANTHROPIC_API_KEY=your_claude_api_key
 GOOGLE_GENERATIVE_AI_API_KEY=your_google_ai_key
 ```
 
-### 3. 開発サーバーの起動
+### 3. セキュリティ依存関係の確認
+```bash
+# DOMPurify と JSDOM がインストールされていることを確認
+pnpm list dompurify jsdom
+```
+
+### 4. 開発サーバーの起動
 ```bash
 pnpm dev
 ```
 
-### 4. アプリケーションへのアクセス
+### 5. アプリケーションへのアクセス
 - **URL**: http://localhost:3000
 - **機能確認**:
   - クイック作成タブでシンプルなLP生成
   - プロワークフロータブで包括的なHP作成
+  - セキュリティ機能: AI生成コンテンツの安全な表示
 
 ---
 

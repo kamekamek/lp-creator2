@@ -1,10 +1,16 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Shield, AlertTriangle } from 'lucide-react';
 import { useEditMode } from '../contexts/EditModeContext';
 import { InlineTextEditor } from './InlineTextEditor';
 import { SmartHoverMenu } from './SmartHoverMenu';
+import { 
+  sanitizeHTMLClient, 
+  performSecurityChecks, 
+  fixCommonSecurityIssues,
+  SANDBOX_ATTRIBUTES 
+} from '../../src/utils/htmlSanitizer';
 
 interface LPViewerProps {
   htmlContent: string;
@@ -15,6 +21,13 @@ interface LPViewerProps {
   onTextUpdate?: (elementId: string, newText: string) => void;
   onAIImprove?: (elementId: string, currentText: string) => void;
   isModalOpen?: boolean;
+  enableSecurityChecks?: boolean;
+}
+
+interface SecurityViolation {
+  type: 'warning' | 'error';
+  message: string;
+  timestamp: Date;
 }
 
 export const LPViewer: React.FC<LPViewerProps> = ({ 
@@ -25,7 +38,8 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   enableFullscreen = true,
   onTextUpdate,
   onAIImprove,
-  isModalOpen = false
+  isModalOpen = false,
+  enableSecurityChecks = true
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +50,12 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   const [hoverMenuVisible, setHoverMenuVisible] = useState(false);
   const [hoverMenuPosition, setHoverMenuPosition] = useState({ x: 0, y: 0 });
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
-  // themeObserverRef は未使用のためコメントアウトまたは削除検討
+  
+  // Security state
+  const [securityViolations, setSecurityViolations] = useState<SecurityViolation[]>([]);
+  const [isContentSecure, setIsContentSecure] = useState(true);
+  const [sanitizedContent, setSanitizedContent] = useState<string>('');
+  const [showSecurityWarning, setShowSecurityWarning] = useState(false);
 
   const toggleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
@@ -260,13 +279,69 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     }
   }, [isEditMode, selectElement, inlineEditingId, startInlineEdit, selectedElementId]);
 
+  // Security processing effect
+  useEffect(() => {
+    if (!htmlContent || !enableSecurityChecks) {
+      setSanitizedContent(htmlContent);
+      setIsContentSecure(true);
+      setSecurityViolations([]);
+      return;
+    }
+
+    try {
+      // Step 1: Perform security checks
+      const securityCheck = performSecurityChecks(htmlContent);
+      
+      if (!securityCheck.isSecure) {
+        const violations: SecurityViolation[] = securityCheck.violations.map(violation => ({
+          type: 'warning' as const,
+          message: violation,
+          timestamp: new Date()
+        }));
+        
+        setSecurityViolations(violations);
+        setShowSecurityWarning(true);
+        console.warn('🔒 Security violations detected:', violations);
+      } else {
+        setSecurityViolations([]);
+        setShowSecurityWarning(false);
+      }
+
+      // Step 2: Fix common security issues
+      let processedContent = fixCommonSecurityIssues(htmlContent);
+
+      // Step 3: Sanitize HTML content
+      const sanitized = sanitizeHTMLClient(processedContent);
+      
+      setSanitizedContent(sanitized);
+      setIsContentSecure(securityCheck.isSecure);
+      
+      console.log('🔒 Content security processing completed:', {
+        violations: securityCheck.violations.length,
+        sanitized: sanitized.length !== htmlContent.length
+      });
+      
+    } catch (error) {
+      console.error('🔒 Security processing failed:', error);
+      
+      // Fallback to safe content
+      setSanitizedContent('<div class="error-message p-4 text-red-600">Content could not be safely processed</div>');
+      setIsContentSecure(false);
+      setSecurityViolations([{
+        type: 'error',
+        message: 'Security processing failed',
+        timestamp: new Date()
+      }]);
+    }
+  }, [htmlContent, enableSecurityChecks]);
+
   // iframeのコンテンツを初期化・更新する
   useEffect(() => {
     if (!iframeRef.current) return;
     const iframe = iframeRef.current;
     const doc = iframe.contentDocument;
 
-    if (doc && htmlContent) {
+    if (doc && sanitizedContent) {
       // HTMLサニタイゼーション処理を関数に分割
       const decodeHtmlEntities = (content: string): string => {
         return content
@@ -313,7 +388,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
         return processedContent;
       };
 
-      let processedContent = sanitizeHtmlContent(htmlContent);
+      let processedContent = sanitizeHtmlContent(sanitizedContent);
 
       const hasStyleTag = processedContent.includes('<style>') && processedContent.includes('</style>');
       const hasHtmlStructure = processedContent.includes('<section') || processedContent.includes('<div') || processedContent.includes('<body');
@@ -531,7 +606,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   }
 }
 
-}, [htmlContent, cssContent, isFullscreen]); // 🔧 [CRITICAL FIX] setupEditableElements削除でiframe再描画を防止
+}, [sanitizedContent, cssContent, isFullscreen]); // 🔧 [CRITICAL FIX] setupEditableElements削除でiframe再描画を防止
 
 // isEditMode, selectedElementId, inlineEditingId, htmlContent が変更されたときに setupEditableElements を呼び出す
 useEffect(() => {
@@ -561,11 +636,43 @@ useEffect(() => {
 
 return (
   <div ref={containerRef} className="relative w-full h-full" style={{ width: isFullscreen ? '100vw' : width, height: isFullscreen ? '100vh' : height }}>
+    {/* Security Warning Banner */}
+    {showSecurityWarning && securityViolations.length > 0 && (
+      <div className="absolute top-0 left-0 right-0 bg-yellow-100 border-b border-yellow-300 p-2 z-50">
+        <div className="flex items-center gap-2 text-sm text-yellow-800">
+          <AlertTriangle size={16} />
+          <span className="font-medium">Security Notice:</span>
+          <span>{securityViolations.length} potential security issue(s) detected and sanitized</span>
+          <button 
+            onClick={() => setShowSecurityWarning(false)}
+            className="ml-auto text-yellow-600 hover:text-yellow-800"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    )}
+    
+    {/* Security Status Indicator */}
+    <div className="absolute top-2 left-2 z-40">
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+        isContentSecure 
+          ? 'bg-green-100 text-green-800' 
+          : 'bg-yellow-100 text-yellow-800'
+      }`}>
+        <Shield size={12} />
+        {isContentSecure ? 'Secure' : 'Sanitized'}
+      </div>
+    </div>
+
     <iframe
       ref={iframeRef}
-      title="LP Preview"
-      className="w-full h-full border-0"
-      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+      title="LP Preview - Secure Sandbox"
+      className={`w-full h-full border-0 ${showSecurityWarning ? 'mt-10' : ''}`}
+      sandbox={SANDBOX_ATTRIBUTES.join(' ')}
+      allow="same-origin"
+      referrerPolicy="strict-origin-when-cross-origin"
+      loading="lazy"
     />
     {enableFullscreen && (
       <button

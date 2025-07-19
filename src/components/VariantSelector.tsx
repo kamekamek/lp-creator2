@@ -34,27 +34,28 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
     return colors[focus as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  const generatePreviewHtml = (variant: LPVariant) => {
-    // 基本的なHTMLプレビューを生成（セキュリティのため簡略化）
-    const cssContent = variant.cssContent || '';
-    const htmlContent = variant.htmlContent || '<div>プレビューを読み込み中...</div>';
-    
-    return `
-      <!DOCTYPE html>
-      <html lang="ja">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${variant.title}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        ${cssContent}
-      </head>
-      <body>
-        ${htmlContent}
-      </body>
-      </html>
-    `;
-  };
+
+const generatePreviewHtml = (variant: LPVariant) => {
+  // 基本的なHTMLプレビューを生成（セキュリティのため簡略化）
+  const cssContent = variant.cssContent || '';
+  const htmlContent = variant.htmlContent || '<div>プレビューを読み込み中...</div>';
+
+  return `
+    <!DOCTYPE html>
+    <html lang="ja">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${variant.title}</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      ${cssContent}
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>
+  `;
+};
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6">
@@ -187,8 +188,9 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
             <div className="flex-1 p-4">
               <iframe
                 srcDoc={generatePreviewHtml(previewVariant)}
-                className="w-full h-96 border rounded"
-                sandbox="allow-same-origin"
+                className="w-full min-h-96 max-h-[70vh] border rounded resize-y"
+                sandbox="allow-same-origin allow-scripts"
+                loading="lazy"
                 title={`Preview of ${previewVariant.title}`}
               />
             </div>

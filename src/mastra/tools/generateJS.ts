@@ -1,7 +1,7 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 
 const generateJSSchema = z.object({
   html: z.string().describe('生成されたHTMLコード'),
@@ -49,8 +49,15 @@ export const generateJSTool = createTool({
   execute: async ({ context }) => {
     const { html, css, technicalSpecs, interactionRequirements } = context;
     
-    // 外部テンプレートファイルから読み込み
-    const templatePath = join(__dirname, 'templates', 'landingPageTemplate.js');
+    // 安全なテンプレートファイル読み込み
+    const allowedTemplateDir = resolve(__dirname, 'templates');
+    const templatePath = resolve(allowedTemplateDir, 'landingPageTemplate.js');
+    
+    // パスが許可されたディレクトリ内にあることを確認
+    if (!templatePath.startsWith(allowedTemplateDir)) {
+      throw new Error('不正なテンプレートパスが指定されました');
+    }
+    
     let mainTemplate;
     
     try {
@@ -62,7 +69,7 @@ export const generateJSTool = createTool({
     
     // JavaScript圧縮（本番環境用）
     const main = process.env.NODE_ENV === 'production' 
-      ? minifyJS(mainTemplate)
+      ? await minifyJS(mainTemplate)
       : mainTemplate;
 
     // コンポーネント別JavaScript
@@ -492,8 +499,33 @@ document.addEventListener('DOMContentLoaded', () => {
 });`;
 }
 
-// JavaScript圧縮関数（簡易版）
-function minifyJS(code: string): string {
+// JavaScript圧縮関数（terser使用）
+async function minifyJS(code: string): Promise<string> {
+  try {
+    const { minify } = await import('terser');
+    const result = await minify(code, {
+      compress: {
+        drop_console: false, // コンソールログは残す（デバッグのため）
+        drop_debugger: true,
+        pure_funcs: ['console.debug'],
+      },
+      mangle: {
+        reserved: ['$', 'jQuery'], // 予約語を保護
+      },
+      format: {
+        comments: false, // コメントを除去
+      },
+    });
+    
+    return result.code || code;
+  } catch (error) {
+    console.warn('Terser minification failed, using fallback:', error);
+    return fallbackMinifyJS(code);
+  }
+}
+
+// フォールバック用の簡易圧縮関数
+function fallbackMinifyJS(code: string): string {
   return code
     .replace(/\/\*[\s\S]*?\*\//g, '') // コメント削除
     .replace(/\/\/.*$/gm, '') // 行コメント削除

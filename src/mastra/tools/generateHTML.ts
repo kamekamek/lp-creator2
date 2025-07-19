@@ -4,8 +4,8 @@ import { z } from 'zod';
 // 環境変数から動的にURLを取得
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_BASE_URL || 
-         process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-         'https://localhost:3000';
+         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+         (process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:3000'));
 }
 
 // ヘルパー関数群
@@ -23,28 +23,30 @@ function generateMetaTags() {
 }
 
 function generateOGTags() {
+  const baseUrl = getBaseUrl();
   return [
     '<meta property="og:type" content="website">',
     '<meta property="og:title" content="プロフェッショナルランディングページ">',
     '<meta property="og:description" content="高いコンバージョン率を実現するプロフェッショナルなランディングページ">',
-    '<meta property="og:url" content="https://example.com">',
-    '<meta property="og:image" content="https://example.com/assets/images/og-image.jpg">',
+    `<meta property="og:url" content="${baseUrl}">`,
+    `<meta property="og:image" content="${baseUrl}/assets/images/og-image.jpg">`,
     '<meta property="og:site_name" content="Professional LP">',
     '<meta name="twitter:card" content="summary_large_image">',
     '<meta name="twitter:title" content="プロフェッショナルランディングページ">',
     '<meta name="twitter:description" content="高いコンバージョン率を実現するプロフェッショナルなランディングページ">',
-    '<meta name="twitter:image" content="https://example.com/assets/images/twitter-image.jpg">',
+    `<meta name="twitter:image" content="${baseUrl}/assets/images/twitter-image.jpg">`,
   ];
 }
 
 function generateStructuredData() {
+  const baseUrl = getBaseUrl();
   return `
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "Professional LP Creator",
-  "url": "https://example.com",
+  "url": "${baseUrl}",
   "description": "プロフェッショナルなランディングページ作成サービス",
   "address": {
     "@type": "PostalAddress",
@@ -83,6 +85,7 @@ function generateAccessibilityElements() {
 }
 
 function generateHeadSection(structuredData: string) {
+  const baseUrl = getBaseUrl();
   return `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -90,21 +93,21 @@ function generateHeadSection(structuredData: string) {
     <meta name="keywords" content="ランディングページ, LP, マーケティング, コンバージョン">
     <meta name="author" content="Professional LP Creator">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://example.com">
+    <link rel="canonical" href="${baseUrl}">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="プロフェッショナルランディングページ">
     <meta property="og:description" content="高いコンバージョン率を実現するプロフェッショナルなランディングページ">
-    <meta property="og:url" content="https://example.com">
-    <meta property="og:image" content="https://example.com/assets/images/og-image.jpg">
+    <meta property="og:url" content="${baseUrl}">
+    <meta property="og:image" content="${baseUrl}/assets/images/og-image.jpg">
     <meta property="og:site_name" content="Professional LP">
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="プロフェッショナルランディングページ">
     <meta name="twitter:description" content="高いコンバージョン率を実現するプロフェッショナルなランディングページ">
-    <meta name="twitter:image" content="https://example.com/assets/images/twitter-image.jpg">
+    <meta name="twitter:image" content="${baseUrl}/assets/images/twitter-image.jpg">
     
     <title>プロフェッショナルランディングページ | 高コンバージョン率を実現</title>
     

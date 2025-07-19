@@ -5,6 +5,27 @@ import { LPVariant, VariantGenerationResult, BusinessContext } from '../../types
 import { analyzeBusinessContext } from './utils/businessContextAnalyzer';
 import { monitorPerformance } from './utils/lpToolHelpers';
 
+// ユーザーパラメータの型定義
+interface UserParameters {
+  targetAudience?: string;
+  businessGoal?: string;
+  industry?: string;
+  competitiveAdvantage?: string;
+  designStyle?: 'modern' | 'minimalist' | 'corporate' | 'creative' | 'tech' | 'startup';
+  topic?: string;
+  colorScheme?: {
+    primaryColor?: string;
+    accentColor?: string;
+    bgColor?: string;
+    textColor?: string;
+  };
+  marketingStrategy?: {
+    usePasona?: boolean;
+    use4U?: boolean;
+    useAida?: boolean;
+  };
+}
+
 /**
  * インテリジェント複数バリエーションLP生成ツール
  * 最大3つのデザインバリエーションを生成し、スコアリングと推奨を提供
@@ -51,13 +72,16 @@ export const intelligentLPGeneratorTool = tool({
             businessGoal: config.businessGoal,
             industry: config.industry,
             competitiveAdvantage: config.competitiveAdvantage,
-            designStyle: config.designStyle,
-            useMarketingPsychology: config.marketingPsychology
+            designStyle: config.designStyle || 'modern',
+            useMarketingPsychology: config.marketingPsychology || { pasona: true, fourU: true }
+          }, {
+            toolCallId: `variant-${index + 1}`,
+            messages: []
           });
           
-          if (result.success) {
+          if ((result as any).success) {
             const variant: LPVariant = {
-              ...result,
+              ...(result as any),
               variantId: `variant_${index + 1}_${config.designFocus}`,
               score: calculateVariantScore(result, config.designFocus, businessContext),
               description: config.description,
@@ -69,7 +93,7 @@ export const intelligentLPGeneratorTool = tool({
             console.log(`✅ Variant ${index + 1} generated successfully (score: ${variant.score})`);
             return variant;
           } else {
-            throw new Error(result.error || 'Variant generation failed');
+            throw new Error((result as any).error || 'Variant generation failed');
           }
         } catch (error) {
           console.error(`❌ Variant ${index + 1} generation failed:`, error);
@@ -92,7 +116,7 @@ export const intelligentLPGeneratorTool = tool({
         variants: variants.sort((a, b) => b.score - a.score), // スコア順でソート
         recommendedVariant: recommendedVariant.variantId,
         metadata: {
-          generatedAt: new Date().toISOString(),
+          generatedAt: new Date(),
           processingTime: performanceResult.duration,
           totalVariants: variants.length,
           version: '1.0-intelligent-variants'
@@ -129,7 +153,7 @@ function generateVariantConfigurations(
   count: number,
   focusAreas: ('modern-clean' | 'conversion-optimized' | 'content-rich')[] | undefined,
   businessContext: BusinessContext,
-  userParams: any
+  userParams: UserParameters
 ) {
   // デフォルトのフォーカス領域
   const defaultFocusAreas: ('modern-clean' | 'conversion-optimized' | 'content-rich')[] = [
@@ -387,8 +411,6 @@ function generateFallbackVariant(config: any, index: number, error: any): LPVari
     description: config.description,
     features: config.features,
     designFocus: config.designFocus,
-    recommendation: generateRecommendation(config.designFocus, {} as BusinessContext),
-    success: false,
-    error: error instanceof Error ? error.message : 'Generation failed'
+    recommendation: generateRecommendation(config.designFocus, {} as BusinessContext)
   };
 }

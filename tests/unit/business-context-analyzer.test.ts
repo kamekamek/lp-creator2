@@ -50,8 +50,10 @@ describe('BusinessContextAnalyzer', () => {
     test('should extract competitive advantages from input', () => {
         const input = '当社の強みは24時間対応のサポート体制です。他社との違いは使いやすいインターフェースです。';
         const result = analyzer.analyzeInput(input);
-        expect(result.competitiveAdvantage.some(adv => adv.includes('24時間対応のサポート体制'))).toBe(true);
-        expect(result.competitiveAdvantage.some(adv => adv.includes('使いやすいインターフェース'))).toBe(true);
+-       expect(result.competitiveAdvantage.some(adv => adv.includes('24時間対応のサポート体制'))).toBe(true);
+-       expect(result.competitiveAdvantage.some(adv => adv.includes('使いやすいインターフェース'))).toBe(true);
++       expect(result.competitiveAdvantage).toContain('24時間対応のサポート体制');
++       expect(result.competitiveAdvantage).toContain('使いやすいインターフェース');
     });
 
     test('should detect professional tone from input', () => {

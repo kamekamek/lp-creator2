@@ -34,7 +34,8 @@ graph TB
     subgraph "Security Layer"
         Sandbox[iframe Sandbox]
         CSP[Content Security Policy]
-        Sanitizer[HTML Sanitizer]
+        Sanitizer[DOMPurify + JSDOM HTML Sanitizer]
+        SecurityChecks[Real-time Security Validation]
     end
     
     UI --> Components
@@ -459,42 +460,67 @@ const monitorMemoryUsage = () => {
 ### Content Security Policy (CSP)
 
 ```typescript
-const cspDirectives = {
+export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-  'style-src': ["'self'", "'unsafe-inline'"],
-  'img-src': ["'self'", "data:", "https:"],
-  'frame-src': ["'self'"],
-  'connect-src': ["'self'", "https://api.openai.com", "https://api.anthropic.com"]
+  'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com'],
+  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  'font-src': ["'self'", 'https://fonts.gstatic.com'],
+  'img-src': ["'self'", 'data:', 'https:', 'blob:'],
+  'connect-src': ["'self'"],
+  'frame-src': ["'none'"],
+  'object-src': ["'none'"],
+  'base-uri': ["'self'"],
+  'form-action': ["'self'"]
 };
+
+// Generate CSP header string
+const cspHeader = generateCSPHeader();
+// Result: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; ..."
 ```
 
 ### HTML Sanitization Strategy
 
 ```typescript
+// Multi-environment sanitization with DOMPurify + JSDOM
+import { sanitizeHTMLServer, sanitizeHTMLClient } from '@/utils/htmlSanitizer';
+
 const sanitizationConfig = {
   allowedTags: [
     'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'a', 'img', 'button', 'section', 'header', 'footer', 'nav',
-    'ul', 'ol', 'li', 'strong', 'em', 'br'
+    'ul', 'ol', 'li', 'strong', 'em', 'br', 'hr', 'blockquote',
+    'main', 'article', 'aside', 'figure', 'figcaption',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'form', 'input', 'textarea', 'select', 'option', 'label'
   ],
   allowedAttributes: {
-    '*': ['class', 'id', 'data-editable-id'],
-    'a': ['href', 'target', 'rel'],
-    'img': ['src', 'alt', 'width', 'height'],
-    'button': ['type', 'onclick']
+    '*': ['class', 'id', 'data-editable-id', 'style'],
+    'a': ['href', 'target', 'rel', 'title'],
+    'img': ['src', 'alt', 'width', 'height', 'loading'],
+    'button': ['type', 'disabled', 'aria-label'],
+    'input': ['type', 'name', 'value', 'placeholder', 'required', 'disabled'],
+    'form': ['action', 'method', 'novalidate']
   },
-  forbiddenTags: ['script', 'iframe', 'object', 'embed', 'form'],
-  forbiddenAttributes: ['onload', 'onerror', 'onclick', 'onmouseover']
+  forbiddenTags: ['script', 'iframe', 'object', 'embed', 'applet', 'meta', 'link'],
+  forbiddenAttributes: ['onload', 'onerror', 'onclick', 'onmouseover', 'javascript:', 'vbscript:']
 };
+
+// Server-side sanitization
+const cleanHTML = sanitizeHTMLServer(aiGeneratedHTML);
+
+// Client-side sanitization
+const cleanHTML = sanitizeHTMLClient(userHTML);
+
+// Additional security validation
+const { isSecure, violations } = performSecurityChecks(html);
 ```
 
 ### Iframe Sandbox Configuration
 
 ```typescript
-const sandboxAttributes = [
+export const SANDBOX_ATTRIBUTES = [
   'allow-scripts',        // JavaScript実行を許可
-  'allow-same-origin',    // 同一オリジンアクセスを許可
+  'allow-same-origin',    // 同一オリジンアクセスを許可（編集機能用）
   'allow-forms'           // フォーム送信を許可
 ];
 
@@ -505,6 +531,13 @@ const forbiddenSandboxPermissions = [
   'allow-downloads',         // ダウンロード禁止
   'allow-pointer-lock'       // ポインターロック禁止
 ];
+
+// 追加のセキュリティ検証
+const { isSecure, violations } = performSecurityChecks(html);
+if (!isSecure) {
+  console.warn('Security violations detected:', violations);
+  // セキュリティ違反の適切な処理
+}
 ```
 
 ## Performance Optimization

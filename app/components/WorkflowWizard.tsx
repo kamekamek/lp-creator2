@@ -88,6 +88,35 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
     }
   }, [workflowState?.runId, feedback, onResumeWorkflow]);
 
+  // URL検証とサニタイゼーション関数
+  const validateAndSanitizeUrl = useCallback((url: string): string | null => {
+    try {
+      const urlObj = new URL(url);
+      // 許可されたプロトコルのみ
+      const allowedProtocols = ['https:', 'http:', 'blob:', 'data:'];
+      if (!allowedProtocols.includes(urlObj.protocol)) {
+        console.warn('Invalid protocol detected:', urlObj.protocol);
+        return null;
+      }
+      return urlObj.href;
+    } catch (error) {
+      console.warn('Invalid URL detected:', url);
+      return null;
+    }
+  }, []);
+
+  const handleDownload = useCallback(() => {
+    if (!workflowState?.output?.downloadUrl) return;
+    
+    const sanitizedUrl = validateAndSanitizeUrl(workflowState.output.downloadUrl);
+    if (!sanitizedUrl) {
+      console.error('Invalid or unsafe download URL');
+      return;
+    }
+    
+    window.open(sanitizedUrl, '_blank');
+  }, [workflowState?.output?.downloadUrl, validateAndSanitizeUrl]);
+
   // ワークフローが開始されていない場合の初期フォーム
   if (!workflowState) {
     return (
@@ -293,7 +322,7 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
             {workflowState.output.downloadUrl && (
               <Button 
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => window.open(workflowState.output.downloadUrl, '_blank')}
+                onClick={handleDownload}
               >
                 プロジェクトファイルをダウンロード
               </Button>

@@ -305,7 +305,7 @@ ${getSectionDesignGuidelines(section.type)}
       prompt: enhancedPrompt,
       maxTokens: 4000,
       temperature: 0.7,
-    });
+    }, {});
     
     // Parse JSON response with improved extraction logic
     let htmlContent = '';

@@ -10,7 +10,7 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 | Styling | Tailwind CSS + CSS Variables | ダークモード・ブランドカラーを動的反映 |
 | AI Orchestration | Vercel AI SDK v4 + Mastra tools | Claude / GPT / etc. マルチモデル対応、tool インジェクション |
 | State | React Context + useChat Hook | 編集モードとチャットセッションを分離 |
-| Security | iframe sandbox + CSP | AI 生成 HTML を完全隔離 |
+| Security | DOMPurify + iframe sandbox + CSP | 多層セキュリティで AI 生成 HTML を完全隔離 |
 
 > 詳細コード構造は `docs/REVIEW.md` の指摘を随時取り込み中。
 
@@ -28,7 +28,8 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 2. **構造生成** → `generateLPStructure()` がセクション配列を返却
 3. **各セクション HTML 生成** → `generateSectionHtml()` が並列で呼び出され JSON `{"html": ...}` を返す
 4. **HTML/CSS 結合** → `generateUnifiedLP()` で統合、カスタム CSS 生成
-5. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
+5. **セキュリティ処理** → `sanitizeHTMLServer()` で DOMPurify 適用、CSP ヘッダー生成
+6. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
 
 <div align="center"><sub>※ 詳細シーケンス図は今後追加</sub></div>
 

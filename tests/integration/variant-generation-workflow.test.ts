@@ -15,14 +15,20 @@ describe('Variant Generation Workflow Integration', () => {
     }
   });
 
-  test.skipIf(!runIntegrationTests)('should generate multiple variants for SaaS product', async () => {
+  (runIntegrationTests ? test : test.skip)('should generate multiple variants for SaaS product', async () => {
+    if (!runIntegrationTests) return;
+    
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'AIを活用したプロジェクト管理ツール',
+      designStyle: 'modern',
       targetAudience: '中小企業の経営者',
       businessGoal: 'リード獲得',
       industry: 'saas',
       variantCount: 3
-    }, {});
+    }, {
+      toolCallId: 'test-basic',
+      messages: []
+    });
 
     expect(result.success).toBe(true);
     expect(result.variants).toHaveLength(3);
@@ -44,14 +50,20 @@ describe('Variant Generation Workflow Integration', () => {
     }
   }, 30000); // 30 second timeout for AI generation
 
-  test.skipIf(!runIntegrationTests)('should generate variants for e-commerce business', async () => {
+  (runIntegrationTests ? test : test.skip)('should generate variants for e-commerce business', async () => {
+    if (!runIntegrationTests) return;
+    
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'オーガニック食品のオンラインショップ',
+      designStyle: 'minimalist',
       targetAudience: '健康志向の家族',
       businessGoal: '売上向上',
       industry: 'ecommerce',
       competitiveAdvantage: '100%オーガニック認証商品',
       variantCount: 2
+    }, {
+      toolCallId: 'test-ecommerce',
+      messages: []
     });
 
     expect(result.success).toBe(true);
@@ -67,11 +79,17 @@ describe('Variant Generation Workflow Integration', () => {
     });
   }, 25000);
 
-  test.skipIf(!runIntegrationTests)('should handle specific focus areas', async () => {
+  (runIntegrationTests ? test : test.skip)('should handle specific focus areas', async () => {
+    if (!runIntegrationTests) return;
+    
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'コンサルティングサービス',
+      designStyle: 'corporate',
       focusAreas: ['conversion-optimized', 'content-rich'],
       variantCount: 2
+    }, {
+      toolCallId: 'test-consulting',
+      messages: []
     });
 
     expect(result.success).toBe(true);
@@ -83,12 +101,19 @@ describe('Variant Generation Workflow Integration', () => {
     expect(designFocuses).not.toContain('modern-clean');
   }, 25000);
 
-  test.skipIf(!runIntegrationTests)('should provide meaningful recommendations', async () => {
+  (runIntegrationTests ? test : test.skip)('should provide meaningful recommendations', async () => {
+    if (!runIntegrationTests) return;
+    
     const result = await intelligentLPGeneratorTool.execute({
       topic: '法律事務所のウェブサイト',
+      designStyle: 'corporate',
       targetAudience: '法的問題を抱える個人',
       businessGoal: '相談予約',
-      industry: 'legal'
+      industry: 'legal',
+      variantCount: 1
+    }, {
+      toolCallId: 'test-legal',
+      messages: []
     });
 
     expect(result.success).toBe(true);
@@ -144,19 +169,26 @@ describe('Variant Generation Workflow Integration', () => {
 
     // Mock the tool for this test
     const originalExecute = intelligentLPGeneratorTool.execute;
-    intelligentLPGeneratorTool.execute = jest.fn().mockResolvedValue(mockResult);
+    try {
+      intelligentLPGeneratorTool.execute = jest.fn().mockResolvedValue(mockResult);
 
-    const result = await intelligentLPGeneratorTool.execute({
-      topic: 'Test topic'
-    });
+      const result = await intelligentLPGeneratorTool.execute({
+        topic: 'Test topic',
+        designStyle: 'modern',
+        variantCount: 1
+      }, {
+        toolCallId: 'test-mock',
+        messages: []
+      });
 
-    expect(result.success).toBe(true);
-    expect(result.variants).toHaveLength(1);
-    expect(result.variants[0].variantId).toBe('mock-variant-1');
-    expect(result.recommendedVariant).toBe('mock-variant-1');
-
-    // Restore original function
-    intelligentLPGeneratorTool.execute = originalExecute;
+      expect(result.success).toBe(true);
+      expect(result.variants).toHaveLength(1);
+      expect(result.variants[0].variantId).toBe('mock-variant-1');
+      expect(result.recommendedVariant).toBe('mock-variant-1');
+    } finally {
+      // Restore original function
+      intelligentLPGeneratorTool.execute = originalExecute;
+    }
   });
 
   test('should validate variant structure', async () => {
@@ -212,7 +244,12 @@ describe('Variant Generation Workflow Integration', () => {
     });
 
     const result = await intelligentLPGeneratorTool.execute({
-      topic: 'Error test topic'
+      topic: 'Error test topic',
+      designStyle: 'modern',
+      variantCount: 1
+    }, {
+      toolCallId: 'test-error',
+      messages: []
     });
 
     expect(result.success).toBe(false);
