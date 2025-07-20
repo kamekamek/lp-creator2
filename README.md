@@ -10,6 +10,7 @@ An AI-powered SaaS platform for automatically generating and editing high-qualit
 - **Interactive Hearing System**: AI-powered step-by-step client interview process with natural language processing
 - **Interactive Workflow**: Step-by-step client confirmation process with concept proposals
 - **Enhanced Inline Editing**: Advanced element detection with smart prioritization and real-time DOM updates
+- **AI-Powered Suggestions**: Context-aware content and design improvement recommendations
 - **Export Functionality**: Download complete HTML files with integrated styles
 - **Advanced Security**: Multi-layer security with DOMPurify sanitization and CSP headers
 - **Marketing Psychology**: Built-in PASONA formula and 4U principles for conversion optimization

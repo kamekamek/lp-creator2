@@ -35,8 +35,9 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 5. **バリエーション生成** → `intelligentLPGeneratorTool` が複数デザインパターンを生成
 6. **スコアリング・推奨** → `variantScoringUtils` がビジネス文脈に基づいて最適バリエーションを推奨
 7. **HTML/CSS 結合** → `generateUnifiedLP()` で統合、カスタム CSS 生成
-8. **セキュリティ処理** → `sanitizeHTMLServer()` で DOMPurify 適用、CSP ヘッダー生成
-9. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
+8. **AI改善提案** → `AISuggestionPanel` がコンテンツ分析し、改善提案を生成・表示
+9. **セキュリティ処理** → `sanitizeHTMLServer()` で DOMPurify 適用、CSP ヘッダー生成
+10. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
 
 <div align="center"><sub>※ 詳細シーケンス図は今後追加</sub></div>
 
@@ -60,6 +61,24 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 2. 各バリエーションの多角的スコアリング
 3. ユーザー設定（コンバージョン重視等）による重み付け調整
 4. 最適バリエーションの自動選択と理由説明
+
+## 🤖 AI Suggestion System
+
+### 提案カテゴリ
+| カテゴリ | 説明 | 例 |
+|---------|------|-----|
+| **コンテンツ** | テキスト改善・キーワード最適化 | 見出しの魅力度向上、CTA文言強化 |
+| **デザイン** | 視覚的改善・レイアウト最適化 | 色彩調整、スペーシング改善 |
+| **構造** | HTML構造・情報アーキテクチャ | セクション順序、階層構造最適化 |
+| **SEO** | 検索エンジン最適化 | メタタグ、構造化データ |
+| **コンバージョン** | 成果向上施策 | フォーム最適化、信頼性向上 |
+| **アクセシビリティ** | WCAG準拠・ユーザビリティ | alt属性、キーボードナビゲーション |
+
+### 提案生成プロセス
+1. **コンテンツ分析** → HTML/CSS構造とビジネス文脈を解析
+2. **品質スコアリング** → 各カテゴリで現状評価（0-100点）
+3. **改善提案生成** → 優先度・影響度・実装難易度を考慮した提案作成
+4. **ユーザー提示** → カテゴリ別整理、プレビュー付きで表示
 
 ## 📐 Key Design Guidelines
 - **React 19 IME**: `isComposing` 管理禁止。`onChange` のみ使用。

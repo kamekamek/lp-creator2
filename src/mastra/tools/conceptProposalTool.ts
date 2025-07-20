@@ -574,7 +574,7 @@ ${this.generateApproachDescription(analysis)}
     const urgencyLevel = analysis.urgencyLevel || 'medium';
     
     return urgencyLevel === 'high' 
-      ? urgencyLayouts[urgencyLevel]
+      ? urgencyLayouts[urgencyLevel as keyof typeof urgencyLayouts]
       : industryLayouts[industryType as keyof typeof industryLayouts] || industryLayouts.general;
   }
   

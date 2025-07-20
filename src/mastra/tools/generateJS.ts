@@ -2,6 +2,7 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { readFile } from 'fs/promises';
 import { join, resolve } from 'path';
+import { realpathSync } from 'fs';
 
 const generateJSSchema = z.object({
   html: z.string().describe('生成されたHTMLコード'),
@@ -49,17 +50,14 @@ export const generateJSTool = createTool({
   execute: async ({ context }) => {
     const { html, css, technicalSpecs, interactionRequirements } = context;
     
-import { readFile } from 'fs/promises';
-import { realpathSync } from 'fs';
+    // 安全なテンプレートファイル読み込み
+    const normalizedTemplateDir = realpathSync(resolve(__dirname, 'templates'));
+    const templatePath = realpathSync(resolve(normalizedTemplateDir, 'landingPageTemplate.js'));
 
-// 安全なテンプレートファイル読み込み
-const normalizedTemplateDir = realpathSync(resolve(__dirname, 'templates'));
-const templatePath = realpathSync(resolve(normalizedTemplateDir, 'landingPageTemplate.js'));
-
-// パスが許可されたディレクトリ内にあることを確認
-if (!templatePath.startsWith(normalizedTemplateDir)) {
-  throw new Error('不正なテンプレートパスが指定されました');
-}
+    // パスが許可されたディレクトリ内にあることを確認
+    if (!templatePath.startsWith(normalizedTemplateDir)) {
+      throw new Error('不正なテンプレートパスが指定されました');
+    }
     
     let mainTemplate;
     

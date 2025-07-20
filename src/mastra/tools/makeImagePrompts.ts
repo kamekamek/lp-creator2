@@ -1,6 +1,7 @@
 
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { JSDOM } from 'jsdom';
 
 const makeImagePromptsSchema = z.object({
   html: z.string().describe('生成されたHTMLコード'),
@@ -358,10 +359,11 @@ function extractImageElementsFromHTML(html: string): Array<{
     const document = dom.window.document;
     const imgElements = document.querySelectorAll('img');
     
-    return Array.from(imgElements).map(img => {
+    return Array.from(imgElements).map((img: Element) => {
+      const imgElement = img as HTMLImageElement;
       // 最も近いsection要素のIDを検索
       let section: string | undefined;
-      let currentElement = img.parentElement;
+      let currentElement = imgElement.parentElement;
       while (currentElement && !section) {
         if (currentElement.tagName.toLowerCase() === 'section' && currentElement.id) {
           section = currentElement.id;
@@ -371,10 +373,10 @@ function extractImageElementsFromHTML(html: string): Array<{
       }
       
       return {
-        tag: img.outerHTML,
-        src: img.src || undefined,
-        alt: img.alt || undefined,
-        class: img.className || undefined,
+        tag: imgElement.outerHTML,
+        src: imgElement.src || undefined,
+        alt: imgElement.alt || undefined,
+        class: imgElement.className || undefined,
         section: section,
       };
     });

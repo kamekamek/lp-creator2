@@ -34,11 +34,13 @@ describe('Intelligent LP Generator Tool', () => {
       htmlContent: '<div>Mock HTML Content</div>',
       cssContent: 'body { color: black; }',
       title: 'Mock LP Title',
-      structure: { title: 'Mock LP', sections: [] },
+      structure: null,
       metadata: {
-        generatedAt: new Date().toISOString(),
         originalTopic: 'test',
-        enhancedTopic: 'enhanced test',
+        error: false,
+        errorType: 'model_timeout' as const,
+        errorMessage: '',
+        generatedAt: new Date().toISOString(),
         version: '3.0-enhanced-marketing'
       }
     });
@@ -57,7 +59,9 @@ describe('Intelligent LP Generator Tool', () => {
 
   test('should generate 3 variants by default', async () => {
     const result = await intelligentLPGeneratorTool.execute({
-      topic: 'AIを活用したクラウドソフトウェア'
+      topic: 'AIを活用したクラウドソフトウェア',
+      designStyle: 'modern',
+      variantCount: 3
     }, {});
 
     expect(result.success).toBe(true);
@@ -69,6 +73,7 @@ describe('Intelligent LP Generator Tool', () => {
   test('should generate specified number of variants', async () => {
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'テストサービス',
+      designStyle: 'modern',
       variantCount: 2
     }, {});
 
@@ -81,8 +86,9 @@ describe('Intelligent LP Generator Tool', () => {
   test('should generate variants with different design focuses', async () => {
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'テストLP',
+      designStyle: 'modern',
       variantCount: 3
-    });
+    }, {});
 
     expect(result.success).toBe(true);
     
@@ -95,9 +101,10 @@ describe('Intelligent LP Generator Tool', () => {
   test('should respect focus areas parameter', async () => {
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'テストLP',
+      designStyle: 'modern',
       variantCount: 2,
       focusAreas: ['modern-clean', 'conversion-optimized']
-    });
+    }, {});
 
     expect(result.success).toBe(true);
     expect(result.variants).toHaveLength(2);
@@ -116,8 +123,10 @@ describe('Intelligent LP Generator Tool', () => {
       .mockReturnValueOnce({ score: 75, breakdown: {} as any, reasoning: [] });
 
     const result = await intelligentLPGeneratorTool.execute({
-      topic: 'テストLP'
-    });
+      topic: 'テストLP',
+      designStyle: 'modern',
+      variantCount: 3
+    }, {});
 
     expect(result.success).toBe(true);
     // Check that variants are sorted by score (highest first)
@@ -132,8 +141,10 @@ describe('Intelligent LP Generator Tool', () => {
       .mockReturnValueOnce({ score: 80, breakdown: {} as any, reasoning: [] });
 
     const result = await intelligentLPGeneratorTool.execute({
-      topic: 'テストLP'
-    });
+      topic: 'テストLP',
+      designStyle: 'modern',
+      variantCount: 3
+    }, {});
 
     expect(result.success).toBe(true);
     expect(result.recommendedVariant).toBe(result.variants[0].variantId); // Highest score variant
@@ -167,7 +178,14 @@ describe('Intelligent LP Generator Tool', () => {
         cssContent: '',
         title: 'Success',
         structure: null,
-        metadata: { generatedAt: new Date().toISOString(), version: '3.0' }
+        metadata: { 
+          originalTopic: 'test',
+          error: false,
+          errorType: 'model_timeout' as const,
+          errorMessage: '',
+          generatedAt: new Date().toISOString(), 
+          version: '3.0' 
+        }
       })
       .mockRejectedValueOnce(new Error('Generation failed'))
       .mockResolvedValueOnce({
@@ -176,7 +194,14 @@ describe('Intelligent LP Generator Tool', () => {
         cssContent: '',
         title: 'Success',
         structure: null,
-        metadata: { generatedAt: new Date().toISOString(), version: '3.0' }
+        metadata: { 
+          originalTopic: 'test',
+          error: false,
+          errorType: 'model_timeout' as const,
+          errorMessage: '',
+          generatedAt: new Date().toISOString(), 
+          version: '3.0' 
+        }
       });
 
     const result = await intelligentLPGeneratorTool.execute({
