@@ -10,8 +10,14 @@ interface InlineTextEditorProps {
   onSave: (newText: string) => void;
   onCancel: () => void;
   onAIImprove?: (text: string) => void;
+  onRealTimeUpdate?: (newText: string) => void;
   className?: string;
   placeholder?: string;
+  position?: { x: number; y: number };
+  maxLength?: number;
+  enableRealTimePreview?: boolean;
+  autoSave?: boolean;
+  autoSaveDelay?: number;
 }
 
 export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
@@ -21,18 +27,69 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   onSave,
   onCancel,
   onAIImprove,
+  onRealTimeUpdate,
   className = '',
-  placeholder = 'テキストを入力...'
+  placeholder = 'テキストを入力...',
+  position,
+  maxLength = 1000,
+  enableRealTimePreview = true,
+  autoSave = false,
+  autoSaveDelay = 2000
 }) => {
   const [text, setText] = useState(initialText);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isValidText, setIsValidText] = useState(true);
+  const [wordCount, setWordCount] = useState(0);
+  const [isRealTimeUpdating, setIsRealTimeUpdating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const realTimeUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // テキスト変更の監視
+  // Enhanced text change monitoring with real-time updates
   useEffect(() => {
     setHasChanges(text !== initialText);
-  }, [text, initialText]);
+    setIsValidText(text.trim().length > 0 && text.length <= maxLength);
+    setWordCount(text.trim().split(/\s+/).filter(word => word.length > 0).length);
+    
+    // Real-time preview update
+    if (enableRealTimePreview && onRealTimeUpdate && text !== initialText) {
+      // Clear existing timeout
+      if (realTimeUpdateTimeoutRef.current) {
+        clearTimeout(realTimeUpdateTimeoutRef.current);
+      }
+      
+      // Set new timeout for real-time update
+      realTimeUpdateTimeoutRef.current = setTimeout(() => {
+        setIsRealTimeUpdating(true);
+        onRealTimeUpdate(text);
+        setTimeout(() => setIsRealTimeUpdating(false), 500);
+      }, 300); // 300ms debounce
+    }
+    
+    // Auto-save functionality
+    if (autoSave && hasChanges && isValidText) {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        handleSave();
+      }, autoSaveDelay);
+    }
+  }, [text, initialText, maxLength, enableRealTimePreview, onRealTimeUpdate, autoSave, hasChanges, isValidText, autoSaveDelay]);
+  
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      if (realTimeUpdateTimeoutRef.current) {
+        clearTimeout(realTimeUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // アクティブになった時にフォーカス
   useEffect(() => {
@@ -66,18 +123,23 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     }
   };
 
-  // 保存処理
+  // Enhanced save processing with validation
   const handleSave = useCallback(() => {
-    if (text.trim() && hasChanges) {
+    if (text.trim() && hasChanges && isValidText) {
       onSave(text.trim());
     } else if (!text.trim()) {
       // 空の場合は元のテキストに戻す
       setText(initialText);
       onCancel();
+    } else if (!isValidText) {
+      // Invalid text - show error or revert
+      console.warn('Invalid text detected, reverting to original');
+      setText(initialText);
+      onCancel();
     } else {
       onCancel();
     }
-  }, [text, hasChanges, onSave, onCancel, initialText]);
+  }, [text, hasChanges, isValidText, onSave, onCancel, initialText]);
 
   // キャンセル処理
   const handleCancel = useCallback(() => {
@@ -113,21 +175,40 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   return (
     <div 
       ref={containerRef}
-      className={`relative inline-block w-full ${className}`}
+      className={`fixed z-50 bg-white border-2 border-blue-500 rounded-lg shadow-xl p-4 min-w-[300px] max-w-[500px] ${className}`}
+      style={position ? {
+        left: Math.max(10, Math.min(position.x, window.innerWidth - 320)),
+        top: Math.max(10, Math.min(position.y, window.innerHeight - 200))
+      } : {
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)'
+      }}
     >
-      {/* メインのテキストエリア */}
+      {/* Enhanced header */}
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <Type className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-gray-700">テキスト編集</span>
+        </div>
+        <span className="text-xs text-gray-500 font-mono">{elementId}</span>
+      </div>
+
+      {/* Enhanced textarea */}
       <textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        maxLength={maxLength}
         className={`
-          w-full min-h-[2rem] resize-none overflow-hidden
-          bg-white border-2 border-blue-500 rounded-md
+          w-full min-h-[80px] max-h-[200px] resize-y
+          bg-white border border-gray-300 rounded-md
           px-3 py-2 text-black text-base leading-relaxed
-          focus:outline-none focus:border-blue-600
-          placeholder:text-gray-400
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+          placeholder:text-gray-400 transition-colors
+          ${!isValidText ? 'border-red-300 focus:ring-red-500' : ''}
         `}
         style={{
           fontFamily: 'inherit',
@@ -136,64 +217,87 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
           lineHeight: 'inherit'
         }}
       />
+
+      {/* Enhanced status bar with real-time indicators */}
+      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+        <div className="flex items-center gap-4">
+          <span>{text.length}/{maxLength} 文字</span>
+          <span>{wordCount} 単語</span>
+          {enableRealTimePreview && (
+            <span className="text-blue-600">
+              {isRealTimeUpdating ? '🔄 更新中...' : '👁️ リアルタイム'}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {!isValidText && (
+            <span className="text-red-500 font-medium">⚠️ 無効なテキスト</span>
+          )}
+          {autoSave && hasChanges && (
+            <span className="text-green-600 font-medium">💾 自動保存</span>
+          )}
+          {hasChanges && !autoSave && (
+            <span className="text-orange-600 font-medium">• 未保存</span>
+          )}
+        </div>
+      </div>
       
-      {/* 操作ボタン */}
-      <div className="absolute -bottom-12 left-0 flex items-center gap-2 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 z-10">
+      {/* Enhanced action buttons */}
+      <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-gray-200">
+        <div className="flex items-center gap-2">
+          {/* キャンセルボタン */}
+          <button
+            onClick={handleCancel}
+            className="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+            title="Esc でキャンセル"
+          >
+            <X className="h-4 w-4" />
+            キャンセル
+          </button>
+
+          {/* AI改善ボタン */}
+          {onAIImprove && (
+            <button
+              onClick={handleAIImprove}
+              disabled={!text.trim()}
+              className={`
+                flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors
+                ${text.trim()
+                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }
+              `}
+              title="AIで改善"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI改善
+            </button>
+          )}
+        </div>
+
         {/* 保存ボタン */}
         <button
           onClick={handleSave}
-          disabled={!hasChanges || !text.trim()}
+          disabled={!hasChanges || !text.trim() || !isValidText}
           className={`
-            flex items-center gap-1 px-3 py-1 rounded text-sm font-medium transition-colors
-            ${hasChanges && text.trim() 
+            flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
+            ${hasChanges && text.trim() && isValidText
               ? 'bg-blue-600 text-white hover:bg-blue-700' 
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }
           `}
           title="Enter で保存"
         >
-          <Check className="h-3 w-3" />
+          <Check className="h-4 w-4" />
           保存
         </button>
-
-        {/* キャンセルボタン */}
-        <button
-          onClick={handleCancel}
-          className="flex items-center gap-1 px-3 py-1 rounded text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-          title="Esc でキャンセル"
-        >
-          <X className="h-3 w-3" />
-          キャンセル
-        </button>
-
-        {/* AI改善ボタン */}
-        {onAIImprove && (
-          <button
-            onClick={handleAIImprove}
-            disabled={!text.trim()}
-            className={`
-              flex items-center gap-1 px-3 py-1 rounded text-sm font-medium transition-colors
-              ${text.trim()
-                ? 'bg-purple-600 text-white hover:bg-purple-700'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }
-            `}
-            title="AIで改善"
-          >
-            <Sparkles className="h-3 w-3" />
-            AI改善
-          </button>
-        )}
-
-        {/* 文字数表示 */}
-        <div className="text-xs text-gray-500 ml-2">
-          {text.length} 文字
-        </div>
       </div>
 
-      {/* キーボードショートカットヒント */}
-      <div className="absolute -bottom-20 left-0 text-xs text-gray-400">
-        Enter: 保存 | Esc: キャンセル | 外側クリック: 保存
+      {/* Enhanced keyboard shortcuts hint */}
+      <div className="mt-2 text-xs text-gray-400 text-center">
+        <kbd className="px-1 py-0.5 bg-gray-100 rounded">Enter</kbd> 保存 | 
+        <kbd className="px-1 py-0.5 bg-gray-100 rounded ml-1">Esc</kbd> キャンセル | 
+        <kbd className="px-1 py-0.5 bg-gray-100 rounded ml-1">Ctrl+Enter</kbd> 強制保存
       </div>
     </div>
   );

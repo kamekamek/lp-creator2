@@ -8,10 +8,12 @@ An AI-powered SaaS platform for automatically generating and editing high-qualit
 - **Real-time Preview**: Safe iframe-based preview with live editing capabilities
 - **Multiple Variants**: Generate up to 3 design variations with AI recommendations and scoring
 - **Interactive Workflow**: Step-by-step client confirmation process with concept proposals
-- **Inline Editing**: Double-click to edit text elements with immediate preview updates
+- **Enhanced Inline Editing**: Advanced element detection with smart prioritization and real-time DOM updates
 - **Export Functionality**: Download complete HTML files with integrated styles
 - **Advanced Security**: Multi-layer security with DOMPurify sanitization and CSP headers
 - **Marketing Psychology**: Built-in PASONA formula and 4U principles for conversion optimization
+- **Smart Element Detection**: Advanced element detection with priority scoring and accessibility features
+- **Real-time Highlighting**: Multi-state visual feedback system with smooth transitions
 
 ## 🛡️ Security Features
 
@@ -103,7 +105,7 @@ npm run test:debug
 ├── src/                   # Core business logic
 │   ├── mastra/           # AI framework integration
 │   ├── components/       # Shared components
-│   ├── utils/           # Utility functions
+│   ├── utils/           # Utility functions (including enhanced element detection)
 │   └── types/           # TypeScript definitions
 ├── tests/               # Test suites
 ├── docs/               # Documentation
@@ -145,6 +147,7 @@ The platform includes comprehensive security configurations:
 
 - [Project Overview](docs/PROJECT_OVERVIEW.md)
 - [Setup Guide](docs/PROJECT_SETUP_GUIDE.md)
+- [Enhanced Editing System](docs/ENHANCED_EDITING_SYSTEM.md)
 - [API Documentation](docs/API_DOCUMENTATION.md)
 - [Security Guide](docs/SECURITY.md)
 
