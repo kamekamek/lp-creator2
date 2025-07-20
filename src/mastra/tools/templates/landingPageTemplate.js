@@ -418,12 +418,15 @@ class LandingPageApp {
   // パフォーマンス監視
   setupPerformanceMonitoring() {
     // Core Web Vitals
-    if ('web-vitals' in window) {
-      window.webVitals.getCLS(this.onVitalMetric.bind(this));
-      window.webVitals.getFID(this.onVitalMetric.bind(this));
-      window.webVitals.getLCP(this.onVitalMetric.bind(this));
+    if (window.webVitals && typeof window.webVitals.getCLS === 'function') {
+      try {
+        window.webVitals.getCLS(this.onVitalMetric.bind(this));
+        window.webVitals.getFID(this.onVitalMetric.bind(this));
+        window.webVitals.getLCP(this.onVitalMetric.bind(this));
+      } catch (error) {
+        console.warn('Failed to initialize web vitals monitoring:', error);
+      }
     }
-  }
 
   onVitalMetric(metric) {
     if (typeof gtag !== 'undefined' && gtag) {

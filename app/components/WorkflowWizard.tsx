@@ -92,12 +92,18 @@ export function WorkflowWizard({ onStartWorkflow, onResumeWorkflow, workflowStat
   const validateAndSanitizeUrl = useCallback((url: string): string | null => {
     try {
       const urlObj = new URL(url);
-      // 許可されたプロトコルのみ
-      const allowedProtocols = ['https:', 'http:', 'blob:', 'data:'];
+      const allowedProtocols = ['https:', 'http:', 'blob:'];
       if (!allowedProtocols.includes(urlObj.protocol)) {
         console.warn('Invalid protocol detected:', urlObj.protocol);
         return null;
       }
+
+      // blob: URLの場合は、生成元が信頼できるか確認
+      if (urlObj.protocol === 'blob:' && !urlObj.href.startsWith(window.location.origin)) {
+        console.warn('Untrusted blob URL detected');
+        return null;
+      }
+
       return urlObj.href;
     } catch (error) {
       console.warn('Invalid URL detected:', url);

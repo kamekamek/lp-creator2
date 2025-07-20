@@ -11,10 +11,13 @@ import {
   Target, 
   CheckCircle, 
   ArrowRight, 
+  ArrowLeft,
   Clock,
   Users,
   Lightbulb,
-  FileText
+  FileText,
+  History,
+  Navigation
 } from 'lucide-react';
 
 import { HearingInterface } from './HearingInterface';
@@ -29,13 +32,18 @@ export const StructuredWorkflowPanel: React.FC = () => {
     completionRate,
     isProcessing,
     error,
+    stageHistory,
     setStage,
     nextStage,
+    previousStage,
+    goToStage,
     updateHearingData,
     setConceptData,
     setProcessing,
     setError,
-    canProceedToNext
+    canProceedToNext,
+    canGoBack,
+    getStageHistory
   } = useWorkflowStore();
 
   const [showHearing, setShowHearing] = useState(false);
@@ -142,14 +150,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
     
-    setProcessing(true);
-    
     try {
-      // AbortControllerのシグナルをチェック
-      if (signal.aborted) {
-        return;
-      }
-      
       await append({
         role: 'user',
         content: `interactiveHearingTool を使って回答を処理してください。
@@ -217,7 +218,7 @@ export const StructuredWorkflowPanel: React.FC = () => {
     nextStage();
   };
 
-  // 段階表示コンポーネント
+  // 段階表示コンポーネント（クリック可能）
   const renderStageIndicator = () => {
     const stages = [
       { id: 'hearing', label: 'ヒアリング', icon: MessageCircle },
@@ -227,34 +228,76 @@ export const StructuredWorkflowPanel: React.FC = () => {
     ];
 
     return (
-      <div className="flex items-center justify-between mb-8">
-        {stages.map((stage, index) => {
-          const Icon = stage.icon;
-          const isActive = currentStage === stage.id;
-          const isCompleted = stages.findIndex(s => s.id === currentStage) > index;
+      <div className="mb-8">
+        {/* ナビゲーションボタン */}
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={previousStage}
+            disabled={!canGoBack() || isProcessing}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            前の段階
+          </Button>
           
-          return (
-            <div key={stage.id} className="flex items-center">
-              <div className={`flex items-center gap-2 p-3 rounded-lg border-2 ${
-                isActive 
-                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : isCompleted 
-                    ? 'border-green-500 bg-green-50 text-green-700'
-                    : 'border-gray-200 bg-gray-50 text-gray-900'
-              }`}>
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{stage.label}</span>
-                {isCompleted && <CheckCircle className="w-4 h-4" />}
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600">
+              進行履歴: {getStageHistory().length}段階
+            </span>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={nextStage}
+            disabled={!canProceedToNext() || isProcessing}
+            className="flex items-center gap-2"
+          >
+            次の段階
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        {/* 段階インジケーター */}
+        <div className="flex items-center justify-between">
+          {stages.map((stage, index) => {
+            const Icon = stage.icon;
+            const isActive = currentStage === stage.id;
+            const isCompleted = stages.findIndex(s => s.id === currentStage) > index;
+            const isAccessible = index === 0 || isCompleted || stageHistory.includes(stage.id as any);
+            
+            return (
+              <div key={stage.id} className="flex items-center">
+                <button
+                  onClick={() => isAccessible && !isProcessing ? goToStage(stage.id as any) : undefined}
+                  disabled={!isAccessible || isProcessing}
+                  className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
+                    isActive 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : isCompleted 
+                        ? 'border-green-500 bg-green-50 text-green-700 hover:bg-green-100'
+                        : isAccessible
+                          ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{stage.label}</span>
+                  {isCompleted && <CheckCircle className="w-4 h-4" />}
+                </button>
+                
+                {index < stages.length - 1 && (
+                  <ArrowRight className={`w-5 h-5 mx-3 ${
+                    isCompleted ? 'text-green-500' : 'text-gray-300'
+                  }`} />
+                )}
               </div>
-              
-              {index < stages.length - 1 && (
-                <ArrowRight className={`w-5 h-5 mx-3 ${
-                  isCompleted ? 'text-green-500' : 'text-gray-900'
-                }`} />
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     );
   };

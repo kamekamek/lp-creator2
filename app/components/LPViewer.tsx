@@ -7,10 +7,12 @@ import { InlineTextEditor } from './InlineTextEditor';
 import { SmartHoverMenu } from './SmartHoverMenu';
 import { 
   sanitizeHTMLClient, 
+  sanitizeHTMLWithNonces,
   performSecurityChecks, 
   fixCommonSecurityIssues,
   SANDBOX_ATTRIBUTES 
 } from '../../src/utils/htmlSanitizer';
+import { generateCSPWithNonces } from '../../src/utils/secureCSP';
 import { 
   detectEditableElements, 
   applyEditableAttributes, 
@@ -24,6 +26,11 @@ import {
   type EditableElementInfo,
   type ElementHighlightInfo 
 } from '../../src/utils/elementDetection';
+import { 
+  sanitizeHtmlContent, 
+  escapeForTemplate, 
+  analyzeHtmlContent 
+} from '../../src/utils/htmlProcessing';
 
 interface LPViewerProps {
   htmlContent: string;
@@ -71,6 +78,8 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   const [isContentSecure, setIsContentSecure] = useState(true);
   const [sanitizedContent, setSanitizedContent] = useState<string>('');
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
+  const [cspNonces, setCspNonces] = useState<{ script: string; style: string } | null>(null);
+  const [secureCSPHeader, setSecureCSPHeader] = useState<string>('');
 
   const toggleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
@@ -183,6 +192,512 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     // 他のクリック時のロジックがあればここに追加
   }, [selectElement]);
 
+  // CSS styles for edit mode
+  const EDIT_MODE_STYLES = `
+    /* Enhanced editable element styles with improved animations */
+    [data-editable-id] {
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 2px;
+    }
+    
+    [data-editable-id]:hover.edit-hover {
+      cursor: pointer;
+      transform: translateY(-1px) scale(1.01);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    
+    [data-editable-id].edit-highlight {
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+      background-color: rgba(59, 130, 246, 0.05) !important;
+    }
+    
+    [data-editable-id].editing {
+      position: relative;
+      z-index: 20;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+      background-color: rgba(16, 185, 129, 0.08) !important;
+    }
+    
+    /* Enhanced focus styles for keyboard navigation */
+    [data-editable-id]:focus {
+      outline: 3px solid #3b82f6 !important;
+      outline-offset: 2px;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+      z-index: 15;
+    }
+    
+    [data-editable-id]:focus-visible {
+      outline: 3px solid #3b82f6 !important;
+      outline-offset: 3px;
+      box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+    }
+    
+    /* Accessibility improvements */
+    [data-editable-id][role="button"] {
+      cursor: pointer;
+    }
+    
+    [data-editable-id][aria-selected="true"] {
+      background-color: rgba(59, 130, 246, 0.1) !important;
+      border: 2px solid rgba(59, 130, 246, 0.5);
+    }
+    
+    /* Enhanced animations */
+    @keyframes editHighlight {
+      0% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+      }
+      50% { 
+        transform: scale(1.02);
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.3);
+      }
+      100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+    
+    [data-editable-id].edit-highlight {
+      animation: editHighlight 0.4s ease-out;
+    }
+    
+    /* Enhanced hover indicator */
+    .edit-indicator {
+      animation: fadeIn 0.2s ease-in-out, pulse 2s infinite;
+    }
+    
+    /* Improved visual hierarchy */
+    [data-editable-id][data-element-type="h1"],
+    [data-editable-id][data-element-type="h2"],
+    [data-editable-id][data-element-type="h3"] {
+      border-left: 4px solid transparent;
+      padding-left: 8px;
+      transition: border-color 0.2s ease;
+    }
+    
+    [data-editable-id][data-element-type="h1"]:hover,
+    [data-editable-id][data-element-type="h2"]:hover,
+    [data-editable-id][data-element-type="h3"]:hover {
+      border-left-color: #3b82f6;
+    }
+    
+    [data-editable-id][data-element-type="button"] {
+      border: 2px solid transparent;
+      transition: border-color 0.2s ease;
+    }
+    
+    [data-editable-id][data-element-type="button"]:hover {
+      border-color: #3b82f6;
+    }
+    
+    /* Loading state for elements being updated */
+    [data-editable-id].updating {
+      opacity: 0.7;
+      pointer-events: none;
+      position: relative;
+    }
+    
+    [data-editable-id].updating::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid #3b82f6;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* High contrast mode support */
+    @media (prefers-contrast: high) {
+      [data-editable-id]:focus {
+        outline: 4px solid #000 !important;
+        background-color: #fff !important;
+      }
+      
+      [data-editable-id]:hover {
+        outline: 2px solid #000;
+        background-color: #f0f0f0 !important;
+      }
+    }
+    
+    /* Reduced motion support */
+    @media (prefers-reduced-motion: reduce) {
+      [data-editable-id],
+      [data-editable-id]:hover,
+      .edit-indicator {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+      }
+    }
+    
+    /* Dark mode adjustments (though we force light mode) */
+    @media (prefers-color-scheme: dark) {
+      [data-editable-id]:focus {
+        outline-color: #60a5fa !important;
+        box-shadow: 0 0 12px rgba(96, 165, 250, 0.4);
+      }
+    }
+  `;
+
+  // Event handler factory functions
+  const createDoubleClickHandler = useCallback((element: HTMLElement, editableId: string) => {
+    return (e: MouseEvent) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`✏️ Enhanced double-click on element: ${editableId}`);
+        
+        // Add visual feedback for double-click
+        element.style.transform = 'scale(1.02)';
+        setTimeout(() => {
+          element.style.transform = '';
+        }, 150);
+        
+        startInlineEdit(editableId);
+      } catch (error) {
+        console.error('Error handling double-click:', error);
+      }
+    };
+  }, [startInlineEdit]);
+
+  const createSingleClickHandler = useCallback((element: HTMLElement, editableId: string) => {
+    return (e: MouseEvent) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log(`👆 Single click selection: ${editableId}`);
+        selectElement(editableId);
+        
+        // Enhanced visual feedback for selection
+        element.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.5)';
+        setTimeout(() => {
+          if (selectedElementId !== editableId) {
+            element.style.boxShadow = '';
+          }
+        }, 200);
+      } catch (error) {
+        console.error('Error handling single-click:', error);
+      }
+    };
+  }, [selectElement, selectedElementId]);
+
+  const createMouseEnterHandler = useCallback((element: HTMLElement, editableId: string) => {
+    return (e: MouseEvent) => {
+      try {
+        if (inlineEditingId || isModalOpen) return;
+        
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+        
+        // Enhanced hover detection with better positioning and boundary checks
+        const rect = element.getBoundingClientRect();
+        const iframeRect = iframe.getBoundingClientRect();
+        
+        // Ensure valid rectangles
+        if (rect.width === 0 || rect.height === 0) return;
+        
+        setHoveredElementId(editableId);
+        
+        // Smart positioning to avoid viewport overflow
+        const menuWidth = 160; // Approximate menu width
+        const menuHeight = 200; // Approximate menu height
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        let menuX = iframeRect.left + rect.right + 10;
+        let menuY = iframeRect.top + rect.top;
+        
+        // Adjust if menu would overflow viewport
+        if (menuX + menuWidth > viewportWidth) {
+          menuX = iframeRect.left + rect.left - menuWidth - 10;
+        }
+        if (menuY + menuHeight > viewportHeight) {
+          menuY = iframeRect.top + rect.bottom - menuHeight;
+        }
+        
+        setHoverMenuPosition({ x: Math.max(10, menuX), y: Math.max(10, menuY) });
+        setHoverMenuVisible(true);
+        
+        // Enhanced hover styling with smooth transitions
+        element.classList.add('edit-hover');
+        element.style.outline = '2px dashed #3b82f6';
+        element.style.outlineOffset = '2px';
+        element.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
+        element.style.transition = 'all 0.2s ease-in-out';
+        element.style.cursor = 'pointer';
+        
+        // Add hover indicator
+        if (!element.querySelector('.edit-indicator')) {
+          const doc = iframe.contentDocument;
+          if (doc) {
+            const indicator = doc.createElement('div');
+            indicator.className = 'edit-indicator';
+            indicator.innerHTML = '✏️';
+            indicator.style.cssText = `
+              position: absolute;
+              top: -8px;
+              right: -8px;
+              background: #3b82f6;
+              color: white;
+              border-radius: 50%;
+              width: 20px;
+              height: 20px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 10px;
+              z-index: 1000;
+              pointer-events: none;
+              opacity: 0.9;
+              animation: fadeIn 0.2s ease-in-out;
+            `;
+            element.style.position = 'relative';
+            element.appendChild(indicator);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling mouse enter:', error);
+      }
+    };
+  }, [inlineEditingId, isModalOpen, setHoveredElementId, setHoverMenuPosition, setHoverMenuVisible]);
+
+  const createMouseLeaveHandler = useCallback((element: HTMLElement, editableId: string) => {
+    return () => {
+      try {
+        // Enhanced hover cleanup with smooth transitions
+        element.classList.remove('edit-hover');
+        element.style.outline = '';
+        element.style.outlineOffset = '';
+        element.style.backgroundColor = '';
+        element.style.cursor = '';
+        element.style.transition = '';
+        
+        // Remove hover indicator
+        const indicator = element.querySelector('.edit-indicator');
+        if (indicator) {
+          indicator.remove();
+        }
+        
+        // Delayed menu hide to allow for menu interaction
+        setTimeout(() => {
+          if (hoveredElementId === editableId && !document.querySelector('.smart-hover-menu:hover')) {
+             setHoverMenuVisible(false);
+          }
+        }, 150);
+      } catch (error) {
+        console.error('Error handling mouse leave:', error);
+      }
+    };
+  }, [hoveredElementId, setHoverMenuVisible]);
+
+  const createKeyDownHandler = useCallback((element: HTMLElement, editableId: string) => {
+    return (e: KeyboardEvent) => {
+      try {
+        if (selectedElementId === editableId) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            startInlineEdit(editableId);
+          } else if (e.key === 'Escape') {
+            selectElement(null);
+          } else if (e.key === 'Tab') {
+            // Enhanced keyboard navigation
+            const doc = iframeRef.current?.contentDocument;
+            if (doc) {
+              const allEditableElements = Array.from(doc.querySelectorAll('[data-editable-id]'));
+              const currentIndex = allEditableElements.indexOf(element);
+              const nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
+              const nextElement = allEditableElements[nextIndex] as HTMLElement;
+              
+              if (nextElement) {
+                e.preventDefault();
+                nextElement.focus();
+                selectElement(nextElement.dataset.editableId || null);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error handling key down:', error);
+      }
+    };
+  }, [selectedElementId, startInlineEdit, selectElement]);
+
+  const createFocusHandler = useCallback((element: HTMLElement) => {
+    return () => {
+      try {
+        // Enhanced focus styling
+        element.style.outline = '3px solid #3b82f6';
+        element.style.outlineOffset = '2px';
+        element.setAttribute('aria-selected', 'true');
+      } catch (error) {
+        console.error('Error handling focus:', error);
+      }
+    };
+  }, []);
+
+  const createBlurHandler = useCallback((element: HTMLElement, editableId: string) => {
+    return () => {
+      try {
+        // Clean up focus styling if not selected
+        if (selectedElementId !== editableId) {
+          element.style.outline = '';
+          element.style.outlineOffset = '';
+          element.removeAttribute('aria-selected');
+        }
+      } catch (error) {
+        console.error('Error handling blur:', error);
+      }
+    };
+  }, [selectedElementId]);
+
+  // Helper function to enable edit mode for an element
+  const enableEditModeForElement = useCallback((element: HTMLElement, editableId: string, doc: Document) => {
+    // Enhanced editing capabilities with better accessibility
+    element.contentEditable = 'false'; // Keep false to prevent direct editing
+    element.spellcheck = false;
+    element.setAttribute('data-editable', 'true');
+    element.setAttribute('data-edit-ready', 'true');
+
+    // Enhanced event listener setup with better performance and error handling
+    if (!element.hasAttribute('data-edit-listener')) {
+      const handleDoubleClick = createDoubleClickHandler(element, editableId);
+      const handleSingleClick = createSingleClickHandler(element, editableId);
+      const handleMouseEnter = createMouseEnterHandler(element, editableId);
+      const handleMouseLeave = createMouseLeaveHandler(element, editableId);
+      const handleKeyDown = createKeyDownHandler(element, editableId);
+      const handleFocus = createFocusHandler(element);
+      const handleBlur = createBlurHandler(element, editableId);
+
+      // Enhanced event listeners with error handling
+      element.addEventListener('dblclick', handleDoubleClick as EventListener);
+      element.addEventListener('click', handleSingleClick as EventListener);
+      element.addEventListener('mouseenter', handleMouseEnter as EventListener);
+      element.addEventListener('mouseleave', handleMouseLeave as EventListener);
+      element.addEventListener('keydown', handleKeyDown as EventListener);
+      element.addEventListener('focus', handleFocus as EventListener);
+      element.addEventListener('blur', handleBlur as EventListener);
+      
+      // Enhanced accessibility attributes
+      element.setAttribute('tabindex', '0');
+      element.setAttribute('role', 'button');
+      element.setAttribute('aria-label', `Edit text: ${element.textContent?.substring(0, 50)}...`);
+      element.setAttribute('aria-describedby', 'edit-instructions');
+      
+      // Add edit instructions for screen readers (only once)
+      if (!doc.getElementById('edit-instructions')) {
+        const instructions = doc.createElement('div');
+        instructions.id = 'edit-instructions';
+        instructions.style.cssText = 'position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;';
+        instructions.textContent = 'Press Enter or Space to edit, Escape to cancel, Tab to navigate';
+        doc.body.appendChild(instructions);
+      }
+      
+      element.setAttribute('data-edit-listener', 'true');
+    }
+  }, [createDoubleClickHandler, createSingleClickHandler, createMouseEnterHandler, createMouseLeaveHandler, createKeyDownHandler, createFocusHandler, createBlurHandler]);
+
+  // Helper function to disable edit mode for an element
+  const disableEditModeForElement = useCallback((element: HTMLElement) => {
+    // Enhanced cleanup when edit mode is disabled
+    element.contentEditable = 'false';
+    element.removeAttribute('data-edit-listener');
+    element.removeAttribute('data-editable');
+    element.removeAttribute('data-edit-ready');
+    element.removeAttribute('tabindex');
+    element.removeAttribute('role');
+    element.removeAttribute('aria-label');
+    element.removeAttribute('aria-describedby');
+    element.removeAttribute('aria-selected');
+    element.classList.remove('edit-hover', 'edit-highlight', 'editing');
+    
+    // Clear inline styles
+    element.style.outline = '';
+    element.style.outlineOffset = '';
+    element.style.backgroundColor = '';
+    element.style.cursor = '';
+    element.style.transition = '';
+    element.style.transform = '';
+    element.style.boxShadow = '';
+    
+    // Remove edit indicator
+    const indicator = element.querySelector('.edit-indicator');
+    if (indicator) {
+      indicator.remove();
+    }
+  }, []);
+
+  // Helper function to apply element highlighting
+  const applyElementHighlighting = useCallback((element: HTMLElement, editableId: string) => {
+    // Enhanced highlight management
+    if (selectedElementId === editableId && isEditMode) {
+      element.classList.add('edit-highlight');
+      element.style.outline = '3px solid #3b82f6';
+      element.style.outlineOffset = '2px';
+      element.style.boxShadow = '0 0 12px rgba(59, 130, 246, 0.3)';
+    } else {
+      element.classList.remove('edit-highlight');
+      if (!element.classList.contains('edit-hover')) {
+        element.style.outline = '';
+        element.style.outlineOffset = '';
+        element.style.boxShadow = '';
+      }
+    }
+    
+    if (inlineEditingId === editableId && isEditMode) {
+      element.classList.add('editing');
+      element.style.outline = '3px solid #10b981';
+      element.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+    } else {
+      element.classList.remove('editing');
+      if (selectedElementId !== editableId) {
+        element.style.backgroundColor = '';
+      }
+    }
+  }, [selectedElementId, isEditMode, inlineEditingId]);
+
+  // Helper function to add or remove CSS styles
+  const manageEditModeStyles = useCallback((doc: Document, isEditMode: boolean) => {
+    let style = doc.getElementById('edit-mode-styles') as HTMLStyleElement;
+    if (isEditMode) {
+      if (!style) {
+        style = doc.createElement('style');
+        style.id = 'edit-mode-styles';
+        style.textContent = EDIT_MODE_STYLES;
+        if (doc && doc.head) {
+          doc.head.appendChild(style);
+        }
+      }
+    } else {
+      if (style) {
+        style.remove();
+      }
+      setHoverMenuVisible(false); // 編集モード解除時はホバーメニューも非表示
+    }
+  }, [EDIT_MODE_STYLES, setHoverMenuVisible]);
+
   const setupEditableElements = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) {
@@ -238,484 +753,42 @@ export const LPViewer: React.FC<LPViewerProps> = ({
       const editableId = element.dataset.editableId;
       if (!editableId) return;
 
-      // Enhanced element interaction setup with improved event handling
-      const currentElement = element;
-
       if (isEditMode) {
-        // Enhanced editing capabilities with better accessibility
-        currentElement.contentEditable = 'false'; // Keep false to prevent direct editing
-        currentElement.spellcheck = false;
-        currentElement.setAttribute('data-editable', 'true');
-        currentElement.setAttribute('data-edit-ready', 'true');
-
-        // Enhanced event listener setup with better performance and error handling
-        if (!currentElement.hasAttribute('data-edit-listener')) {
-          const handleDoubleClick = (e: MouseEvent) => {
-            try {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log(`✏️ Enhanced double-click on element: ${editableId}`);
-              
-              // Add visual feedback for double-click
-              currentElement.style.transform = 'scale(1.02)';
-              setTimeout(() => {
-                currentElement.style.transform = '';
-              }, 150);
-              
-              startInlineEdit(editableId);
-            } catch (error) {
-              console.error('Error handling double-click:', error);
-            }
-          };
-
-          const handleSingleClick = (e: MouseEvent) => {
-            try {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log(`👆 Single click selection: ${editableId}`);
-              selectElement(editableId);
-              
-              // Enhanced visual feedback for selection
-              currentElement.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.5)';
-              setTimeout(() => {
-                if (selectedElementId !== editableId) {
-                  currentElement.style.boxShadow = '';
-                }
-              }, 200);
-            } catch (error) {
-              console.error('Error handling single-click:', error);
-            }
-          };
-
-          const handleMouseEnter = (e: MouseEvent) => {
-            try {
-              if (inlineEditingId || isModalOpen) return;
-              
-              // Enhanced hover detection with better positioning and boundary checks
-              const rect = currentElement.getBoundingClientRect();
-              const iframeRect = iframe.getBoundingClientRect();
-              
-              // Ensure valid rectangles
-              if (rect.width === 0 || rect.height === 0) return;
-              
-              setHoveredElementId(editableId);
-              
-              // Smart positioning to avoid viewport overflow
-              const menuWidth = 160; // Approximate menu width
-              const menuHeight = 200; // Approximate menu height
-              const viewportWidth = window.innerWidth;
-              const viewportHeight = window.innerHeight;
-              
-              let menuX = iframeRect.left + rect.right + 10;
-              let menuY = iframeRect.top + rect.top;
-              
-              // Adjust if menu would overflow viewport
-              if (menuX + menuWidth > viewportWidth) {
-                menuX = iframeRect.left + rect.left - menuWidth - 10;
-              }
-              if (menuY + menuHeight > viewportHeight) {
-                menuY = iframeRect.top + rect.bottom - menuHeight;
-              }
-              
-              setHoverMenuPosition({ x: Math.max(10, menuX), y: Math.max(10, menuY) });
-              setHoverMenuVisible(true);
-              
-              // Enhanced hover styling with smooth transitions
-              currentElement.classList.add('edit-hover');
-              currentElement.style.outline = '2px dashed #3b82f6';
-              currentElement.style.outlineOffset = '2px';
-              currentElement.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
-              currentElement.style.transition = 'all 0.2s ease-in-out';
-              currentElement.style.cursor = 'pointer';
-              
-              // Add hover indicator
-              if (!currentElement.querySelector('.edit-indicator')) {
-                const indicator = doc.createElement('div');
-                indicator.className = 'edit-indicator';
-                indicator.innerHTML = '✏️';
-                indicator.style.cssText = `
-                  position: absolute;
-                  top: -8px;
-                  right: -8px;
-                  background: #3b82f6;
-                  color: white;
-                  border-radius: 50%;
-                  width: 20px;
-                  height: 20px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 10px;
-                  z-index: 1000;
-                  pointer-events: none;
-                  opacity: 0.9;
-                  animation: fadeIn 0.2s ease-in-out;
-                `;
-                currentElement.style.position = 'relative';
-                currentElement.appendChild(indicator);
-              }
-            } catch (error) {
-              console.error('Error handling mouse enter:', error);
-            }
-          };
-
-          const handleMouseLeave = () => {
-            try {
-              // Enhanced hover cleanup with smooth transitions
-              currentElement.classList.remove('edit-hover');
-              currentElement.style.outline = '';
-              currentElement.style.outlineOffset = '';
-              currentElement.style.backgroundColor = '';
-              currentElement.style.cursor = '';
-              currentElement.style.transition = '';
-              
-              // Remove hover indicator
-              const indicator = currentElement.querySelector('.edit-indicator');
-              if (indicator) {
-                indicator.remove();
-              }
-              
-              // Delayed menu hide to allow for menu interaction
-              setTimeout(() => {
-                if (hoveredElementId === editableId && !document.querySelector('.smart-hover-menu:hover')) {
-                   setHoverMenuVisible(false);
-                }
-              }, 150);
-            } catch (error) {
-              console.error('Error handling mouse leave:', error);
-            }
-          };
-
-          const handleKeyDown = (e: KeyboardEvent) => {
-            try {
-              if (selectedElementId === editableId) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  startInlineEdit(editableId);
-                } else if (e.key === 'Escape') {
-                  selectElement(null);
-                } else if (e.key === 'Tab') {
-                  // Enhanced keyboard navigation
-                  const allEditableElements = Array.from(doc.querySelectorAll('[data-editable-id]'));
-                  const currentIndex = allEditableElements.indexOf(currentElement);
-                  const nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
-                  const nextElement = allEditableElements[nextIndex] as HTMLElement;
-                  
-                  if (nextElement) {
-                    e.preventDefault();
-                    nextElement.focus();
-                    selectElement(nextElement.dataset.editableId || null);
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error handling key down:', error);
-            }
-          };
-
-          const handleFocus = () => {
-            try {
-              // Enhanced focus styling
-              currentElement.style.outline = '3px solid #3b82f6';
-              currentElement.style.outlineOffset = '2px';
-              currentElement.setAttribute('aria-selected', 'true');
-            } catch (error) {
-              console.error('Error handling focus:', error);
-            }
-          };
-
-          const handleBlur = () => {
-            try {
-              // Clean up focus styling if not selected
-              if (selectedElementId !== editableId) {
-                currentElement.style.outline = '';
-                currentElement.style.outlineOffset = '';
-                currentElement.removeAttribute('aria-selected');
-              }
-            } catch (error) {
-              console.error('Error handling blur:', error);
-            }
-          };
-
-          // Enhanced event listeners with error handling
-          currentElement.addEventListener('dblclick', handleDoubleClick as EventListener);
-          currentElement.addEventListener('click', handleSingleClick as EventListener);
-          currentElement.addEventListener('mouseenter', handleMouseEnter as EventListener);
-          currentElement.addEventListener('mouseleave', handleMouseLeave as EventListener);
-          currentElement.addEventListener('keydown', handleKeyDown as EventListener);
-          currentElement.addEventListener('focus', handleFocus as EventListener);
-          currentElement.addEventListener('blur', handleBlur as EventListener);
-          
-          // Enhanced accessibility attributes
-          currentElement.setAttribute('tabindex', '0');
-          currentElement.setAttribute('role', 'button');
-          currentElement.setAttribute('aria-label', `Edit text: ${currentElement.textContent?.substring(0, 50)}...`);
-          currentElement.setAttribute('aria-describedby', 'edit-instructions');
-          
-          // Add edit instructions for screen readers (only once)
-          if (!doc.getElementById('edit-instructions')) {
-            const instructions = doc.createElement('div');
-            instructions.id = 'edit-instructions';
-            instructions.style.cssText = 'position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;';
-            instructions.textContent = 'Press Enter or Space to edit, Escape to cancel, Tab to navigate';
-            doc.body.appendChild(instructions);
-          }
-          
-          currentElement.setAttribute('data-edit-listener', 'true');
-        }
+        enableEditModeForElement(element, editableId, doc);
       } else {
-        // Enhanced cleanup when edit mode is disabled
-        currentElement.contentEditable = 'false';
-        currentElement.removeAttribute('data-edit-listener');
-        currentElement.removeAttribute('data-editable');
-        currentElement.removeAttribute('data-edit-ready');
-        currentElement.removeAttribute('tabindex');
-        currentElement.removeAttribute('role');
-        currentElement.removeAttribute('aria-label');
-        currentElement.removeAttribute('aria-describedby');
-        currentElement.removeAttribute('aria-selected');
-        currentElement.classList.remove('edit-hover', 'edit-highlight', 'editing');
-        
-        // Clear inline styles
-        currentElement.style.outline = '';
-        currentElement.style.outlineOffset = '';
-        currentElement.style.backgroundColor = '';
-        currentElement.style.cursor = '';
-        currentElement.style.transition = '';
-        currentElement.style.transform = '';
-        currentElement.style.boxShadow = '';
-        
-        // Remove edit indicator
-        const indicator = currentElement.querySelector('.edit-indicator');
-        if (indicator) {
-          indicator.remove();
-        }
+        disableEditModeForElement(element);
       }
 
-      // Enhanced highlight management
-      if (selectedElementId === editableId && isEditMode) {
-        currentElement.classList.add('edit-highlight');
-        currentElement.style.outline = '3px solid #3b82f6';
-        currentElement.style.outlineOffset = '2px';
-        currentElement.style.boxShadow = '0 0 12px rgba(59, 130, 246, 0.3)';
-      } else {
-        currentElement.classList.remove('edit-highlight');
-        if (!currentElement.classList.contains('edit-hover')) {
-          currentElement.style.outline = '';
-          currentElement.style.outlineOffset = '';
-          currentElement.style.boxShadow = '';
-        }
-      }
-      
-      if (inlineEditingId === editableId && isEditMode) {
-        currentElement.classList.add('editing');
-        currentElement.style.outline = '3px solid #10b981';
-        currentElement.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-      } else {
-        currentElement.classList.remove('editing');
-        if (selectedElementId !== editableId) {
-          currentElement.style.backgroundColor = '';
-        }
-      }
+      // Apply element highlighting
+      applyElementHighlighting(element, editableId);
     });
 
-    // Enhanced CSS styles for better visual feedback and accessibility
-    let style = doc.getElementById('edit-mode-styles') as HTMLStyleElement;
-    if (isEditMode) {
-      if (!style) {
-        style = doc.createElement('style');
-        style.id = 'edit-mode-styles';
-        style.textContent = `
-          /* Enhanced editable element styles with improved animations */
-          [data-editable-id] {
-            position: relative;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 2px;
-          }
-          
-          [data-editable-id]:hover.edit-hover {
-            cursor: pointer;
-            transform: translateY(-1px) scale(1.01);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-          }
-          
-          [data-editable-id].edit-highlight {
-            position: relative;
-            z-index: 10;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-            background-color: rgba(59, 130, 246, 0.05) !important;
-          }
-          
-          [data-editable-id].editing {
-            position: relative;
-            z-index: 20;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
-            background-color: rgba(16, 185, 129, 0.08) !important;
-          }
-          
-          /* Enhanced focus styles for keyboard navigation */
-          [data-editable-id]:focus {
-            outline: 3px solid #3b82f6 !important;
-            outline-offset: 2px;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
-            z-index: 15;
-          }
-          
-          [data-editable-id]:focus-visible {
-            outline: 3px solid #3b82f6 !important;
-            outline-offset: 3px;
-            box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
-          }
-          
-          /* Accessibility improvements */
-          [data-editable-id][role="button"] {
-            cursor: pointer;
-          }
-          
-          [data-editable-id][aria-selected="true"] {
-            background-color: rgba(59, 130, 246, 0.1) !important;
-            border: 2px solid rgba(59, 130, 246, 0.5);
-          }
-          
-          /* Enhanced animations */
-          @keyframes editHighlight {
-            0% { 
-              transform: scale(1);
-              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-            }
-            50% { 
-              transform: scale(1.02);
-              box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.3);
-            }
-            100% { 
-              transform: scale(1);
-              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-            }
-          }
-          
-          @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.8); }
-            to { opacity: 1; transform: scale(1); }
-          }
-          
-          @keyframes pulse {
-            0%, 100% { opacity: 0.8; }
-            50% { opacity: 1; }
-          }
-          
-          [data-editable-id].edit-highlight {
-            animation: editHighlight 0.4s ease-out;
-          }
-          
-          /* Enhanced hover indicator */
-          .edit-indicator {
-            animation: fadeIn 0.2s ease-in-out, pulse 2s infinite;
-          }
-          
-          /* Improved visual hierarchy */
-          [data-editable-id][data-element-type="h1"],
-          [data-editable-id][data-element-type="h2"],
-          [data-editable-id][data-element-type="h3"] {
-            border-left: 4px solid transparent;
-            padding-left: 8px;
-            transition: border-color 0.2s ease;
-          }
-          
-          [data-editable-id][data-element-type="h1"]:hover,
-          [data-editable-id][data-element-type="h2"]:hover,
-          [data-editable-id][data-element-type="h3"]:hover {
-            border-left-color: #3b82f6;
-          }
-          
-          [data-editable-id][data-element-type="button"] {
-            border: 2px solid transparent;
-            transition: border-color 0.2s ease;
-          }
-          
-          [data-editable-id][data-element-type="button"]:hover {
-            border-color: #3b82f6;
-          }
-          
-          /* Loading state for elements being updated */
-          [data-editable-id].updating {
-            opacity: 0.7;
-            pointer-events: none;
-            position: relative;
-          }
-          
-          [data-editable-id].updating::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            margin: -10px 0 0 -10px;
-            border: 2px solid #3b82f6;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-          
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-          
-          /* High contrast mode support */
-          @media (prefers-contrast: high) {
-            [data-editable-id]:focus {
-              outline: 4px solid #000 !important;
-              background-color: #fff !important;
-            }
-            
-            [data-editable-id]:hover {
-              outline: 2px solid #000;
-              background-color: #f0f0f0 !important;
-            }
-          }
-          
-          /* Reduced motion support */
-          @media (prefers-reduced-motion: reduce) {
-            [data-editable-id],
-            [data-editable-id]:hover,
-            .edit-indicator {
-              animation: none !important;
-              transition: none !important;
-              transform: none !important;
-            }
-          }
-          
-          /* Dark mode adjustments (though we force light mode) */
-          @media (prefers-color-scheme: dark) {
-            [data-editable-id]:focus {
-              outline-color: #60a5fa !important;
-              box-shadow: 0 0 12px rgba(96, 165, 250, 0.4);
-            }
-          }
-        `;
-        if (doc && doc.head) {
-          doc.head.appendChild(style);
-        }
-      }
-    } else {
-      if (style) {
-        style.remove();
-      }
-      setHoverMenuVisible(false); // 編集モード解除時はホバーメニューも非表示
-    }
-  }, [isEditMode, selectElement, inlineEditingId, startInlineEdit, selectedElementId]);
+    // Manage CSS styles
+    manageEditModeStyles(doc, isEditMode);
+  }, [isEditMode, selectElement, inlineEditingId, startInlineEdit, selectedElementId, applyElementHighlighting, disableEditModeForElement, enableEditModeForElement, manageEditModeStyles]);
 
-  // Security processing effect
+  // Enhanced security processing effect with secure CSP
   useEffect(() => {
     if (!htmlContent || !enableSecurityChecks) {
       setSanitizedContent(htmlContent);
       setIsContentSecure(true);
       setSecurityViolations([]);
+      setCspNonces(null);
+      setSecureCSPHeader('');
       return;
     }
 
     try {
-      // Step 1: Perform security checks
+      // Step 1: Generate secure CSP with nonces
+      const { scriptNonce, styleNonce, header } = generateCSPWithNonces({
+        reportOnly: process.env.NODE_ENV === 'development',
+        reportUri: '/api/csp-report'
+      });
+      
+      setCspNonces({ script: scriptNonce, style: styleNonce });
+      setSecureCSPHeader(header);
+      
+      // Step 2: Perform security checks
       const securityCheck = performSecurityChecks(htmlContent);
       
       if (!securityCheck.isSecure) {
@@ -733,31 +806,41 @@ export const LPViewer: React.FC<LPViewerProps> = ({
         setShowSecurityWarning(false);
       }
 
-      // Step 2: Fix common security issues
-      let processedContent = fixCommonSecurityIssues(htmlContent);
+      // Step 3: Fix common security issues
+      const processedContent = fixCommonSecurityIssues(htmlContent);
 
-      // Step 3: Sanitize HTML content
-      const sanitized = sanitizeHTMLClient(processedContent);
+      // Step 4: Secure sanitization with nonces
+      const { sanitizedHTML, cspHeader } = sanitizeHTMLWithNonces(
+        processedContent,
+        scriptNonce,
+        styleNonce,
+        false // client-side
+      );
       
-      setSanitizedContent(sanitized);
+      setSanitizedContent(sanitizedHTML);
       setIsContentSecure(securityCheck.isSecure);
+      setSecureCSPHeader(cspHeader);
       
-      console.log('🔒 Content security processing completed:', {
+      console.log('🔒 Enhanced security processing completed:', {
         violations: securityCheck.violations.length,
-        sanitized: sanitized.length !== htmlContent.length
+        sanitized: sanitizedHTML.length !== htmlContent.length,
+        cspNonces: { script: scriptNonce.substring(0, 8) + '...', style: styleNonce.substring(0, 8) + '...' },
+        cspHeaderLength: cspHeader.length
       });
       
     } catch (error) {
-      console.error('🔒 Security processing failed:', error);
+      console.error('🔒 Enhanced security processing failed:', error);
       
       // Fallback to safe content
       setSanitizedContent('<div class="error-message p-4 text-red-600">Content could not be safely processed</div>');
       setIsContentSecure(false);
       setSecurityViolations([{
         type: 'error',
-        message: 'Security processing failed',
+        message: 'Enhanced security processing failed',
         timestamp: new Date()
       }]);
+      setCspNonces(null);
+      setSecureCSPHeader('');
     }
   }, [htmlContent, enableSecurityChecks]);
 
@@ -768,65 +851,17 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     const doc = iframe.contentDocument;
 
     if (doc && sanitizedContent) {
-      // HTMLサニタイゼーション処理を関数に分割
-      const decodeHtmlEntities = (content: string): string => {
-        return content
-          .replace(/&quot;/g, '"')
-          .replace(/&#x27;/g, "'")
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&'); // 最後に処理することが重要
-      };
+      // Use utility functions for HTML processing
+      const processedContent = sanitizeHtmlContent(sanitizedContent);
 
-      const fixBrokenSvgPaths = (content: string): string => {
-        return content
-          .replace(/d="\\*"/g, 'd=""')
-          .replace(/d="\\+"([^"]*)"\\*"/g, 'd="$1"')
-          .replace(/d="\\"([^"]*)\\""/g, 'd="$1"');
-      };
+      // Analyze HTML content structure
+      const { hasStyleTag, hasHtmlStructure, isCompleteHtml } = analyzeHtmlContent(processedContent);
 
-      const fixBrokenAttributes = (content: string): string => {
-        return content
-          .replace(/src="\\"([^"]*)\\""/g, 'src="$1"')
-          .replace(/href="\\"([^"]*)\\""/g, 'href="$1"');
-      };
-
-      const fixSvgDataUrls = (content: string): string => {
-        return content.replace(/"data:image\/svg\+xml,[^"]*"/g, (match: string) => {
-          return match.replace(/\\"/g, '"').replace(/""/g, '"');
-        });
-      };
-
-      const replaceEmptyImages = (content: string): string => {
-        return content.replace(
-          /<img[^>]*src=""[^>]*>/g, 
-          '<div class="bg-gray-200 rounded-lg h-48 flex items-center justify-center"><span class="text-gray-500">画像プレースホルダー</span></div>'
-        );
-      };
-
-      const sanitizeHtmlContent = (content: string): string => {
-        let processedContent = content;
-        processedContent = decodeHtmlEntities(processedContent);
-        processedContent = fixBrokenSvgPaths(processedContent);
-        processedContent = fixBrokenAttributes(processedContent);
-        processedContent = fixSvgDataUrls(processedContent);
-        processedContent = replaceEmptyImages(processedContent);
-        return processedContent;
-      };
-
-      let processedContent = sanitizeHtmlContent(sanitizedContent);
-
-      const hasStyleTag = processedContent.includes('<style>') && processedContent.includes('</style>');
-      const hasHtmlStructure = processedContent.includes('<section') || processedContent.includes('<div') || processedContent.includes('<body');
-      const isCompleteHtml = processedContent.trim().startsWith('<!DOCTYPE') || processedContent.trim().startsWith('<html');
-
-      // Escape characters that could break template literals for finalHtml and cssContent
-      processedContent = processedContent.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-      const escapedCssContent = cssContent.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-
+      const escapedContent = escapeForTemplate(processedContent);
+      const escapedCssContent = escapeForTemplate(cssContent);
       let finalHtml = '';
       if (isCompleteHtml) {
-        finalHtml = processedContent;
+        finalHtml = escapedContent;
       } else if (hasStyleTag && hasHtmlStructure) {
         finalHtml = `
           <!DOCTYPE html>
@@ -927,7 +962,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
             </style>
           </head>
           <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-            ${processedContent}
+            ${escapedContent}
           </body>
           </html>
         `;
@@ -999,7 +1034,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
             </style>
           </head>
           <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-            <main>${processedContent}</main>
+            <main>${escapedContent}</main>
           </body>
           </html>
         `;
@@ -1017,7 +1052,7 @@ export const LPViewer: React.FC<LPViewerProps> = ({
           </style>
         </head>
         <body class="${isFullscreen ? 'fullscreen-mode' : ''}">
-          ${processedContent}
+          ${escapedContent}
         </body>
         </html>
         `;

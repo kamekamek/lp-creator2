@@ -145,12 +145,27 @@ try {
   const result = await generateUnifiedLP({ topic: variantPrompt });
   // 成功処理
 } catch (error) {
-  if (error instanceof NetworkError) {
-    // ネットワークエラー処理
-  } else if (error instanceof RateLimitError) {
-    // レート制限エラー処理
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    
+    if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+      console.error('ネットワークエラー:', error);
+      // ユーザーへの通知
+      showErrorNotification('ネットワーク接続に問題があります。インターネット接続を確認してください。');
+    } else if (message.includes('rate limit') || message.includes('too many requests')) {
+      console.error('レート制限エラー:', error);
+      // ユーザーへの通知
+      showErrorNotification('API利用制限に達しました。しばらく時間をおいてから再試行してください。');
+    } else if (message.includes('api key') || message.includes('unauthorized')) {
+      console.error('認証エラー:', error);
+      showErrorNotification('API認証に問題があります。設定を確認してください。');
+    } else {
+      console.error('予期しないエラー:', error);
+      showErrorNotification('処理中にエラーが発生しました。再度お試しください。');
+    }
   } else {
-    // その他のエラー処理
+    console.error('不明なエラー:', error);
+    showErrorNotification('予期しないエラーが発生しました。');
   }
 }
 ```

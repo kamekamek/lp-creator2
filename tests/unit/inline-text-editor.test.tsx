@@ -4,8 +4,28 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { InlineTextEditor } from '../../app/components/InlineTextEditor';
+
+// Mock userEvent for testing
+const userEvent = {
+  setup: () => ({
+    clear: async (element: HTMLElement) => {
+      fireEvent.change(element, { target: { value: '' } });
+    },
+    type: async (element: HTMLElement, text: string) => {
+      if (text === '{Enter}') {
+        fireEvent.keyDown(element, { key: 'Enter', code: 'Enter' });
+      } else if (text === '{Escape}') {
+        fireEvent.keyDown(element, { key: 'Escape', code: 'Escape' });
+      } else {
+        fireEvent.change(element, { target: { value: text } });
+      }
+    },
+    click: async (element: HTMLElement) => {
+      fireEvent.click(element);
+    }
+  })
+};
 
 // Mock the Lucide React icons
 jest.mock('lucide-react', () => ({
@@ -197,7 +217,7 @@ describe('InlineTextEditor', () => {
     await user.type(textarea, 'Line 1\nLine 2\nLine 3\nLine 4');
     
     // Height should adjust (this is a basic test, actual auto-resize happens via useEffect)
-    expect(textarea.value).toContain('\n');
+    expect((textarea as HTMLTextAreaElement).value).toContain('\n');
   });
 
   test('should handle position prop', () => {
@@ -243,8 +263,8 @@ describe('InlineTextEditor', () => {
     expect(textarea).toHaveFocus();
     
     // Should select all text on focus
-    expect(textarea.selectionStart).toBe(0);
-    expect(textarea.selectionEnd).toBe('Initial text content'.length);
+    expect((textarea as HTMLTextAreaElement).selectionStart).toBe(0);
+    expect((textarea as HTMLTextAreaElement).selectionEnd).toBe('Initial text content'.length);
   });
 
   test('should handle click outside to save', async () => {
@@ -270,8 +290,7 @@ describe('InlineTextEditor', () => {
   });
 
   test('should not render AI improve button when onAIImprove is not provided', () => {
-    const propsWithoutAI = { ...defaultProps };
-    delete propsWithoutAI.onAIImprove;
+    const { onAIImprove, ...propsWithoutAI } = defaultProps;
     
     render(<InlineTextEditor {...propsWithoutAI} />);
     

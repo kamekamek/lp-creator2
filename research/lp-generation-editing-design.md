@@ -43,16 +43,18 @@ export interface BusinessContext {
 }
 
 export class ContextAnalyzer {
-  private nlpProcessor: NLPProcessor;
-  private industryKnowledge: IndustryKnowledgeBase;
-  
+  constructor(
+    private readonly nlpProcessor: NLPProcessor,
+    private readonly industryKnowledge: IndustryKnowledgeBase
+  ) {}
+
   async analyzeBusinessContext(userInput: string): Promise<BusinessContext> {
     // 自然言語から業界、ターゲット、目標を抽出
     const entities = await this.nlpProcessor.extractEntities(userInput);
-    
+
     // 業界特有の知識を適用
     const industryContext = await this.industryKnowledge.getContext(entities.industry);
-    
+
     // 競合分析（オプション）
     const competitors = await this.analyzeCompetitors(entities);
     

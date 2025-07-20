@@ -109,8 +109,11 @@ describe('Intelligent LP Generator Tool', () => {
   });
 
   test('should sort variants by score', async () => {
-    // Mock different scores for variants - use actual implementation
-    jest.unmock('../../src/mastra/tools/utils/variantScoringUtils');
+    // Mock different scores for variants
+    mockCalculateDetailedVariantScore
+      .mockReturnValueOnce({ score: 85, breakdown: {} as any, reasoning: [] })
+      .mockReturnValueOnce({ score: 90, breakdown: {} as any, reasoning: [] })
+      .mockReturnValueOnce({ score: 75, breakdown: {} as any, reasoning: [] });
 
     const result = await intelligentLPGeneratorTool.execute({
       topic: 'テストLP'
@@ -122,7 +125,6 @@ describe('Intelligent LP Generator Tool', () => {
       expect(result.variants[i].score).toBeGreaterThanOrEqual(result.variants[i + 1].score);
     }
   });
-
   test('should select recommended variant based on highest score', async () => {
     mockCalculateDetailedVariantScore
       .mockReturnValueOnce({ score: 75, breakdown: {} as any, reasoning: [] })
@@ -261,7 +263,16 @@ describe('Intelligent LP Generator Tool', () => {
   });
 });
 
-describe('Variant Scoring Utils', () => {
+describe('Variant Scoring Utils - Real Implementation', () => {
+  beforeAll(() => {
+    jest.resetModules();
+    jest.unmock('../../src/mastra/tools/utils/variantScoringUtils');
+  });
+
+  afterAll(() => {
+    jest.resetModules();
+  });
+
   test('should calculate detailed variant scores', () => {
     const mockVariant = {
       variantId: 'test-variant',
@@ -283,16 +294,19 @@ describe('Variant Scoring Utils', () => {
       tone: 'professional' as const
     };
 
-    // Reset mock to use real implementation for this test
-    jest.unmock('../../src/mastra/tools/utils/variantScoringUtils');
-    const { calculateDetailedVariantScore: realCalculateScore } = require('../../src/mastra/tools/utils/variantScoringUtils');
-    
-    const result = realCalculateScore(mockVariant, businessContext);
+    const { calculateDetailedVariantScore } = require('../../src/mastra/tools/utils/variantScoringUtils');
+    const result = calculateDetailedVariantScore(mockVariant, businessContext);
 
     expect(result.score).toBeGreaterThan(0);
     expect(result.breakdown).toBeDefined();
     expect(result.breakdown.businessAlignment).toBeGreaterThan(0);
     expect(result.breakdown.industryFit).toBeGreaterThan(0);
+    expect(result.breakdown.designQuality).toBeGreaterThan(0);
+    expect(result.breakdown.contentQuality).toBeGreaterThan(0);
+    expect(result.reasoning).toBeInstanceOf(Array);
+    expect(result.reasoning.length).toBeGreaterThan(0);
+  });
+});
     expect(result.breakdown.designQuality).toBeGreaterThan(0);
     expect(result.breakdown.contentQuality).toBeGreaterThan(0);
     expect(result.reasoning).toBeInstanceOf(Array);

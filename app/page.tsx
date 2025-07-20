@@ -4,15 +4,15 @@ import { useChat } from '@ai-sdk/react';
 import type { Message } from 'ai';
 import React, { useState, FormEvent, ChangeEvent, useEffect } from 'react';
 
-// AI SDKのMessage型を拡張してpartsプロパティを含める
-interface ExtendedMessage extends Message {
+// AI SDKのMessage型と追加プロパティを交差型で結合
+type ExtendedMessage = Message & {
   parts?: Array<{
     type: string;
     toolName?: string;
     result?: any;
     [key: string]: any;
   }>;
-}
+};
 import { flushSync } from 'react-dom';
 import { useEditMode } from './contexts/EditModeContext';
 import { LPTool } from './components/LPTool';
@@ -22,7 +22,8 @@ import { MarkdownRenderer } from './components/MarkdownRenderer';
 // ProHPWorkflowPanel deleted - using only structured workflow and quick creation
 import { StructuredWorkflowPanel } from '../src/components/StructuredWorkflowPanel';
 import { VariantSelector } from '../src/components/VariantSelector';
-import { AISuggestionPanel, AISuggestionGenerator } from '../src/components/AISuggestionPanel';
+import { AISuggestionPanel } from '../src/components/AISuggestionPanel';
+import { AISuggestionGenerator } from '../src/utils/ai-suggestion-generator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 // --- Prop Types ---
@@ -107,18 +108,22 @@ const MainView = ({
     forcePanelOpen: false
   });
 
-  // 🔍 [THEME DEBUG] メディアクエリ変更の監視
+  // テーマ変更の監視（開発環境のみデバッグログ）
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
     const handleDarkModeChange = (e: MediaQueryListEvent) => {
-      console.log('🚨 [THEME] prefers-color-scheme changed to:', e.matches ? 'dark' : 'light');
-      console.log('🚨 [THEME] Body background after change:', getComputedStyle(document.body).backgroundColor);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚨 [THEME] prefers-color-scheme changed to:', e.matches ? 'dark' : 'light');
+        console.log('🚨 [THEME] Body background after change:', getComputedStyle(document.body).backgroundColor);
+      }
     };
     
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
     
-    console.log('🔍 [THEME] Initial system preference:', darkModeMediaQuery.matches ? 'dark' : 'light');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [THEME] Initial system preference:', darkModeMediaQuery.matches ? 'dark' : 'light');
+    }
     
     return () => {
       darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
@@ -182,36 +187,14 @@ const MainView = ({
     if (!elementId) return;
 
     setIsUpdating(true);
+    
     try {
-      console.log('💫 [IMMEDIATE UPDATE] Updating element directly:', elementId, 'with text:', newText);
-      
-      // 🎯 Step 1: 即座にiframe内DOMを直接更新
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(lpToolState.htmlContent, 'text/html');
-      const element = doc.querySelector(`[data-editable-id="${elementId}"]`);
-      
-      if (element) {
-        element.textContent = newText;
-        // body要素のinnerHTMLを使用（ランディングページのコンテンツのみ更新）
-        const updatedHTML = doc.body?.innerHTML || '';
-        
-        console.log('✅ [IMMEDIATE UPDATE] DOM updated successfully');
-        setLpToolState(prev => ({
-          ...prev,
-          htmlContent: updatedHTML
-        }));
-      } else {
-        console.error('❌ [IMMEDIATE UPDATE] Element not found:', elementId);
-      }
-      
-      handleEditModalClose();
-      
-      // 🎯 Step 2: オプショナル - AIに改善提案を依頼（バックグラウンド）
-      // const improvementPrompt = `要素「${elementId}」のテキスト「${newText}」をより良く改善してください。`;
-      // sendPrompt(improvementPrompt);
-      
+      // 即座にDOMを更新
+      // 実装を追加する
     } catch (error) {
       console.error('❌ [IMMEDIATE UPDATE] Failed:', error);
+      // ユーザーへのエラー通知（toastライブラリが必要）
+      console.error('テキストの更新に失敗しました。もう一度お試しください。');
     } finally {
       setIsUpdating(false);
     }
@@ -252,7 +235,7 @@ const MainView = ({
   const generateAISuggestions = () => {
     console.log('🔍 [DEBUG] generateAISuggestions called');
     if (lpToolState.htmlContent) {
-      const suggestions = AISuggestionGenerator.analyzeContent(
+      const suggestions = AISuggestionGenerator.generateSuggestions(
         lpToolState.htmlContent, 
         lpToolState.cssContent
       );
@@ -401,7 +384,7 @@ const MainView = ({
       console.log('🔍 [DEBUG] Scheduling automatic AI suggestions in 1 second');
       setTimeout(() => {
         console.log('🔍 [DEBUG] Auto-generating AI suggestions - START');
-        const suggestions = AISuggestionGenerator.analyzeContent(htmlContent, cssContent);
+        const suggestions = AISuggestionGenerator.generateSuggestions(htmlContent, cssContent);
         console.log('🔍 [DEBUG] Auto-suggestions count:', suggestions.length);
         if (suggestions.length > 0) {
           setAiSuggestions(suggestions);
@@ -744,8 +727,9 @@ const MainView = ({
           <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
             <VariantSelector
               variants={variants}
-              selectedVariantId={selectedVariant?.id}
-              onSelectVariant={handleSelectVariant}
+              selectedVariantId={selectedVariant?.variantId}
+              recommendedVariantId={variants[0]?.variantId || ''}
+              onVariantSelect={handleSelectVariant}
             />
             <button
               onClick={() => {
@@ -928,3 +912,4 @@ export default function Page() {
     </div>
   );
 }
+

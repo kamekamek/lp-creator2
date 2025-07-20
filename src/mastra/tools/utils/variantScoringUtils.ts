@@ -37,8 +37,19 @@ export function calculateDetailedVariantScore(
   };
   
   // ユーザー設定に基づく重み付け調整
-  let weightedScore = criteria.businessAlignment + criteria.industryFit + criteria.designQuality + criteria.contentQuality;
-  
+  // 各基準の重みを定義
+  const weights = {
+    businessAlignment: 0.30,
+    industryFit:        0.25,
+    designQuality:      0.25,
+    contentQuality:     0.20
+  };
+
+  let weightedScore =
+    criteria.businessAlignment * weights.businessAlignment +
+    criteria.industryFit        * weights.industryFit +
+    criteria.designQuality      * weights.designQuality +
+    criteria.contentQuality     * weights.contentQuality;
   if (userPreferences) {
     if (userPreferences.prioritizeConversion && variant.designFocus === 'conversion-optimized') {
       weightedScore += 5;
@@ -372,12 +383,32 @@ function generateScoringReasoning(
  * バリエーション比較分析
  */
 export function compareVariants(variants: LPVariant[], businessContext: BusinessContext) {
+  if (!variants || variants.length === 0) {
+    throw new Error('バリアントが指定されていません');
+  }
+
   const comparisons = variants.map(variant => {
-    const detailed = calculateDetailedVariantScore(variant, businessContext);
-    return {
-      variant,
-      ...detailed
-    };
+    try {
+      const detailed = calculateDetailedVariantScore(variant, businessContext);
+      return {
+        variant,
+        ...detailed
+      };
+    } catch (error) {
+      console.error(`バリアント${variant.id}のスコア計算エラー:`, error);
+      // エラー時のフォールバック
+      return {
+        variant,
+        score: 0,
+        breakdown: {
+          businessAlignment: 0,
+          industryFit: 0,
+          designQuality: 0,
+          contentQuality: 0
+        },
+        reasoning: ['スコア計算中にエラーが発生しました']
+      };
+    }
   });
   
   // スコア順でソート

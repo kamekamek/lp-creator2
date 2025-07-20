@@ -541,52 +541,185 @@ ${this.generateApproachDescription(analysis)}
     return styles[analysis.brandPersonality as keyof typeof styles] || styles.professional;
   }
   
-  private getTypographyStyle(_analysis: any): string {
-    // TODO: Implement sophisticated typography selection based on brand personality,
-    // target audience, and industry type from analysis data
-    return 'font-family: \'Inter\', sans-serif; font-weight: 400;';
+  private getTypographyStyle(analysis: any): string {
+    const typographyMap = {
+      professional: 'font-family: \'Inter\', sans-serif; font-weight: 400; line-height: 1.6;',
+      friendly: 'font-family: \'Poppins\', sans-serif; font-weight: 300; line-height: 1.7;',
+      authoritative: 'font-family: \'Roboto\', sans-serif; font-weight: 500; line-height: 1.5;',
+      innovative: 'font-family: \'Montserrat\', sans-serif; font-weight: 400; line-height: 1.6;',
+      trustworthy: 'font-family: \'Source Sans Pro\', sans-serif; font-weight: 400; line-height: 1.6;',
+      energetic: 'font-family: \'Open Sans\', sans-serif; font-weight: 600; line-height: 1.5;'
+    };
+    
+    const brandPersonality = analysis.brandPersonality || 'professional';
+    return typographyMap[brandPersonality as keyof typeof typographyMap] || typographyMap.professional;
   }
   
-  private getLayoutApproach(_analysis: any): string {
-    // TODO: Implement layout strategy selection based on conversion priority,
-    // content length, and user behavior patterns from analysis
-    return 'single-column';
+  private getLayoutApproach(analysis: any): string {
+    const industryLayouts = {
+      saas: 'hero-features-testimonials-cta',
+      ecommerce: 'hero-products-benefits-social-proof',
+      consulting: 'hero-expertise-case-studies-contact',
+      education: 'hero-curriculum-testimonials-enrollment',
+      general: 'hero-problem-solution-benefits-cta'
+    };
+    
+    const urgencyLayouts = {
+      high: 'hero-urgency-benefits-cta-footer',
+      medium: 'hero-benefits-social-proof-cta',
+      low: 'hero-detailed-benefits-testimonials-cta'
+    };
+    
+    const industryType = analysis.industryType || 'general';
+    const urgencyLevel = analysis.urgencyLevel || 'medium';
+    
+    return urgencyLevel === 'high' 
+      ? urgencyLayouts[urgencyLevel]
+      : industryLayouts[industryType as keyof typeof industryLayouts] || industryLayouts.general;
   }
   
-  private getVisualElements(_analysis: any): string[] {
-    // TODO: Implement visual element selection based on industry type,
-    // brand personality, and trust-building requirements from analysis
-    return ['hero-image', 'testimonial-cards', 'feature-icons'];
+  private getVisualElements(analysis: any): string[] {
+    const industryElements = {
+      saas: ['dashboard-mockup', 'feature-icons', 'integration-logos', 'metrics-charts'],
+      ecommerce: ['product-gallery', 'customer-photos', 'payment-badges', 'shipping-icons'],
+      consulting: ['team-photos', 'certification-badges', 'case-study-graphics', 'process-diagrams'],
+      education: ['course-preview', 'instructor-photos', 'certificate-samples', 'learning-path'],
+      general: ['hero-image', 'feature-icons', 'testimonial-photos', 'trust-badges']
+    };
+    
+    const trustElements = analysis.trustBuilders?.includes('実績') ? ['client-logos', 'success-metrics'] : [];
+    const socialProofElements = analysis.trustBuilders?.includes('口コミ') ? ['testimonial-cards', 'rating-stars'] : [];
+    
+    const baseElements = industryElements[analysis.industryType as keyof typeof industryElements] || industryElements.general;
+    
+    return [...baseElements, ...trustElements, ...socialProofElements];
   }
   
-  private getCTAPlacement(_analysis: any): string[] {
-    // TODO: Implement strategic CTA placement based on urgency level,
-    // conversion priority, and user journey mapping from analysis
-    return ['above-fold', 'after-benefits', 'footer'];
+  private getCTAPlacement(analysis: any): string[] {
+    const urgencyPlacements = {
+      high: ['above-fold', 'sticky-header', 'after-problem', 'after-benefits', 'footer'],
+      medium: ['above-fold', 'after-benefits', 'after-testimonials', 'footer'],
+      low: ['after-benefits', 'after-social-proof', 'footer']
+    };
+    
+    const industryPlacements = {
+      saas: ['above-fold', 'after-features', 'after-pricing', 'footer'],
+      ecommerce: ['above-fold', 'after-products', 'cart-sidebar', 'footer'],
+      consulting: ['above-fold', 'after-expertise', 'contact-form', 'footer'],
+      education: ['above-fold', 'after-curriculum', 'enrollment-section', 'footer']
+    };
+    
+    const urgencyLevel = analysis.urgencyLevel || 'medium';
+    const industryType = analysis.industryType;
+    
+    // Prioritize urgency-based placement for high urgency
+    if (urgencyLevel === 'high') {
+      return urgencyPlacements.high;
+    }
+    
+    return industryPlacements[industryType as keyof typeof industryPlacements] || urgencyPlacements[urgencyLevel as keyof typeof urgencyPlacements];
   }
   
-  private getUrgencyTactics(_analysis: any): string[] {
-    // TODO: Implement urgency tactics selection based on urgency level,
-    // target segment behavior, and ethical persuasion principles from analysis
-    return ['limited-time-offer', 'social-proof'];
+  private getUrgencyTactics(analysis: any): string[] {
+    const urgencyTactics = {
+      high: ['countdown-timer', 'limited-quantity', 'early-bird-discount', 'exclusive-access'],
+      medium: ['limited-time-offer', 'bonus-incentive', 'price-increase-warning'],
+      low: ['seasonal-promotion', 'first-time-visitor-bonus']
+    };
+    
+    const ethicalTactics = ['social-proof', 'testimonial-urgency', 'demand-indicators'];
+    const urgencyLevel = analysis.urgencyLevel || 'medium';
+    
+    const baseTactics = urgencyTactics[urgencyLevel as keyof typeof urgencyTactics] || urgencyTactics.medium;
+    
+    // Always include ethical tactics
+    return [...baseTactics, ...ethicalTactics];
   }
   
-  private getSocialProofStrategy(_analysis: any): string[] {
-    // TODO: Implement social proof strategy based on target segment,
-    // trust builders identified, and industry-specific credibility markers from analysis
-    return ['customer-testimonials', 'company-logos', 'user-statistics'];
+  private getSocialProofStrategy(analysis: any): string[] {
+    const industryProof = {
+      saas: ['user-count', 'integration-logos', 'uptime-stats', 'security-certifications'],
+      ecommerce: ['customer-reviews', 'purchase-notifications', 'bestseller-badges', 'return-policy'],
+      consulting: ['client-testimonials', 'case-study-results', 'industry-awards', 'media-mentions'],
+      education: ['student-success-stories', 'completion-rates', 'instructor-credentials', 'accreditation'],
+      general: ['customer-testimonials', 'company-logos', 'user-statistics', 'trust-badges']
+    };
+    
+    const trustBuilders = analysis.trustBuilders || [];
+    const additionalProof = [];
+    
+    if (trustBuilders.includes('実績')) {
+      additionalProof.push('success-metrics', 'portfolio-showcase');
+    }
+    if (trustBuilders.includes('口コミ')) {
+      additionalProof.push('review-aggregation', 'social-media-mentions');
+    }
+    if (trustBuilders.includes('専門性')) {
+      additionalProof.push('expert-endorsements', 'certification-display');
+    }
+    
+    const baseProof = industryProof[analysis.industryType as keyof typeof industryProof] || industryProof.general;
+    
+    return [...baseProof, ...additionalProof];
   }
   
-  private getObjectionHandling(_analysis: any): string[] {
-    // TODO: Implement objection handling strategy based on target pain points,
-    // competitive position, and common concerns identified in analysis
-    return ['faq-section', 'guarantee-badge', 'risk-reversal'];
+  private getObjectionHandling(analysis: any): string[] {
+    const commonObjections = ['faq-section', 'money-back-guarantee', 'free-trial-offer'];
+    
+    const industryObjections = {
+      saas: ['security-compliance', 'integration-support', 'scalability-proof', 'data-migration-help'],
+      ecommerce: ['return-policy', 'shipping-guarantee', 'price-match', 'product-warranty'],
+      consulting: ['credentials-display', 'case-study-proof', 'consultation-guarantee', 'methodology-explanation'],
+      education: ['curriculum-preview', 'instructor-qualifications', 'completion-certificate', 'career-support'],
+      general: ['risk-free-trial', 'satisfaction-guarantee', 'expert-support']
+    };
+    
+    const painPointObjections = [];
+    if (analysis.mainPain?.includes('コスト') || analysis.mainPain?.includes('費用')) {
+      painPointObjections.push('roi-calculator', 'cost-comparison', 'payment-plans');
+    }
+    if (analysis.mainPain?.includes('時間') || analysis.mainPain?.includes('効率')) {
+      painPointObjections.push('time-savings-proof', 'quick-setup-guarantee');
+    }
+    if (analysis.mainPain?.includes('信頼') || analysis.mainPain?.includes('不安')) {
+      painPointObjections.push('trust-badges', 'security-certifications', 'testimonial-videos');
+    }
+    
+    const baseObjections = industryObjections[analysis.industryType as keyof typeof industryObjections] || industryObjections.general;
+    
+    return [...commonObjections, ...baseObjections, ...painPointObjections];
   }
   
-  private getMicroConversions(_analysis: any): string[] {
-    // TODO: Implement micro-conversion strategy based on conversion priority,
-    // user journey stages, and progressive engagement tactics from analysis
-    return ['email-signup', 'demo-request', 'whitepaper-download'];
+  private getMicroConversions(analysis: any): string[] {
+    const industryMicroConversions = {
+      saas: ['free-trial-signup', 'demo-request', 'feature-calculator', 'roi-assessment'],
+      ecommerce: ['wishlist-add', 'size-guide-view', 'product-comparison', 'newsletter-signup'],
+      consulting: ['consultation-booking', 'assessment-download', 'case-study-request', 'webinar-registration'],
+      education: ['course-preview', 'syllabus-download', 'instructor-q&a', 'career-guide-download'],
+      general: ['email-signup', 'resource-download', 'contact-form', 'newsletter-subscription']
+    };
+    
+    const urgencyMicroConversions = {
+      high: ['immediate-callback', 'priority-access', 'exclusive-preview'],
+      medium: ['email-course', 'checklist-download', 'webinar-signup'],
+      low: ['blog-subscription', 'social-follow', 'community-join']
+    };
+    
+    const emotionalMicroConversions = [];
+    if (analysis.emotionalTrigger?.includes('不安')) {
+      emotionalMicroConversions.push('risk-assessment', 'security-checklist');
+    }
+    if (analysis.emotionalTrigger?.includes('効率')) {
+      emotionalMicroConversions.push('productivity-calculator', 'time-audit');
+    }
+    if (analysis.emotionalTrigger?.includes('成長')) {
+      emotionalMicroConversions.push('growth-planner', 'goal-tracker');
+    }
+    
+    const baseConversions = industryMicroConversions[analysis.industryType as keyof typeof industryMicroConversions] || industryMicroConversions.general;
+    const urgencyConversions = urgencyMicroConversions[analysis.urgencyLevel as keyof typeof urgencyMicroConversions] || urgencyMicroConversions.medium;
+    
+    return [...baseConversions, ...urgencyConversions, ...emotionalMicroConversions];
   }
   
   private estimateConversionRate(analysis: any): string {

@@ -19,8 +19,11 @@ async function testStructuredWorkflow() {
     
     // 2. 構造化ワークフロータブが選択されているか確認
     console.log('2️⃣ 構造化ワークフロータブの確認...');
-    const activeTab = await page.$eval('button[data-testid="structured-workflow-tab"]', el => el.textContent);
-    console.log(`✅ アクティブタブ: ${activeTab}\n`);
+    const tabInfo = await page.$eval('button[data-testid="structured-workflow-tab"]', el => ({
+      text: el.textContent,
+      isActive: el.getAttribute('aria-selected') === 'true' || el.classList.contains('active')
+    }));
+    console.log(`✅ タブ: ${tabInfo.text}, アクティブ: ${tabInfo.isActive}\n`);
     
     // 3. 初期画面の要素確認
     console.log('3️⃣ 初期画面要素の確認...');

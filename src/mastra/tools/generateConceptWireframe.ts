@@ -14,9 +14,10 @@ function generateImprovementProposals(strategy: string): string[] {
   const keywords = extractKeywords(strategy);
   
   // 保守的アプローチ
-  proposals.push(`保守的アプローチ: ${keywords.includes('安定') || keywords.includes('信頼') ? 
-    '既存の実績あるデザインパターンを活用し、段階的な改善を実施' : 
-    '確実性を重視した従来型のレイアウトとコンテンツ構成を採用'}`);
+  const conservativeApproach = keywords.includes('安定') || keywords.includes('信頼')
+    ? '既存の実績あるデザインパターンを活用し、段階的な改善を実施'
+    : '確実性を重視した従来型のレイアウトとコンテンツ構成を採用';
+  proposals.push(`保守的アプローチ: ${conservativeApproach}`);
   
   // 標準アプローチ
   proposals.push(`標準アプローチ: ${keywords.includes('効率') || keywords.includes('最適') ? 
@@ -134,6 +135,11 @@ export const generateConceptWireframe = createTool({
   }),
   execute: async (context) => {
     const { strategy } = context;
+
+    if (!strategy || strategy.trim().length === 0) {
+      throw new Error('戦略情報が提供されていません');
+    }
+
     console.log("[generateConceptWireframe] strategy", strategy);
     
     // 戦略情報を解析して動的にimprovementProposalsを生成
@@ -144,5 +150,5 @@ export const generateConceptWireframe = createTool({
       wireframe: generateWireframe(strategy),
       improvementProposals,
     };
-  },
+  }
 });

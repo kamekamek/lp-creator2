@@ -457,26 +457,61 @@ const monitorMemoryUsage = () => {
 ```## Security
  Considerations
 
-### Content Security Policy (CSP)
+### Enhanced Content Security Policy (CSP) - SECURE IMPLEMENTATION
+
+**🔒 SECURITY ENHANCEMENT: Removed 'unsafe-inline' and implemented nonce-based CSP**
 
 ```typescript
-export const CSP_DIRECTIVES = {
+// SECURE CSP Implementation with Nonces
+export const SECURE_CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com'],
-  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  'script-src': ["'self'", "'nonce-{SCRIPT_NONCE}'", 'https://cdn.tailwindcss.com'],
+  'style-src': ["'self'", "'nonce-{STYLE_NONCE}'", 'https://fonts.googleapis.com'],
   'font-src': ["'self'", 'https://fonts.gstatic.com'],
   'img-src': ["'self'", 'data:', 'https:', 'blob:'],
-  'connect-src': ["'self'"],
+  'connect-src': ["'self'", 'https://api.openai.com', 'https://api.anthropic.com'],
   'frame-src': ["'none'"],
   'object-src': ["'none'"],
   'base-uri': ["'self'"],
-  'form-action': ["'self'"]
+  'form-action': ["'self'"],
+  'frame-ancestors': ["'none'"],
+  'upgrade-insecure-requests': true,
+  'block-all-mixed-content': true,
+  'report-uri': ['/api/csp-report']
 };
 
-// Generate CSP header string
-const cspHeader = generateCSPHeader();
-// Result: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; ..."
+// Generate secure CSP header with nonces
+const { header, scriptNonce, styleNonce } = generateCSPWithNonces({
+  reportOnly: process.env.NODE_ENV === 'development',
+  reportUri: '/api/csp-report'
+});
+
+// Example result:
+// "default-src 'self'; script-src 'self' 'nonce-abc123xyz789' https://cdn.tailwindcss.com; 
+//  style-src 'self' 'nonce-def456uvw012' https://fonts.googleapis.com; ..."
 ```
+
+#### CSP Security Features
+
+1. **Nonce-based Script/Style Loading**
+   - Cryptographically secure nonces for each request
+   - Eliminates XSS risks from 'unsafe-inline'
+   - Automatic nonce injection into HTML content
+
+2. **CSP Violation Reporting**
+   - Real-time violation monitoring via `/api/csp-report`
+   - Comprehensive logging and alerting
+   - Development vs production reporting modes
+
+3. **Progressive CSP Enforcement**
+   - Report-Only mode for development and testing
+   - Gradual enforcement rollout in production
+   - Environment-specific CSP policies
+
+4. **Content Hash Support**
+   - SHA-256 hashes for trusted inline content
+   - Automatic hash generation for static assets
+   - Fallback support for legacy content
 
 ### HTML Sanitization Strategy
 

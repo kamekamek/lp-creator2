@@ -11,6 +11,7 @@
 LP Creatorは、Mastraフレームワークを活用したAI駆動のランディングページ生成アプリケーションです。
 
 ### 主要機能
+- **インタラクティブヒアリングシステム**: AI駆動の段階的クライアント情報収集
 - **クイック作成モード**: 簡単で高速なランディングページ生成
 - **プロフェッショナルHPワークフロー**: マーケティング心理学とSEO最適化を組み込んだ包括的な作成プロセス
 - **リアルタイムプレビュー**: 生成されたページの即座のプレビュー
@@ -38,6 +39,7 @@ lp-creator/
 │   ├── agents/
 │   │   └── lpCreatorAgent.ts     # メインAIエージェント
 │   ├── tools/                    # AIツール群
+│   │   ├── interactiveHearingTool.ts    # インタラクティブヒアリング
 │   │   ├── enhancedLPGeneratorTool.ts
 │   │   ├── collectStrategyInfo.ts
 │   │   ├── generateConceptWireframe.ts
@@ -55,7 +57,7 @@ lp-creator/
 - **スタイリング**: Tailwind CSS
 - **データベース**: LibSQL (メモリ機能用)
 - **セキュリティ**: DOMPurify + JSDOM + CSP + iframe sandbox
-- **TypeScript**: 完全対応
+- **TypeScript**: 完全対応（クロスプラットフォーム互換性を考慮した型定義）
 
 ### 3. 実装済み機能
 
@@ -136,6 +138,7 @@ pnpm lint
 - **Mastraワークフロー**: Zod スキーマによる厳密な型定義
 - **API レスポンス**: 完全型付けされたレスポンス構造
 - **ツール入出力**: 各ツールの入力・出力スキーマ
+- **クロスプラットフォーム対応**: `ReturnType<typeof setTimeout>` を使用したタイマー型定義
 
 ---
 

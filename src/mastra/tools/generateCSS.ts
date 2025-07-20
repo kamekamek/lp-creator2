@@ -750,66 +750,9 @@ function combineCSSModules(modules: string[], options: { minify?: boolean } = {}
   return combined;
 }
 
-// クリティカルCSS抽出関数（CSSTree使用）
+// クリティカルCSS抽出関数（正規表現ベース）
 async function extractCriticalCSS(fullCSS: string): Promise<{ critical: string; nonCritical: string }> {
-  try {
-    const csstree = await import('css-tree');
-    
-    const criticalSelectors = [
-      'html', 'body', ':root',
-      '.container', '.header', '.navbar', '.hero',
-      '.btn', '.btn-primary', '.skip-link',
-      'h1', 'h2', 'h3', 'p', 'a'
-    ];
-    
-    // CSSをASTに解析
-    const ast = csstree.parse(fullCSS);
-    const criticalRules: any[] = [];
-    const nonCriticalRules: any[] = [];
-    
-    // ASTを走査してルールを分類
-    csstree.walk(ast, function(node: any) {
-      if (node.type === 'Rule') {
-        const selectors = node.prelude;
-        let isCritical = false;
-        
-        // セレクターをチェック
-        csstree.walk(selectors, function(selectorNode: any) {
-          if (selectorNode.type === 'TypeSelector' || selectorNode.type === 'ClassSelector' || selectorNode.type === 'IdSelector') {
-            const selectorText = csstree.generate(selectorNode);
-            if (criticalSelectors.some(cs => selectorText.includes(cs) || cs.includes(selectorText))) {
-              isCritical = true;
-            }
-          }
-        });
-        
-        if (isCritical) {
-          criticalRules.push(node);
-        } else {
-          nonCriticalRules.push(node);
-        }
-      }
-    });
-    
-    // Critical CSSとNon-Critical CSSを生成
-    const criticalAST = {
-      type: 'StyleSheet',
-      children: new csstree.List(criticalRules)
-    };
-    
-    const nonCriticalAST = {
-      type: 'StyleSheet', 
-      children: new csstree.List(nonCriticalRules)
-    };
-    
-    return {
-      critical: csstree.generate(criticalAST),
-      nonCritical: csstree.generate(nonCriticalAST)
-    };
-  } catch (error) {
-    console.warn('CSSTree parsing failed, using fallback method:', error);
-    return fallbackExtractCriticalCSS(fullCSS);
-  }
+  return fallbackExtractCriticalCSS(fullCSS);
 }
 
 // フォールバック用のシンプルなCSS抽出関数
@@ -828,14 +771,23 @@ function fallbackExtractCriticalCSS(fullCSS: string): { critical: string; nonCri
   let currentRule = '';
   let isInRule = false;
   let braceCount = 0;
+  let ruleLines: string[] = [];
   
   for (const line of lines) {
     const trimmedLine = line.trim();
     
     if (trimmedLine.includes('{')) {
-      isInRule = true;
-      braceCount++;
-      currentRule = trimmedLine.substring(0, trimmedLine.indexOf('{')).trim();
+      // count all opening braces on this line
+      braceCount += (trimmedLine.match(/{/g) || []).length;
+      if (braceCount === 1) {
+        // just entered a top-level rule
+        isInRule = true;
+        currentRule = trimmedLine.substring(0, trimmedLine.indexOf('{')).trim();
+        ruleLines = [line];
+      } else {
+        // nested block (e.g. media query), keep tracking
+        ruleLines.push(line);
+      }
     }
     
     if (trimmedLine.includes('}')) {

@@ -8,11 +8,19 @@ import { VariantGenerationResult, LPVariant } from '../../src/types/lp-core';
 describe('Variant Generation Workflow Integration', () => {
   // Skip these tests in CI/CD as they require actual AI model calls
   const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === 'true';
+  let originalExecute: any;
   
   beforeEach(() => {
     if (!runIntegrationTests) {
       console.log('Skipping integration tests. Set RUN_INTEGRATION_TESTS=true to run.');
     }
+    // Store original execute function for restoration
+    originalExecute = intelligentLPGeneratorTool.execute;
+  });
+  
+  afterEach(() => {
+    // Restore original execute function after each test
+    intelligentLPGeneratorTool.execute = originalExecute;
   });
 
   (runIntegrationTests ? test : test.skip)('should generate multiple variants for SaaS product', async () => {
@@ -168,27 +176,21 @@ describe('Variant Generation Workflow Integration', () => {
     };
 
     // Mock the tool for this test
-    const originalExecute = intelligentLPGeneratorTool.execute;
-    try {
-      intelligentLPGeneratorTool.execute = jest.fn().mockResolvedValue(mockResult);
+    intelligentLPGeneratorTool.execute = jest.fn().mockResolvedValue(mockResult);
 
-      const result = await intelligentLPGeneratorTool.execute({
-        topic: 'Test topic',
-        designStyle: 'modern',
-        variantCount: 1
-      }, {
-        toolCallId: 'test-mock',
-        messages: []
-      });
+    const result = await intelligentLPGeneratorTool.execute({
+      topic: 'Test topic',
+      designStyle: 'modern',
+      variantCount: 1
+    }, {
+      toolCallId: 'test-mock',
+      messages: []
+    });
 
-      expect(result.success).toBe(true);
-      expect(result.variants).toHaveLength(1);
-      expect(result.variants[0].variantId).toBe('mock-variant-1');
-      expect(result.recommendedVariant).toBe('mock-variant-1');
-    } finally {
-      // Restore original function
-      intelligentLPGeneratorTool.execute = originalExecute;
-    }
+    expect(result.success).toBe(true);
+    expect(result.variants).toHaveLength(1);
+    expect(result.variants[0].variantId).toBe('mock-variant-1');
+    expect(result.recommendedVariant).toBe('mock-variant-1');
   });
 
   test('should validate variant structure', async () => {

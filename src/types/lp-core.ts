@@ -128,7 +128,9 @@ export interface EditOperation {
   operation: 'update' | 'delete' | 'insert';
   oldValue: string;
   newValue: string;
-  timestamp: string; // ISO 8601形式
+  timestamp: Date;
+  /** Optional ISO string representation for serialization */
+  timestampISO?: string;
 }
 
 /**

@@ -43,8 +43,15 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const [isRealTimeUpdating, setIsRealTimeUpdating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const realTimeUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realTimeUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Enhanced save processing with validation
+  const handleSave = useCallback(() => {
+    if (text.trim() && hasChanges && isValidText) {
+      onSave(text.trim());
+    }
+  }, [text, hasChanges, isValidText, onSave]);
 
   // Enhanced text change monitoring with real-time updates
   useEffect(() => {
@@ -77,7 +84,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         handleSave();
       }, autoSaveDelay);
     }
-  }, [text, initialText, maxLength, enableRealTimePreview, onRealTimeUpdate, autoSave, hasChanges, isValidText, autoSaveDelay]);
+  }, [text, initialText, maxLength, enableRealTimePreview, onRealTimeUpdate, autoSave, hasChanges, isValidText, autoSaveDelay, handleSave]);
   
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -123,28 +130,10 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     }
   };
 
-  // Enhanced save processing with validation
-  const handleSave = useCallback(() => {
-    if (text.trim() && hasChanges && isValidText) {
-      onSave(text.trim());
-    } else if (!text.trim()) {
-      // 空の場合は元のテキストに戻す
-      setText(initialText);
-      onCancel();
-    } else if (!isValidText) {
-      // Invalid text - show error or revert
-      console.warn('Invalid text detected, reverting to original');
-      setText(initialText);
-      onCancel();
-    } else {
-      onCancel();
-    }
-  }, [text, hasChanges, isValidText, onSave, onCancel, initialText]);
-
-  // キャンセル処理
+  // Cancel editing - restore original text
   const handleCancel = useCallback(() => {
     setText(initialText);
-    onCancel();
+    onCancel?.();
   }, [initialText, onCancel]);
 
   // AI改善処理
@@ -177,8 +166,20 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       ref={containerRef}
       className={`fixed z-50 bg-white border-2 border-blue-500 rounded-lg shadow-xl p-4 min-w-[300px] max-w-[500px] ${className}`}
       style={position ? {
-        left: Math.max(10, Math.min(position.x, window.innerWidth - 320)),
-        top: Math.max(10, Math.min(position.y, window.innerHeight - 200))
+        left: Math.max(
+          10,
+          Math.min(
+            position.x,
+            typeof window !== 'undefined' ? window.innerWidth - 320 : 1000
+          )
+        ),
+        top: Math.max(
+          10,
+          Math.min(
+            position.y,
+            typeof window !== 'undefined' ? window.innerHeight - 200 : 600
+          )
+        )
       } : {
         left: '50%',
         top: '50%',

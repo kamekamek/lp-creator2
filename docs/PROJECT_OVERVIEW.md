@@ -24,14 +24,42 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 | **Total** | **6-10 週** | **完全自律型 LP 生成システム** |
 
 ## 🤖 Autonomous LP Generation Flow (概要)
-1. **ユーザープロンプト受信** → `enhancedLPGeneratorTool` がトピックを拡張
-2. **構造生成** → `generateLPStructure()` がセクション配列を返却
-3. **各セクション HTML 生成** → `generateSectionHtml()` が並列で呼び出され JSON `{"html": ...}` を返す
-4. **HTML/CSS 結合** → `generateUnifiedLP()` で統合、カスタム CSS 生成
-5. **セキュリティ処理** → `sanitizeHTMLServer()` で DOMPurify 適用、CSP ヘッダー生成
-6. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
+1. **インタラクティブヒアリング** → `interactiveHearingTool` が段階的に顧客情報を収集
+   - 必須情報: 商材内容、UVP、ターゲットの悩み、コンバージョン目標
+   - 戦略情報: 競合分析、集客チャネル、ブランドイメージ、成功指標
+   - 自然言語処理: キーワード抽出、感情分析、エンティティ認識
+   - 進捗管理: リアルタイム完了率追跡、次質問の自動生成
+2. **ユーザープロンプト受信** → `enhancedLPGeneratorTool` がトピックを拡張
+3. **構造生成** → `generateLPStructure()` がセクション配列を返却
+4. **各セクション HTML 生成** → `generateSectionHtml()` が並列で呼び出され JSON `{"html": ...}` を返す
+5. **バリエーション生成** → `intelligentLPGeneratorTool` が複数デザインパターンを生成
+6. **スコアリング・推奨** → `variantScoringUtils` がビジネス文脈に基づいて最適バリエーションを推奨
+7. **HTML/CSS 結合** → `generateUnifiedLP()` で統合、カスタム CSS 生成
+8. **セキュリティ処理** → `sanitizeHTMLServer()` で DOMPurify 適用、CSP ヘッダー生成
+9. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
 
 <div align="center"><sub>※ 詳細シーケンス図は今後追加</sub></div>
+
+## 🎯 Intelligent Variant Scoring System
+
+### スコアリング基準 (最大100点)
+| 基準 | 配点 | 説明 |
+|------|------|------|
+| **ビジネス適合性** | 30点 | ビジネス目標（リード獲得、売上向上等）との適合度 |
+| **業界適合性** | 25点 | 業界特性（SaaS、EC、教育等）に最適化されたデザイン |
+| **デザイン品質** | 25点 | HTML構造、CSS品質、レスポンシブ対応 |
+| **コンテンツ品質** | 20点 | コンテンツ構造、編集可能要素、アクセシビリティ |
+
+### デザインフォーカス別特徴
+- **Modern Clean**: ブランド認知・クリエイティブ業界に最適
+- **Conversion Optimized**: リード獲得・売上向上に特化
+- **Content Rich**: 情報提供・教育・コンサルティングに適合
+
+### 自動推奨アルゴリズム
+1. ビジネス文脈分析（業界・目標・ターゲット）
+2. 各バリエーションの多角的スコアリング
+3. ユーザー設定（コンバージョン重視等）による重み付け調整
+4. 最適バリエーションの自動選択と理由説明
 
 ## 📐 Key Design Guidelines
 - **React 19 IME**: `isComposing` 管理禁止。`onChange` のみ使用。

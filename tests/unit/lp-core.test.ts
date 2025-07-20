@@ -110,12 +110,20 @@ describe('HTML Processing Utilities', () => {
   });
 });
 
-// Mock performance API for testing
-global.performance = {
-  now: jest.fn().mockReturnValueOnce(0).mockReturnValueOnce(150)
-} as any;
-
 describe('Performance Monitoring', () => {
+  let originalPerformance: any;
+
+  beforeEach(() => {
+    originalPerformance = global.performance;
+    global.performance = {
+      now: jest.fn().mockReturnValueOnce(0).mockReturnValueOnce(150)
+    } as any;
+  });
+
+  afterEach(() => {
+    global.performance = originalPerformance;
+  });
+
   test('monitorPerformance should track execution time', () => {
     const { monitorPerformance } = require('../../src/mastra/tools/utils/lpToolHelpers');
     const monitor = monitorPerformance();
@@ -125,4 +133,5 @@ describe('Performance Monitoring', () => {
     expect(result.isWithinThreshold(200)).toBe(true);
     expect(result.isWithinThreshold(100)).toBe(false);
   });
+});
 });

@@ -59,17 +59,14 @@ describe('Intelligent LP Generator Tool', () => {
 
   test('should handle basic execution without errors', async () => {
     // This is a basic smoke test to ensure the tool can be called
-    test('should handle basic execution without errors', async () => {
-      // This is a basic smoke test to ensure the tool can be called
-      await expect(intelligentLPGeneratorTool.execute({
-        topic: 'テストLP',
-        designStyle: 'modern',
-        variantCount: 1
-      }, {
-        toolCallId: 'test-fixed',
-        messages: []
-      })).resolves.not.toThrow();
-    });
+    await expect(intelligentLPGeneratorTool.execute({
+      topic: 'テストLP',
+      designStyle: 'modern',
+      variantCount: 1
+    }, {
+      toolCallId: 'test-fixed',
+      messages: []
+    })).resolves.not.toThrow();
   });
 
   test('should validate variant count parameter', () => {

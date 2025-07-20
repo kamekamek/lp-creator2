@@ -103,6 +103,55 @@ Fixes common HTML issues that could cause security problems.
 
 ## AI Generation API
 
+### Interactive Hearing System
+
+#### `interactiveHearingTool.execute(params)`
+
+Conducts step-by-step client interviews to gather comprehensive business requirements for LP generation.
+
+**Parameters:**
+```typescript
+{
+  stage: 'initial' | 'strategy' | 'details' | 'confirmation';
+  userResponse?: string;
+  currentData?: {
+    必須情報?: {
+      商材サービス内容?: string;
+      独自価値UVP?: string;
+      ターゲット顧客の悩み?: string;
+      希望コンバージョン?: string;
+      予算感覚と緊急度?: string;
+    };
+    戦略情報?: {
+      競合他社?: string[];
+      現在の集客チャネル?: string;
+      ブランドイメージ?: string;
+      成功指標?: string;
+    };
+  };
+}
+```
+
+**Returns:**
+```typescript
+{
+  success: boolean;
+  currentStage: string;
+  collectedData: object;
+  nextQuestion: string;
+  completionRate: number;
+  isComplete: boolean;
+  suggestedActions: string[];
+}
+```
+
+**Features:**
+- **Progressive Information Gathering**: Structured interview process with priority-based questions
+- **Natural Language Processing**: Analyzes user responses for keywords, sentiment, and entities
+- **Completion Tracking**: Real-time progress monitoring with percentage completion
+- **Smart Question Generation**: Context-aware next question selection
+- **Data Validation**: Ensures all required information is collected before proceeding
+
 ### Enhanced LP Generator
 
 #### `POST /api/lp-creator/chat`
@@ -181,6 +230,32 @@ Generates multiple design variants with AI recommendations.
 ### Core Types
 
 ```typescript
+interface HearingData {
+  必須情報: {
+    商材サービス内容: string;
+    独自価値UVP?: string;
+    ターゲット顧客の悩み: string;
+    希望コンバージョン: string;
+    予算感覚と緊急度?: string;
+  };
+  戦略情報: {
+    競合他社?: string[];
+    現在の集客チャネル?: string;
+    ブランドイメージ?: string;
+    成功指標?: string;
+  };
+}
+
+interface HearingResponse {
+  success: boolean;
+  currentStage: 'initial' | 'strategy' | 'details' | 'confirmation';
+  collectedData: HearingData;
+  nextQuestion: string;
+  completionRate: number;
+  isComplete: boolean;
+  suggestedActions: string[];
+}
+
 interface LPGenerationResult {
   htmlContent: string;
   cssContent: string;

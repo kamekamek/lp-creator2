@@ -45,7 +45,11 @@ export interface GenerationResult {
   metadata: {
     originalInput: string;
     analyzedContext?: BusinessContext;
-    contentStrategy?: unknown;
+    contentStrategy?: {
+      approach: string;
+      targetKeywords?: string[];
+      focusPoints?: string[];
+    };
     focusAreas?: string[];
     generatedAt: string;
   };
@@ -59,14 +63,18 @@ export interface SuggestionAction {
 
 export interface AISuggestion {
   id: string;
-  type: 'content' | 'design' | 'conversion' | 'accessibility' | 'performance';
+  type: 'content' | 'design' | 'structure' | 'seo' | 'conversion' | 'accessibility' | 'performance';
+  category: 'marketing' | 'technical' | 'ux' | 'compliance';
   title: string;
   description: string;
   impact: 'low' | 'medium' | 'high';
   confidence: number;
+  priority: number;
   preview?: string;
   action: SuggestionAction;
   reasoning: string;
+  appliedAt?: string;
+  relatedElements?: string[];
 }
 
 export interface GenerationOptions {
@@ -102,4 +110,31 @@ export interface ContentIntent {
   action: string;
   target: string;
   value?: string;
+}
+
+export interface ContentAnalysis {
+  contentScore: number;
+  designScore: number;
+  structureScore: number;
+  seoScore: number;
+  performanceScore: number;
+  overallScore: number;
+  issues: AnalysisIssue[];
+  opportunities: AnalysisOpportunity[];
+}
+
+export interface AnalysisIssue {
+  type: 'critical' | 'warning' | 'info';
+  category: 'content' | 'design' | 'structure' | 'seo' | 'performance' | 'accessibility';
+  message: string;
+  element?: string;
+  fix?: string;
+}
+
+export interface AnalysisOpportunity {
+  type: 'enhancement' | 'optimization' | 'feature';
+  category: 'marketing' | 'technical' | 'ux';
+  impact: 'low' | 'medium' | 'high';
+  effort: 'low' | 'medium' | 'high';
+  description: string;
 }

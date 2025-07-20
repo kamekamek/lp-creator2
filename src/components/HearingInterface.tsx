@@ -5,21 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, CheckCircle, Clock, Target, Send } from 'lucide-react';
+import { MessageCircle, CheckCircle, Clock, Target, Send, Lightbulb, AlertCircle, Bookmark, HelpCircle } from 'lucide-react';
 
 interface HearingData {
-  必須情報?: {
-    商材サービス内容?: string;
-    独自価値UVP?: string;
-    ターゲット顧客の悩み?: string;
-    希望コンバージョン?: string;
-    予算感覚と緊急度?: string;
+  essentialInfo?: {
+    serviceContent?: string;
+    uniqueValueProposition?: string;
+    targetCustomerPain?: string;
+    desiredConversion?: string;
+    budgetAndUrgency?: string;
   };
-  戦略情報?: {
-    競合他社?: string[];
-    現在の集客チャネル?: string;
-    ブランドイメージ?: string;
-    成功指標?: string;
+  strategyInfo?: {
+    competitors?: string[];
+    currentChannels?: string;
+    brandImage?: string;
+    successMetrics?: string;
   };
 }
 
@@ -38,6 +38,13 @@ interface HearingInterfaceProps {
   collectedData?: HearingData;
 }
 
+interface QuestionContext {
+  category: 'essential' | 'strategy' | 'details';
+  importance: 'high' | 'medium' | 'low';
+  tips?: string[];
+  examples?: string[];
+}
+
 export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   onResponse,
   onComplete,
@@ -46,11 +53,86 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
   completionRate = 0,
   collectedData = {}
 }) => {
-  console.log('🎤 HearingInterface rendered:', { isProcessing, currentQuestion, completionRate });
-  
-  const [currentStage, setCurrentStage] = useState<'initial' | 'progress' | 'complete'>('initial');
-  const [userInput, setUserInput] = useState('');
+  // 状態管理
   const [conversationHistory, setConversationHistory] = useState<ConversationEntry[]>([]);
+  const [currentStage, setCurrentStage] = useState<'initial' | 'progress' | 'completed'>('initial');
+  const [userInput, setUserInput] = useState('');
+  const [questionContext, setQuestionContext] = useState<QuestionContext | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // 質問コンテキストを分析する関数
+  const analyzeQuestionContext = (question: string): QuestionContext => {
+    if (question.includes('サービス') || question.includes('商材') || question.includes('業界')) {
+      return {
+        category: 'essential',
+        importance: 'high',
+        tips: [
+          '具体的なサービス名や業界を教えてください',
+          '解決する問題やニーズを明確にしてください',
+          '競合他社との違いがあれば教えてください'
+        ],
+        examples: [
+          'SaaS型の顧客管理システム',
+          'EC事業者向けマーケティング支援',
+          '中小企業向け経理自動化ツール'
+        ]
+      };
+    }
+    
+    if (question.includes('ターゲット') || question.includes('顧客') || question.includes('悩み')) {
+      return {
+        category: 'essential',
+        importance: 'high',
+        tips: [
+          '具体的な顧客像を描いてください',
+          '年齢層、職業、企業規模などを教えてください',
+          '顧客が抱えている具体的な課題を教えてください'
+        ],
+        examples: [
+          '30-50代の中小企業経営者',
+          '売上管理に悩むEC事業者',
+          '人事業務の効率化を求める企業'
+        ]
+      };
+    }
+
+    if (question.includes('競合') || question.includes('チャネル') || question.includes('ブランド')) {
+      return {
+        category: 'strategy',
+        importance: 'medium',
+        tips: [
+          '直接・間接的な競合企業を教えてください',
+          '現在使用している集客方法を教えてください',
+          'ブランドの印象や目指したいイメージを教えてください'
+        ],
+        examples: [
+          '競合：○○社、△△社など',
+          'チャネル：SEO、広告、SNSなど',
+          'ブランド：革新的、信頼性、親しみやすさなど'
+        ]
+      };
+    }
+
+    return {
+      category: 'details',
+      importance: 'low',
+      tips: ['できるだけ具体的にお答えください'],
+      examples: []
+    };
+  };
+
+  // 初期化処理
+  useEffect(() => {
+    if (conversationHistory.length === 0 && currentStage === 'initial') {
+      const initialQuestion = currentQuestion || 'まず、あなたのサービスや商材について教えてください。どのような業界で、どんな課題を解決するものですか？';
+      setConversationHistory([{
+        type: 'question',
+        content: initialQuestion,
+        timestamp: new Date()
+      }]);
+      setCurrentStage('progress');
+    }
+  }, [currentQuestion, conversationHistory.length, currentStage]);
 
   // 初期質問を会話履歴に追加
   useEffect(() => {
@@ -61,26 +143,25 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
         content: initialQuestion,
         timestamp: new Date()
       }]);
-      setCurrentStage('progress');
     }
-  }, [currentQuestion, conversationHistory.length]);
+  }, [conversationHistory.length, currentQuestion]);
 
-  // 新しい質問が来た時に会話履歴に追加
+  // 新しい質問が来た時の処理
   useEffect(() => {
     if (currentQuestion && conversationHistory.length > 0) {
-      const lastEntry = conversationHistory[conversationHistory.length - 1];
-      // 質問が変わった場合のみ追加（ストリーミング重複を防ぐ）
-      if (lastEntry.type !== 'question' || lastEntry.content !== currentQuestion) {
-        console.log('🆕 New question received:', currentQuestion.substring(0, 100) + '...');
-        setConversationHistory(prev => [
-          ...prev,
-          {
-            type: 'question',
-            content: currentQuestion,
-            timestamp: new Date()
-          }
-        ]);
-      }
+      console.log('🆕 New question received:', currentQuestion.substring(0, 100) + '...');
+      setConversationHistory(prev => [
+        ...prev,
+        {
+          type: 'question',
+          content: currentQuestion,
+          timestamp: new Date()
+        }
+      ]);
+      
+      // 質問のコンテキストを分析
+      const context = analyzeQuestionContext(currentQuestion);
+      setQuestionContext(context);
     }
   }, [currentQuestion]);
 
@@ -109,6 +190,65 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
     }
   };
 
+  // ヘルプパネルのレンダリング
+  const renderHelpPanel = () => {
+    if (!questionContext) return null;
+
+    return (
+      <Card className="mb-4 border-yellow-200 bg-yellow-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-yellow-800">
+            <Lightbulb className="w-5 h-5" />
+            回答のヒント
+            <Badge variant="outline" className={`text-xs ${
+              questionContext.importance === 'high' ? 'bg-red-100 text-red-800' :
+              questionContext.importance === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {questionContext.importance === 'high' ? '重要' :
+               questionContext.importance === 'medium' ? '標準' : '参考'}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {questionContext.tips && questionContext.tips.length > 0 && (
+              <div>
+                <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  回答のポイント
+                </h4>
+                <ul className="space-y-1">
+                  {questionContext.tips.map((tip, index) => (
+                    <li key={index} className="text-sm text-yellow-700">
+                      • {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {questionContext.examples && questionContext.examples.length > 0 && (
+              <div>
+                <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-1">
+                  <Bookmark className="w-4 h-4" />
+                  回答例
+                </h4>
+                <ul className="space-y-1">
+                  {questionContext.examples.map((example, index) => (
+                    <li key={index} className="text-sm text-yellow-700 italic">
+                      「{example}」
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderProgressSummary = () => (
     <Card className="mb-6">
       <CardHeader>
@@ -132,14 +272,14 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
               <CheckCircle className="w-4 h-4 text-green-500" />
               <span className="text-sm text-gray-900">必須情報</span>
               <Badge variant="secondary">
-                {Object.keys(collectedData.必須情報 || {}).length}/4
+                {Object.keys(collectedData.essentialInfo || {}).length}/4
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-yellow-500" />
               <span className="text-sm text-gray-900">戦略情報</span>
               <Badge variant="secondary">
-                {Object.keys(collectedData.戦略情報 || {}).length}/4
+                {Object.keys(collectedData.strategyInfo || {}).length}/4
               </Badge>
             </div>
           </div>
@@ -193,14 +333,14 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
             <h4 className="font-medium text-gray-900 mb-2">必須情報</h4>
             <div className="space-y-2">
               {[
-                { key: '商材サービス内容', label: 'サービス内容' },
-                { key: 'ターゲット顧客の悩み', label: '顧客の悩み' },
-                { key: '希望コンバージョン', label: 'コンバージョン' },
-                { key: '予算感覚と緊急度', label: '予算・緊急度' }
+                { key: 'serviceContent', label: 'サービス内容' },
+                { key: 'targetCustomerPain', label: '顧客の悩み' },
+                { key: 'desiredConversion', label: 'コンバージョン' },
+                { key: 'budgetAndUrgency', label: '予算・緊急度' }
               ].map(item => (
                 <div key={item.key} className="flex items-center gap-2">
                   <CheckCircle className={`w-4 h-4 ${
-                    collectedData.必須情報?.[item.key as keyof typeof collectedData.必須情報]
+                    collectedData.essentialInfo?.[item.key as keyof typeof collectedData.essentialInfo]
                       ? 'text-green-500'
                       : 'text-gray-300'
                   }`} />
@@ -217,14 +357,14 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
             <h4 className="font-medium text-gray-900 mb-2">戦略情報</h4>
             <div className="space-y-2">
               {[
-                { key: '競合他社', label: '競合分析' },
-                { key: '現在の集客チャネル', label: '集客チャネル' },
-                { key: 'ブランドイメージ', label: 'ブランド' },
-                { key: '成功指標', label: '成功指標' }
+                { key: 'competitors', label: '競合分析' },
+                { key: 'currentChannels', label: '集客チャネル' },
+                { key: 'brandImage', label: 'ブランド' },
+                { key: 'successMetrics', label: '成功指標' }
               ].map(item => (
                 <div key={item.key} className="flex items-center gap-2">
                   <Clock className={`w-4 h-4 ${
-                    collectedData.戦略情報?.[item.key as keyof typeof collectedData.戦略情報]
+                    collectedData.strategyInfo?.[item.key as keyof typeof collectedData.strategyInfo]
                       ? 'text-green-500'
                       : 'text-gray-300'
                   }`} />
@@ -277,12 +417,26 @@ export const HearingInterface: React.FC<HearingInterfaceProps> = ({
         {/* メインコンテンツ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 会話エリア */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-4">
+            {/* ヘルプパネル */}
+            {renderHelpPanel()}
+            
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5 text-blue-600" />
-                  対話
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-blue-600" />
+                    対話
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHelp(!showHelp)}
+                    className="flex items-center gap-1"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    ヘルプ
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>

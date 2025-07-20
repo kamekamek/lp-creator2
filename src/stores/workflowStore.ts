@@ -8,18 +8,18 @@ export type WorkflowStage = 'hearing' | 'concept' | 'structure' | 'generation' |
 
 // ワークフローデータの型定義
 export interface HearingData {
-  必須情報?: {
-    商材サービス内容?: string;
-    独自価値UVP?: string;
-    ターゲット顧客の悩み?: string;
-    希望コンバージョン?: string;
-    予算感覚と緊急度?: string;
+  essentialInfo?: {
+    serviceContent?: string;
+    uniqueValueProposition?: string;
+    targetCustomerPain?: string;
+    desiredConversion?: string;
+    budgetAndUrgency?: string;
   };
-  戦略情報?: {
-    競合他社?: string[];
-    現在の集客チャネル?: string;
-    ブランドイメージ?: string;
-    成功指標?: string;
+  strategyInfo?: {
+    competitors?: string[];
+    currentChannels?: string;
+    brandImage?: string;
+    successMetrics?: string;
   };
 }
 
@@ -27,10 +27,25 @@ export interface ConceptData {
   id: string;
   title: string;
   overview: string;
-  targetPersona: any;
-  valueProposition: any;
-  designDirection: any;
-  expectedOutcome: any;
+  targetPersona: {
+    age: string;
+    gender: string;
+    occupation: string;
+    painPoints: string[];
+  };
+  valueProposition: {
+    mainBenefit: string;
+    subBenefits: string[];
+  };
+  designDirection: {
+    tone: string;
+    colorScheme: string;
+    style: string;
+  };
+  expectedOutcome: {
+    kpi: string;
+    metrics: string[];
+  };
   createdAt: string;
   approvedAt?: string;
 }
@@ -73,6 +88,9 @@ export interface WorkflowState {
   // エラー状態
   error: string | null;
   
+  // ナビゲーション履歴
+  stageHistory: WorkflowStage[];
+  
   // メタデータ
   sessionId: string;
   startedAt: string;
@@ -84,6 +102,8 @@ export interface WorkflowActions {
   // 段階管理
   setStage: (stage: WorkflowStage) => void;
   nextStage: () => void;
+  previousStage: () => void;
+  goToStage: (stage: WorkflowStage) => void;
   resetWorkflow: () => void;
   
   // データ更新
@@ -99,7 +119,9 @@ export interface WorkflowActions {
   
   // ユーティリティ
   canProceedToNext: () => boolean;
+  canGoBack: () => boolean;
   getStageProgress: (stage: WorkflowStage) => number;
+  getStageHistory: () => WorkflowStage[];
   exportWorkflowData: () => any;
   importWorkflowData: (data: any) => void;
 }
@@ -116,6 +138,7 @@ const initialState: WorkflowState = {
   completionRate: 0,
   isProcessing: false,
   error: null,
+  stageHistory: ['hearing'],
   sessionId: generateSessionId(),
   startedAt: new Date().toISOString(),
   lastUpdated: new Date().toISOString()
@@ -131,6 +154,14 @@ function generateSessionId(): string {
     ).join('')}`;
   }
   // Fallback for non-browser environments
+  if (typeof require !== 'undefined') {
+    try {
+      const crypto = require('crypto');
+      return `workflow_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
+    } catch (e) {
+      console.warn('Crypto module not available, using less secure fallback');
+    }
+  }
   return `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
@@ -145,11 +176,19 @@ export const useWorkflowStore = create<WorkflowStore>()(
       
       // 段階管理
       setStage: (stage: WorkflowStage) => {
-        set((state) => ({
-          ...state,
-          currentStage: stage,
-          lastUpdated: new Date().toISOString()
-        }));
+        set((state) => {
+          const newHistory = [...state.stageHistory];
+          if (newHistory[newHistory.length - 1] !== stage) {
+            newHistory.push(stage);
+          }
+          
+          return {
+            ...state,
+            currentStage: stage,
+            stageHistory: newHistory,
+            lastUpdated: new Date().toISOString()
+          };
+        });
         get().updateProgress();
       },
       
@@ -160,11 +199,31 @@ export const useWorkflowStore = create<WorkflowStore>()(
         }
       },
       
+      previousStage: () => {
+        const state = get();
+        const currentIndex = stageOrder.indexOf(state.currentStage);
+        if (currentIndex > 0) {
+          get().setStage(stageOrder[currentIndex - 1]);
+        }
+      },
+      
+      goToStage: (stage: WorkflowStage) => {
+        const state = get();
+        const targetIndex = stageOrder.indexOf(stage);
+        const currentIndex = stageOrder.indexOf(state.currentStage);
+        
+        // 後方移動は常に可能、前方移動は条件チェック
+        if (targetIndex <= currentIndex || get().canProceedToNext()) {
+          get().setStage(stage);
+        }
+      },
+      
       resetWorkflow: () => {
         set({
           ...initialState,
           sessionId: generateSessionId(),
-          startedAt: new Date().toISOString()
+          startedAt: new Date().toISOString(),
+          stageHistory: ['hearing']
         });
       },
       
@@ -272,6 +331,11 @@ export const useWorkflowStore = create<WorkflowStore>()(
         }
       },
       
+      canGoBack: () => {
+        const currentIndex = stageOrder.indexOf(get().currentStage);
+        return currentIndex > 0;
+      },
+      
       getStageProgress: (stage: WorkflowStage) => {
         const state = get();
         
@@ -289,6 +353,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
           default:
             return 0;
         }
+      },
+      
+      getStageHistory: () => {
+        return get().stageHistory;
       },
       
       exportWorkflowData: () => {
@@ -324,6 +392,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         conceptData: state.conceptData,
         structureData: state.structureData,
         generationResult: state.generationResult,
+        stageHistory: state.stageHistory,
         sessionId: state.sessionId,
         startedAt: state.startedAt,
         lastUpdated: state.lastUpdated
@@ -337,36 +406,36 @@ export const useWorkflowStore = create<WorkflowStore>()(
 // ヒアリング完了度を計算
 function calculateHearingCompletion(hearingData: HearingData): number {
   const requiredFields = [
-    '商材サービス内容',
-    'ターゲット顧客の悩み',
-    '希望コンバージョン'
+    'serviceContent',
+    'targetCustomerPain',
+    'desiredConversion'
   ];
   
   const optionalFields = [
-    '独自価値UVP',
-    '予算感覚と緊急度'
+    'uniqueValueProposition',
+    'budgetAndUrgency'
   ];
   
   const strategyFields = [
-    '競合他社',
-    '現在の集客チャネル',
-    'ブランドイメージ',
-    '成功指標'
+    'competitors',
+    'currentChannels',
+    'brandImage',
+    'successMetrics'
   ];
   
   // 必須フィールドの完了度 (60%)
   const requiredCompletion = requiredFields.filter(field =>
-    hearingData.必須情報?.[field as keyof typeof hearingData.必須情報]
+    hearingData.essentialInfo?.[field as keyof typeof hearingData.essentialInfo]
   ).length / requiredFields.length;
   
   // オプションフィールドの完了度 (20%)
   const optionalCompletion = optionalFields.filter(field =>
-    hearingData.必須情報?.[field as keyof typeof hearingData.必須情報]
+    hearingData.essentialInfo?.[field as keyof typeof hearingData.essentialInfo]
   ).length / optionalFields.length;
   
   // 戦略フィールドの完了度 (20%)
   const strategyCompletion = strategyFields.filter(field =>
-    hearingData.戦略情報?.[field as keyof typeof hearingData.戦略情報]
+    hearingData.strategyInfo?.[field as keyof typeof hearingData.strategyInfo]
   ).length / strategyFields.length;
   
   return Math.round(
@@ -379,18 +448,18 @@ function calculateHearingCompletion(hearingData: HearingData): number {
 // ヒアリングが完了しているかチェック
 function isHearingComplete(hearingData: HearingData): boolean {
   const requiredFields = [
-    '商材サービス内容',
-    'ターゲット顧客の悩み',
-    '希望コンバージョン'
+    'serviceContent',
+    'targetCustomerPain',
+    'desiredConversion'
   ];
   
   const hasAllRequired = requiredFields.every(field =>
-    hearingData.必須情報?.[field as keyof typeof hearingData.必須情報]
+    hearingData.essentialInfo?.[field as keyof typeof hearingData.essentialInfo]
   );
   
   // 戦略情報も最低1つは必要
-  const hasStrategyInfo = !!(hearingData.戦略情報 && 
-    Object.values(hearingData.戦略情報).some(value => 
+  const hasStrategyInfo = !!(hearingData.strategyInfo && 
+    Object.values(hearingData.strategyInfo).some(value => 
       value && (Array.isArray(value) ? value.length > 0 : true)
     ));
   

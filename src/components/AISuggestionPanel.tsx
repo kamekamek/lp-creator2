@@ -13,13 +13,20 @@ import {
   Zap,
   CheckCircle,
   X,
-  Sparkles
+  Sparkles,
+  Search,
+  Globe,
+  BarChart3
 } from 'lucide-react';
 
-import type { AISuggestion } from '../types/lp-generator';
+import type { AISuggestion, BusinessContext, ContentAnalysis } from '../types/lp-generator';
+import { AISuggestionGenerator } from '../utils/ai-suggestion-generator';
 
 interface AISuggestionPanelProps {
-  suggestions: AISuggestion[];
+  htmlContent?: string;
+  cssContent?: string;
+  businessContext?: BusinessContext;
+  suggestions?: AISuggestion[];
   onApplySuggestion: (suggestion: AISuggestion) => Promise<void>;
   onDismissSuggestion: (suggestionId: string) => void;
   isVisible: boolean;
@@ -29,6 +36,8 @@ interface AISuggestionPanelProps {
 const suggestionIcons = {
   content: Type,
   design: Palette,
+  structure: Layout,
+  seo: Search,
   conversion: TrendingUp,
   accessibility: CheckCircle,
   performance: Zap
@@ -41,7 +50,10 @@ const impactColors = {
 };
 
 export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
-  suggestions,
+  htmlContent = '',
+  cssContent = '',
+  businessContext,
+  suggestions: propSuggestions,
   onApplySuggestion,
   onDismissSuggestion,
   isVisible,
@@ -49,12 +61,46 @@ export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
 }) => {
   const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set());
   const [loadingSuggestions, setLoadingSuggestions] = useState<Set<string>>(new Set());
+  const [generatedSuggestions, setGeneratedSuggestions] = useState<AISuggestion[]>([]);
+  const [contentAnalysis, setContentAnalysis] = useState<ContentAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // コンテンツ分析と提案生成
+  useEffect(() => {
+    if (htmlContent && isVisible) {
+      setIsAnalyzing(true);
+      
+      try {
+        // コンテンツ分析を実行
+        const analysis = AISuggestionGenerator.analyzeContent(htmlContent, cssContent);
+        setContentAnalysis(analysis);
+        
+        // 提案を生成
+        const suggestions = AISuggestionGenerator.generateSuggestions(
+          htmlContent, 
+          cssContent, 
+          businessContext
+        );
+        setGeneratedSuggestions(suggestions);
+      } catch (error) {
+        console.error('Failed to analyze content:', error);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    }
+  }, [htmlContent, cssContent, businessContext, isVisible]);
 
   const handleApplySuggestion = async (suggestion: AISuggestion) => {
     setLoadingSuggestions(prev => new Set(prev).add(suggestion.id));
     
     try {
-      await onApplySuggestion(suggestion);
+      // 提案適用時に適用日時を記録
+      const appliedSuggestion = {
+        ...suggestion,
+        appliedAt: new Date().toISOString()
+      };
+      
+      await onApplySuggestion(appliedSuggestion);
       setAppliedSuggestions(prev => new Set(prev).add(suggestion.id));
     } catch (error) {
       console.error('Failed to apply suggestion:', error);
@@ -69,7 +115,10 @@ export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
 
   if (!isVisible) return null;
 
-  const groupedSuggestions = suggestions.reduce((groups, suggestion) => {
+  // 提案データを統合（プロップスから渡されたものと生成されたものを結合）
+  const allSuggestions = [...(propSuggestions || []), ...generatedSuggestions];
+  
+  const groupedSuggestions = allSuggestions.reduce((groups, suggestion) => {
     if (!groups[suggestion.type]) {
       groups[suggestion.type] = [];
     }
@@ -85,8 +134,13 @@ export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
           <Sparkles className="w-5 h-5" />
           <h3 className="font-semibold">AI改善提案</h3>
           <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-            {suggestions.length}件
+            {allSuggestions.length}件
           </Badge>
+          {isAnalyzing && (
+            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 animate-pulse">
+              分析中...
+            </Badge>
+          )}
         </div>
         <Button
           size="sm"
@@ -97,6 +151,44 @@ export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
           <X className="w-4 h-4" />
         </Button>
       </div>
+      
+      {/* コンテンツ分析スコア */}
+      {contentAnalysis && (
+        <div className="p-3 border-b bg-gray-50">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-4 h-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-900">総合スコア</span>
+            <Badge 
+              variant="outline" 
+              className={`${
+                contentAnalysis.overallScore >= 80 ? 'bg-green-100 text-green-800' :
+                contentAnalysis.overallScore >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}
+            >
+              {contentAnalysis.overallScore}/100
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-gray-600">コンテンツ:</span>
+              <span className="font-medium">{contentAnalysis.contentScore}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">デザイン:</span>
+              <span className="font-medium">{contentAnalysis.designScore}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">構造:</span>
+              <span className="font-medium">{contentAnalysis.structureScore}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">SEO:</span>
+              <span className="font-medium">{contentAnalysis.seoScore}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 提案リスト */}
       <div className="overflow-y-auto max-h-[60vh]">
@@ -106,6 +198,8 @@ export const AISuggestionPanel: React.FC<AISuggestionPanelProps> = ({
               <h4 className="font-medium text-gray-900 capitalize">
                 {type === 'content' && 'コンテンツ'}
                 {type === 'design' && 'デザイン'}
+                {type === 'structure' && '構造'}
+                {type === 'seo' && 'SEO'}
                 {type === 'conversion' && 'コンバージョン'}
                 {type === 'accessibility' && 'アクセシビリティ'}
                 {type === 'performance' && 'パフォーマンス'}
@@ -173,6 +267,11 @@ const SuggestionCard: React.FC<{
               <Badge variant="outline" className="text-xs">
                 {Math.round(suggestion.confidence * 100)}%
               </Badge>
+              {suggestion.priority && (
+                <Badge variant="outline" className="text-xs">
+                  P{suggestion.priority}
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -245,114 +344,3 @@ const SuggestionCard: React.FC<{
   );
 };
 
-// AIサジェスション分析関数
-function analyzeContent(htmlContent: string, cssContent: string): AISuggestion[] {
-  const suggestions: AISuggestion[] = [];
-  
-  // コンテンツ分析
-  if (!htmlContent.includes('alt=')) {
-    suggestions.push({
-        id: 'img-alt-text',
-        type: 'accessibility',
-        title: '画像にalt属性を追加',
-        description: 'アクセシビリティ向上のため、画像にalt属性を追加することをお勧めします。',
-        impact: 'medium',
-        confidence: 0.9,
-        action: {
-          type: 'modify',
-          target: 'img',
-          value: 'alt属性を追加'
-        },
-        reasoning: 'スクリーンリーダーのユーザーにとって重要で、SEOにも効果的です。'
-      });
-    }
-
-    // CTA分析
-    const ctaCount = (htmlContent.match(/(?:ボタン|button|申し込み|登録|問い合わせ)/gi) || []).length;
-    if (ctaCount < 2) {
-      suggestions.push({
-        id: 'add-cta',
-        type: 'conversion',
-        title: 'CTA（行動喚起）を追加',
-        description: 'コンバージョン率向上のため、追加のCTAボタンを配置することをお勧めします。',
-        impact: 'high',
-        confidence: 0.85,
-        preview: '<button class="bg-blue-500 text-white px-6 py-3 rounded-lg">今すぐ申し込む</button>',
-        action: {
-          type: 'add',
-          target: 'section',
-          value: 'CTA追加'
-        },
-        reasoning: '複数のCTAポイントがあることで、ユーザーの行動機会が増加します。'
-      });
-    }
-
-    // デザイン分析
-    if (!cssContent.includes('box-shadow')) {
-      suggestions.push({
-        id: 'add-shadows',
-        type: 'design',
-        title: 'ボックスシャドウで奥行きを追加',
-        description: 'カードやボタンにシャドウを追加して、より魅力的なデザインにできます。',
-        impact: 'medium',
-        confidence: 0.75,
-        preview: 'box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);',
-        action: {
-          type: 'modify',
-          target: 'css',
-          value: 'シャドウ追加'
-        },
-        reasoning: '視覚的な階層とモダンな印象を与えます。'
-      });
-    }
-
-    return suggestions;
-  }
-
-// コンテキストベースの提案生成関数
-function generateContextualSuggestions(businessContext: any): AISuggestion[] {
-    const suggestions: AISuggestion[] = [];
-
-    // 業界特有の提案
-    if (businessContext?.industry === 'saas') {
-      suggestions.push({
-        id: 'saas-trial',
-        type: 'conversion',
-        title: '無料トライアルセクションを追加',
-        description: 'SaaSサービスでは無料トライアルが効果的なコンバージョン手法です。',
-        impact: 'high',
-        confidence: 0.9,
-        action: {
-          type: 'add',
-          target: 'section',
-          value: '無料トライアル'
-        },
-        reasoning: 'SaaSの場合、ユーザーは購入前に製品を試したがる傾向があります。'
-      });
-    }
-
-    if (businessContext?.targetAudience === '中小企業') {
-      suggestions.push({
-        id: 'trust-signals',
-        type: 'conversion',
-        title: '導入実績・お客様の声を追加',
-        description: '中小企業向けでは信頼性が重要です。導入実績やお客様の声を表示しましょう。',
-        impact: 'high',
-        confidence: 0.85,
-        action: {
-          type: 'add',
-          target: 'section',
-          value: '導入実績'
-        },
-        reasoning: '中小企業の意思決定者は、同業他社の成功事例を重視します。'
-      });
-    }
-
-  return suggestions;
-}
-
-// AIサジェスチョンジェネレーター
-export class AISuggestionGenerator {
-  static analyzeContent = analyzeContent;
-  static generateContextualSuggestions = generateContextualSuggestions;
-}

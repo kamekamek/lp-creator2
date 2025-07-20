@@ -1,5 +1,13 @@
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
+import { generateSecureCSPDirectives, generateSecureCSPHeader, addNoncesToHTML } from './secureCSP';
+
+// Global type declaration for DOMPurify in test environment
+declare global {
+  var DOMPurify: {
+    sanitize: (html: string, config: any) => string;
+  } | undefined;
+}
 
 /**
  * Security configuration for HTML sanitization
@@ -45,11 +53,12 @@ const SANITIZATION_CONFIG = {
 
 /**
  * Content Security Policy directives for iframe sandbox
+ * DEPRECATED: Use secureCSP.ts for production-ready CSP with nonces
  */
 export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com'],
-  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  'script-src': ["'self'", 'https://cdn.tailwindcss.com'], // Removed 'unsafe-inline'
+  'style-src': ["'self'", 'https://fonts.googleapis.com'], // Removed 'unsafe-inline'
   'font-src': ["'self'", 'https://fonts.gstatic.com'],
   'img-src': ["'self'", 'data:', 'https:', 'blob:'],
   'connect-src': ["'self'"],
@@ -81,19 +90,20 @@ export function sanitizeHTMLServer(html: string): string {
     
     // Create a JSDOM instance for server-side processing
     const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>');
-    const window = dom.window as unknown as Window;
+    const window = dom.window;
     
     // Initialize DOMPurify with JSDOM window
-    const purify = DOMPurify(window);
+    const purify = DOMPurify(window as any);
     
     // Configure DOMPurify with our security settings
     const cleanHTML = purify.sanitize(html, {
       ALLOWED_TAGS: SANITIZATION_CONFIG.allowedTags,
       ALLOWED_ATTR: Object.keys(SANITIZATION_CONFIG.allowedAttributes).reduce((acc, tag) => {
+        const attributes = SANITIZATION_CONFIG.allowedAttributes[tag as keyof typeof SANITIZATION_CONFIG.allowedAttributes];
         if (tag === '*') {
-          acc.push(...SANITIZATION_CONFIG.allowedAttributes[tag]);
+          acc.push(...attributes);
         } else {
-          acc.push(...SANITIZATION_CONFIG.allowedAttributes[tag]);
+          acc.push(...attributes);
         }
         return acc;
       }, [] as string[]),
@@ -132,10 +142,11 @@ export function sanitizeHTMLClient(html: string): string {
     const cleanHTML = DOMPurify.sanitize(html, {
       ALLOWED_TAGS: SANITIZATION_CONFIG.allowedTags,
       ALLOWED_ATTR: Object.keys(SANITIZATION_CONFIG.allowedAttributes).reduce((acc, tag) => {
+        const attributes = SANITIZATION_CONFIG.allowedAttributes[tag as keyof typeof SANITIZATION_CONFIG.allowedAttributes];
         if (tag === '*') {
-          acc.push(...SANITIZATION_CONFIG.allowedAttributes[tag]);
+          acc.push(...attributes);
         } else {
-          acc.push(...SANITIZATION_CONFIG.allowedAttributes[tag]);
+          acc.push(...attributes);
         }
         return acc;
       }, [] as string[]),
@@ -204,11 +215,63 @@ export function performSecurityChecks(html: string): {
 
 /**
  * Generate CSP header string from directives
+ * DEPRECATED: Use generateSecureCSPHeader from secureCSP.ts instead
  */
 export function generateCSPHeader(): string {
   return Object.entries(CSP_DIRECTIVES)
     .map(([directive, sources]) => `${directive} ${sources.join(' ')}`)
     .join('; ');
+}
+
+/**
+ * Generate secure CSP header without unsafe-inline
+ */
+export function generateSecureCSPHeaderForIframe(options: {
+  scriptNonce?: string;
+  styleNonce?: string;
+}): string {
+  const directives = generateSecureCSPDirectives(options);
+  return generateSecureCSPHeader(directives);
+}
+
+/**
+ * Secure HTML sanitization with CSP nonce support
+ */
+export function sanitizeHTMLWithNonces(
+  html: string, 
+  scriptNonce: string, 
+  styleNonce: string,
+  isServer: boolean = false
+): {
+  sanitizedHTML: string;
+  cspHeader: string;
+} {
+  try {
+    // First, sanitize the HTML content
+    const sanitizedHTML = isServer 
+      ? sanitizeHTMLServer(html)
+      : sanitizeHTMLClient(html);
+    
+    // Add nonces to inline scripts and styles
+    const htmlWithNonces = addNoncesToHTML(sanitizedHTML, scriptNonce, styleNonce);
+    
+    // Generate secure CSP header
+    const cspHeader = generateSecureCSPHeaderForIframe({
+      scriptNonce,
+      styleNonce
+    });
+    
+    return {
+      sanitizedHTML: htmlWithNonces,
+      cspHeader
+    };
+  } catch (error) {
+    console.error('Secure HTML sanitization failed:', error);
+    return {
+      sanitizedHTML: '<div class="error-message">Content could not be safely rendered</div>',
+      cspHeader: generateSecureCSPHeaderForIframe({})
+    };
+  }
 }
 
 /**
@@ -236,8 +299,18 @@ export function fixCommonSecurityIssues(html: string): string {
     (match, attrs) => {
       if (!attrs.includes('rel=')) {
         return match.replace('>', ' rel="noopener noreferrer">');
+      } else {
+        // 既存のrel属性に追加
+        return match.replace(
+          /rel=["']([^"']*?)["']/,
+          (relMatch, existingRel) => {
+            const values = new Set(existingRel.split(/\s+/));
+            values.add('noopener');
+            values.add('noreferrer');
+            return `rel="${Array.from(values).join(' ')}"`;
+          }
+        );
       }
-      return match;
     }
   );
   

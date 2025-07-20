@@ -127,14 +127,11 @@ test.describe('Security Protection E2E Tests', () => {
     const headers = response?.headers();
     
     expect(headers).toBeDefined();
-    if (headers) {
-      const csp = headers['content-security-policy'];
-      if (csp) {
-        expect(csp).toContain("default-src 'self'");
-        expect(csp).toContain("object-src 'none'");
-        expect(csp).toContain("base-uri 'self'");
-      }
-    }
+    const csp = headers?.['content-security-policy'];
+    expect(csp).toBeDefined();
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("base-uri 'self'");
   });
 
   test('should handle malformed HTML gracefully', async ({ page }) => {

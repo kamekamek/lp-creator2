@@ -21,11 +21,27 @@ export const writeCopyAndUX = createTool({
     copyDocument: z.string(),
     interactionSpec: z.string(),
   }),
-  execute: async ({ context: { persona, strategy } }) => {
-    console.log("[writeCopyAndUX] persona,strategy", persona.length, strategy.length);
+  execute: async ({ context }) => {
+    const { 
+      persona, 
+      strategy, 
+      industry,
+      targetAudience,
+      businessGoal,
+      competitiveAdvantages,
+      tone 
+    } = context;
+    
+    console.log("[writeCopyAndUX] Processing:", {
+      personaLength: persona?.length || 0,
+      strategyLength: strategy?.length || 0,
+      industry: industry || 'not specified',
+      tone: tone || 'not specified'
+    });
+    
     return {
-      copyDocument: "<完全版コピー placeholder>",
-      interactionSpec: "<インタラクション仕様書 placeholder>",
+      copyDocument: `<完全版コピー placeholder for ${industry || 'general'} industry>`,
+      interactionSpec: `<インタラクション仕様書 placeholder with ${tone || 'professional'} tone>`,
     };
   },
 });

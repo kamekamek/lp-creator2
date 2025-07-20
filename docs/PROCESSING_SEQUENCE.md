@@ -3,7 +3,50 @@
 ## 概要
 LP Creator の主要な処理フローを示すシーケンス図です。ユーザーの入力からLP生成・表示までの流れを詳細に記載しています。
 
-## 1. メイン処理フロー（LP生成）
+## 1. インタラクティブヒアリング処理フロー
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as page.tsx
+    participant API as /api/lp-creator/chat/route.ts
+    participant Agent as lpCreatorAgent.ts
+    participant Hearing as interactiveHearingTool
+    participant NLP as NLP Engine
+
+    U->>UI: 初回チャット入力
+    UI->>API: POST /api/lp-creator/chat
+    API->>Agent: Mastra Agent 呼び出し
+    
+    Agent->>Hearing: startHearing() 実行
+    Hearing-->>Agent: 初回質問返却
+    Agent->>API: ヒアリング開始をストリーミング
+    API-->>UI: 初回質問をストリーミング
+    UI-->>U: 質問を表示
+    
+    loop ヒアリング継続
+        U->>UI: 回答入力
+        UI->>API: 回答をPOST
+        API->>Agent: 回答を転送
+        Agent->>Hearing: analyzeResponse() 実行
+        Hearing->>NLP: キーワード・感情・エンティティ分析
+        NLP-->>Hearing: 分析結果返却
+        Hearing->>Hearing: updateData() でデータ更新
+        Hearing->>Hearing: calculateCompletion() で進捗計算
+        Hearing->>Hearing: generateNextQuestion() で次質問生成
+        Hearing-->>Agent: 次質問と進捗返却
+        Agent->>API: 質問をストリーミング
+        API-->>UI: 質問と進捗をストリーミング
+        UI-->>U: 質問と進捗表示
+    end
+    
+    Hearing->>Hearing: isHearingComplete() チェック
+    Hearing-->>Agent: 完了通知とデータ
+    Agent-->>API: ヒアリング完了
+    API-->>UI: コンセプト提案へ移行
+```
+
+## 2. メイン処理フロー（LP生成）
 
 ```mermaid
 sequenceDiagram
@@ -14,11 +57,13 @@ sequenceDiagram
     participant Tools as Mastra Tools
     participant Viewer as LPViewer.tsx
 
-    U->>UI: チャットで要求入力
+    Note over U,Viewer: ヒアリング完了後の処理
+    
+    U->>UI: LP生成開始指示
     UI->>API: POST /api/lp-creator/chat
     API->>Agent: Mastra Agent 呼び出し
     
-    Agent->>Tools: lpStructureTool 実行
+    Agent->>Tools: lpStructureTool 実行（ヒアリングデータ活用）
     Tools-->>Agent: 構造提案返却
     Agent->>API: ストリーミング応答開始
     API-->>UI: 構造提案をストリーミング
@@ -38,7 +83,7 @@ sequenceDiagram
     Viewer-->>U: LP表示完了
 ```
 
-## 2. 編集モード処理フロー
+## 3. 編集モード処理フロー
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +123,7 @@ sequenceDiagram
     Viewer-->>U: 改善結果を表示
 ```
 
-## 3. ツールシステム詳細フロー
+## 4. ツールシステム詳細フロー
 
 ```mermaid
 sequenceDiagram
@@ -170,12 +215,12 @@ stateDiagram-v2
 
 ## 技術スタック
 
-- **Frontend**: Next.js 14, React, TypeScript
+- **Frontend**: Next.js 15.2.2, React (最新18.x系), TypeScript 5.8.2
 - **AI Framework**: Mastra
 - **API**: Next.js API Routes with Streaming
 - **Database**: LibSQL (../memory.db)
 - **Styling**: Tailwind CSS
-- **AI Models**: Claude 3.5 Sonnet, OpenAI GPT-4, Google Gemini
+- **AI Models**: Claude 3.7 Sonnet, OpenAI GPT-4.1 (mini/nano含む), Google Gemini
 
 ## 主要な特徴
 

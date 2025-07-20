@@ -59,7 +59,8 @@ const cleanHTML = sanitizeHTMLClient(userHTML);
 ```typescript
 export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com'],
+-  'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com'],
++  'script-src': ["'self'", "'nonce-{RANDOM_NONCE}'", 'https://cdn.tailwindcss.com'],
   'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   'font-src': ["'self'", 'https://fonts.gstatic.com'],
   'img-src': ["'self'", 'data:', 'https:', 'blob:'],
@@ -69,7 +70,6 @@ export const CSP_DIRECTIVES = {
   'base-uri': ["'self'"],
   'form-action': ["'self'"]
 };
-```
 
 ### Implementation
 
@@ -91,10 +91,9 @@ AI-generated content is rendered in sandboxed iframes with restricted permission
 ```typescript
 export const SANDBOX_ATTRIBUTES = [
   'allow-scripts',      // Allow JavaScript execution
-  'allow-same-origin',  // Allow same-origin access for editing
+  // 'allow-same-origin'を削除してセキュリティ強化
   'allow-forms'         // Allow form interactions
 ];
-```
 
 ### Prohibited Actions
 

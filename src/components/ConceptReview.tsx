@@ -6,19 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Target, 
-  Users, 
-  Lightbulb, 
-  Palette, 
-  TrendingUp, 
   CheckCircle,
   Edit,
   Save,
   ArrowRight,
-  Clock,
-  Award,
-  BarChart3
+  MessageSquare,
+  RefreshCw,
+  Star,
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
+import { ConceptOverviewTab } from './ConceptOverviewTab';
+import { ConceptPersonaTab } from './ConceptPersonaTab';
+import { ConceptValuePropTab } from './ConceptValuePropTab';
+import { ConceptDesignTab } from './ConceptDesignTab';
 
 interface ValueProposition {
   headline: string;
@@ -76,7 +77,17 @@ interface ConceptReviewProps {
   onApprove: (concept: Concept) => void;
   onEdit: (concept: Concept) => void;
   onSave: (concept: Concept) => void;
+  onRequestRevision?: (feedback: string) => void;
+  onGenerateAlternative?: () => void;
   isEditing?: boolean;
+  isGenerating?: boolean;
+}
+
+interface ConceptFeedback {
+  rating: number;
+  category: 'content' | 'design' | 'strategy' | 'targeting';
+  comment: string;
+  suggestions?: string[];
 }
 
 export const ConceptReview: React.FC<ConceptReviewProps> = ({
@@ -84,13 +95,194 @@ export const ConceptReview: React.FC<ConceptReviewProps> = ({
   onApprove,
   onEdit,
   onSave,
-  isEditing = false
+  onRequestRevision,
+  onGenerateAlternative,
+  isEditing = false,
+  isGenerating = false
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [editedConcept, setEditedConcept] = useState(concept);
+  const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
+  const [feedback, setFeedback] = useState<ConceptFeedback>({
+    rating: 5,
+    category: 'content',
+    comment: '',
+    suggestions: []
+  });
+  const [conceptScore, setConceptScore] = useState<number>(0);
+
+  // 編集用ハンドラー
+  const handleUpdateConcept = (updates: Partial<LPConcept>) => {
+    setEditedConcept(prev => ({ ...prev, ...updates }));
+  };
+
+  // コンセプトスコア計算
+  React.useEffect(() => {
+    const calculateScore = () => {
+      let score = 0;
+      
+      // 価値提案の完成度 (30%)
+      if (editedConcept.valueProposition?.headline) score += 10;
+      if (editedConcept.valueProposition?.keyBenefits?.length > 0) score += 10;
+      if (editedConcept.valueProposition?.proofPoints?.length > 0) score += 10;
+      
+      // ターゲティングの明確性 (25%)
+      if (editedConcept.targetPersona?.name) score += 8;
+      if (editedConcept.targetPersona?.painPoints?.length > 0) score += 9;
+      if (editedConcept.targetPersona?.goals?.length > 0) score += 8;
+      
+      // デザイン方向性 (20%)
+      if (editedConcept.designDirection?.style) score += 7;
+      if (editedConcept.designDirection?.colorScheme?.length > 0) score += 7;
+      if (editedConcept.designDirection?.layoutApproach) score += 6;
+      
+      // 成果予測 (15%)
+      if (editedConcept.expectedOutcome?.metrics?.length > 0) score += 15;
+      
+      // 実行可能性 (10%)
+      if (editedConcept.nextSteps && editedConcept.nextSteps.length > 0) score += 10;
+      
+      setConceptScore(score);
+    };
+    
+    calculateScore();
+  }, [editedConcept]);
+
+  // フィードバック送信
+  const handleSubmitFeedback = () => {
+    if (onRequestRevision && feedback.comment.trim()) {
+      const feedbackText = `評価: ${feedback.rating}/5\nカテゴリ: ${feedback.category}\nコメント: ${feedback.comment}`;
+      onRequestRevision(feedbackText);
+      setShowFeedbackPanel(false);
+    }
+  };
+
+  // フィードバックパネルのレンダリング
+  const renderFeedbackPanel = () => (
+    <Card className="mb-6 border-orange-200 bg-orange-50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-orange-800">
+          <MessageSquare className="w-5 h-5" />
+          フィードバックと改善要求
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-orange-800 mb-2">
+              評価 (1-5)
+            </label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setFeedback(prev => ({ ...prev, rating: star }))}
+                  className={`p-1 ${star <= feedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                >
+                  <Star className="w-5 h-5 fill-current" />
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-orange-800 mb-2">
+              改善カテゴリ
+            </label>
+            <select
+              value={feedback.category}
+              onChange={(e) => setFeedback(prev => ({ ...prev, category: e.target.value as any }))}
+              className="w-full p-2 border border-orange-300 rounded-lg"
+            >
+              <option value="content">コンテンツ内容</option>
+              <option value="design">デザイン方向性</option>
+              <option value="strategy">戦略・アプローチ</option>
+              <option value="targeting">ターゲティング</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-orange-800 mb-2">
+              具体的な改善要求
+            </label>
+            <textarea
+              value={feedback.comment}
+              onChange={(e) => setFeedback(prev => ({ ...prev, comment: e.target.value }))}
+              placeholder="どの部分をどのように改善したいか具体的に教えてください..."
+              className="w-full p-3 border border-orange-300 rounded-lg resize-none"
+              rows={4}
+            />
+          </div>
+          
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSubmitFeedback}
+              disabled={!feedback.comment.trim()}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              改善要求を送信
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowFeedbackPanel(false)}
+            >
+              キャンセル
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   const renderOverviewTab = () => (
     <div className="space-y-6">
+      {/* コンセプトスコア */}
+      <Card className="border-blue-200 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+              コンセプトスコア
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-blue-900">{conceptScore}/100</span>
+              <Badge variant="outline" className={`${
+                conceptScore >= 80 ? 'bg-green-100 text-green-800' :
+                conceptScore >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {conceptScore >= 80 ? '優秀' :
+                 conceptScore >= 60 ? '良好' : '要改善'}
+              </Badge>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-blue-700 font-medium">価値提案</div>
+              <div className="text-blue-900 font-bold">30%</div>
+            </div>
+            <div className="text-center">
+              <div className="text-blue-700 font-medium">ターゲティング</div>
+              <div className="text-blue-900 font-bold">25%</div>
+            </div>
+            <div className="text-center">
+              <div className="text-blue-700 font-medium">デザイン</div>
+              <div className="text-blue-900 font-bold">20%</div>
+            </div>
+            <div className="text-center">
+              <div className="text-blue-700 font-medium">成果予測</div>
+              <div className="text-blue-900 font-bold">15%</div>
+            </div>
+            <div className="text-center">
+              <div className="text-blue-700 font-medium">実行可能性</div>
+              <div className="text-blue-900 font-bold">10%</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* コンセプトタイトル */}
       <Card>
         <CardHeader>
@@ -410,6 +602,9 @@ export const ConceptReview: React.FC<ConceptReviewProps> = ({
         </p>
       </div>
 
+      {/* フィードバックパネル */}
+      {showFeedbackPanel && renderFeedbackPanel()}
+
       {/* タブナビゲーション */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="grid grid-cols-4 w-full">
@@ -426,19 +621,78 @@ export const ConceptReview: React.FC<ConceptReviewProps> = ({
       </Tabs>
 
       {/* アクションボタン */}
-      <div className="flex justify-end gap-3 border-t pt-6">
-        <Button variant="outline" onClick={() => onSave(editedConcept)}>
-          <Save className="w-4 h-4 mr-2" />
-          保存
-        </Button>
-        <Button variant="outline" onClick={() => onEdit(editedConcept)}>
-          <Edit className="w-4 h-4 mr-2" />
-          編集
-        </Button>
-        <Button onClick={() => onApprove(editedConcept)} className="bg-green-600 hover:bg-green-700">
-          <ArrowRight className="w-4 h-4 mr-2" />
-          承認して次へ
-        </Button>
+      <div className="border-t pt-6">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFeedbackPanel(!showFeedbackPanel)}
+              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              改善要求
+            </Button>
+            {onGenerateAlternative && (
+              <Button 
+                variant="outline"
+                onClick={onGenerateAlternative}
+                disabled={isGenerating}
+                className="border-purple-300 text-purple-700 hover:bg-purple-50"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    別案生成
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => onSave(editedConcept)}>
+              <Save className="w-4 h-4 mr-2" />
+              保存
+            </Button>
+            <Button variant="outline" onClick={() => onEdit(editedConcept)}>
+              <Edit className="w-4 h-4 mr-2" />
+              編集
+            </Button>
+            <Button 
+              onClick={() => onApprove(editedConcept)} 
+              className="bg-green-600 hover:bg-green-700"
+              disabled={conceptScore < 60}
+            >
+              {conceptScore < 60 ? (
+                <>
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  スコア要改善
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  承認して次へ
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+        
+        {conceptScore < 60 && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                コンセプトスコアが60未満です。改善要求またはフィードバックを送信してください。
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

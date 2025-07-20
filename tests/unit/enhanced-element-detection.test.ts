@@ -45,10 +45,22 @@ describe('Enhanced Element Detection Utilities', () => {
     // Mock window and getComputedStyle for JSDOM
     (global as any).window = dom.window;
     (global as any).document = document;
-    dom.window.getComputedStyle = jest.fn().mockReturnValue({
-      display: 'block',
-      visibility: 'visible',
-      opacity: '1'
+    dom.window.getComputedStyle = jest.fn().mockImplementation((element) => {
+      // Return different styles based on element classes
+      if (element.classList?.contains('no-edit')) {
+        return {
+          display: 'none',
+          visibility: 'hidden',
+          opacity: '0'
+        };
+      }
+      
+      // Default visible styles for normal elements
+      return {
+        display: 'block',
+        visibility: 'visible',
+        opacity: '1'
+      };
     });
   });
 
@@ -122,16 +134,17 @@ describe('Enhanced Element Detection Utilities', () => {
     test('should provide performance metrics', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       
-      const elements = detectEditableElementsOptimized(document);
-      
-      expect(elements.length).toBeGreaterThan(0);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Element detection completed in')
-      );
-      
-      consoleSpy.mockRestore();
+      try {
+        const elements = detectEditableElementsOptimized(document);
+        
+        expect(elements.length).toBeGreaterThan(0);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Element detection completed in')
+        );
+      } finally {
+        consoleSpy.mockRestore();
+      }
     });
-  });
 
   describe('applyEditableAttributes', () => {
     test('should apply data attributes to elements', () => {

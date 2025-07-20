@@ -29,7 +29,7 @@ describe('Variant Scoring Utils', () => {
     cssContent: 'body { display: flex; } @media (max-width: 768px) { }',
     title: 'Test Title',
     metadata: {
-      generatedAt: new Date(),
+      generatedAt: new Date().toISOString(),
       model: 'test-model',
       processingTime: 100
     }
@@ -71,11 +71,11 @@ describe('Variant Scoring Utils', () => {
 
     test('should apply user preferences correctly', () => {
       const variant = createMockVariant('conversion-optimized');
-      
+
       const resultWithPreference = calculateDetailedVariantScore(variant, mockBusinessContext, {
         prioritizeConversion: true
       });
-      
+
       const resultWithoutPreference = calculateDetailedVariantScore(variant, mockBusinessContext);
 
       expect(resultWithPreference.score).toBeGreaterThan(resultWithoutPreference.score);
@@ -83,10 +83,10 @@ describe('Variant Scoring Utils', () => {
 
     test('should handle different business goals appropriately', () => {
       const variant = createMockVariant('conversion-optimized');
-      
+
       const salesContext = { ...mockBusinessContext, businessGoal: '売上向上' };
       const brandContext = { ...mockBusinessContext, businessGoal: 'ブランド認知' };
-      
+
       const salesResult = calculateDetailedVariantScore(variant, salesContext);
       const brandResult = calculateDetailedVariantScore(variant, brandContext);
 
@@ -96,10 +96,10 @@ describe('Variant Scoring Utils', () => {
 
     test('should handle different industries appropriately', () => {
       const variant = createMockVariant('conversion-optimized');
-      
+
       const ecommerceContext = { ...mockBusinessContext, industry: 'ecommerce' };
       const educationContext = { ...mockBusinessContext, industry: 'education' };
-      
+
       const ecommerceResult = calculateDetailedVariantScore(variant, ecommerceContext);
       const educationResult = calculateDetailedVariantScore(variant, educationContext);
 
@@ -140,9 +140,9 @@ describe('Variant Scoring Utils', () => {
       const comparison = compareVariants(variants, mockBusinessContext);
 
       expect(comparison.summary.bestOverall.variant.variantId).toBeDefined();
-      expect(comparison.summary.bestForBusiness.variant.variantId).toBeDefined();
-      expect(comparison.summary.bestDesign.variant.variantId).toBeDefined();
-      expect(comparison.summary.bestContent.variant.variantId).toBeDefined();
+      expect(comparison.summary.bestForBusiness?.variant.variantId).toBeDefined();
+      expect(comparison.summary.bestDesign?.variant.variantId).toBeDefined();
+      expect(comparison.summary.bestContent?.variant.variantId).toBeDefined();
     });
   });
 

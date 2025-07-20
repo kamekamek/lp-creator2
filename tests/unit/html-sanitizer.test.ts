@@ -114,6 +114,14 @@ describe('HTML Sanitizer Security Tests', () => {
       expect(sanitized).toBeDefined();
       expect(typeof sanitized).toBe('string');
       expect(sanitized).not.toContain('alert(');
+      expect(sanitized).not.toContain('<script>');
+      expect(sanitized).not.toContain('\x00');
+      expect(sanitized).not.toContain('\x01');
+      expect(sanitized).not.toContain('\x02');
+      // Should either be empty or contain safe HTML only
+      if (sanitized.trim()) {
+        expect(sanitized).toMatch(/^<[^>]+>.*<\/[^>]+>$|^[^<>]*$/);
+      }
     });
   });
 

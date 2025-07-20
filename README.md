@@ -6,7 +6,8 @@ An AI-powered SaaS platform for automatically generating and editing high-qualit
 
 - **AI-Powered Generation**: Natural language input generates complete landing pages with HTML, CSS, and JavaScript
 - **Real-time Preview**: Safe iframe-based preview with live editing capabilities
-- **Multiple Variants**: Generate up to 3 design variations with AI recommendations and scoring
+- **Intelligent Variant Scoring**: Generate up to 3 design variations with AI-powered scoring and recommendations based on business context
+- **Interactive Hearing System**: AI-powered step-by-step client interview process with natural language processing
 - **Interactive Workflow**: Step-by-step client confirmation process with concept proposals
 - **Enhanced Inline Editing**: Advanced element detection with smart prioritization and real-time DOM updates
 - **Export Functionality**: Download complete HTML files with integrated styles
@@ -32,6 +33,7 @@ Built with Next.js 15, React 19, and TypeScript, featuring:
 - **TailwindCSS 4**: Modern styling with CSS variables
 - **Zustand**: Lightweight state management
 - **Playwright**: End-to-end testing
+- **Cross-Platform TypeScript**: Compatible timer types for browser and Node.js environments
 
 ## 🚦 Getting Started
 
@@ -147,7 +149,10 @@ The platform includes comprehensive security configurations:
 
 - [Project Overview](docs/PROJECT_OVERVIEW.md)
 - [Setup Guide](docs/PROJECT_SETUP_GUIDE.md)
+- [Interactive Hearing System](docs/INTERACTIVE_HEARING_SYSTEM.md)
 - [Enhanced Editing System](docs/ENHANCED_EDITING_SYSTEM.md)
+- [Variant Scoring System](docs/VARIANT_SCORING_SYSTEM.md)
+- [Processing Sequence](docs/PROCESSING_SEQUENCE.md)
 - [API Documentation](docs/API_DOCUMENTATION.md)
 - [Security Guide](docs/SECURITY.md)
 

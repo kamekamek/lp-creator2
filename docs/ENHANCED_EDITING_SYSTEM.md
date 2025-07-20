@@ -276,6 +276,10 @@ node test-enhanced-editing.js
 - Safari 14+
 - Edge 90+
 
+### Cross-Platform Compatibility
+- **Timer Types**: Uses `ReturnType<typeof setTimeout>` for cross-platform compatibility instead of Node.js-specific types
+- **Event Handling**: Platform-agnostic event handling for consistent behavior across environments
+
 ### Polyfills
 - Intersection Observer (for older browsers)
 - ResizeObserver (for element size tracking)
@@ -310,6 +314,20 @@ node test-enhanced-editing.js
 3. **Service Worker Caching**: Offline editing capabilities
 4. **WebAssembly**: Performance-critical operations
 
+## Technical Notes
+
+### TypeScript Improvements
+The system uses cross-platform compatible timer types:
+```typescript
+// Cross-platform timer type (works in both Node.js and browser environments)
+const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+// Instead of Node.js-specific type
+// const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+```
+
+This ensures compatibility across different JavaScript environments and prevents TypeScript errors in browser-only contexts.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -336,6 +354,18 @@ if (!styles) {
 console.time('element-detection');
 const elements = detectEditableElements(document);
 console.timeEnd('element-detection');
+```
+
+#### 4. Timer Type Issues
+```typescript
+// Use cross-platform compatible timer types
+const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+// Clear timeout safely
+if (timeoutRef.current) {
+  clearTimeout(timeoutRef.current);
+  timeoutRef.current = null;
+}
 ```
 
 ### Debug Mode

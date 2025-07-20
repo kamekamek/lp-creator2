@@ -88,7 +88,7 @@ export async function partialUpdateLP({
     // So, we must regenerate the other sections as well to be safe.
     // A better approach would be to store each section's HTML separately.
     const { object } = await generateObject({
-        model: createAnthropic()('claude-opus-4-20250514'),
+        model: createAnthropic()(MODEL),
         schema: sectionHtmlSchema,
         prompt: `Generate the HTML for a landing page section based on the following prompt. Use Tailwind CSS for styling. Make it visually appealing and responsive. 
 

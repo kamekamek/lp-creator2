@@ -117,10 +117,8 @@ test.describe('Intelligent LP Generator', () => {
 
 test.describe('Component Integration Tests', () => {
   test('VariantSelector component functionality', async ({ page }) => {
-    await page.goto('http://localhost:3001');
-    
-    // variants データをモック
-    await page.evaluate(() => {
+    // Mock the API endpoint to return variants
+    await page.route('**/api/variants', async route => {
       const mockVariants = [
         {
           id: 'variant_1',
@@ -138,27 +136,25 @@ test.describe('Component Integration Tests', () => {
         }
       ];
       
-      // グローバル変数としてモックデータを設定
-      (window as any).testVariants = mockVariants;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ variants: mockVariants })
+      });
     });
+    
+    await page.goto('http://localhost:3001');
     
     // VariantSelectorがレンダリングされた場合の動作テスト
     // 実際の統合では、LP生成後に自動的に表示される
     
-    // バリアント選択機能のテスト
-    const hasVariants = await page.evaluate(() => {
-      return !!(window as any).testVariants;
-    });
+    // バリアント表示の確認 (APIから取得されるまで待機)
+    await expect(page.locator('text=Test Variant 1')).toBeVisible();
+    await expect(page.locator('text=Test Variant 2')).toBeVisible();
     
-    if (hasVariants) {
-      // バリアント表示の確認
-      await expect(page.locator('text=Test Variant 1')).toBeVisible();
-      await expect(page.locator('text=Test Variant 2')).toBeVisible();
-      
-      // バリアント選択の動作確認
-      await page.click('text=Test Variant 2');
-      // 選択後の状態確認など
-    }
+    // バリアント選択の動作確認
+    await page.click('text=Test Variant 2');
+    // 選択後の状態確認など
   });
 
   test('AISuggestionPanel component functionality', async ({ page }) => {

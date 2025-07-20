@@ -49,14 +49,17 @@ export const generateJSTool = createTool({
   execute: async ({ context }) => {
     const { html, css, technicalSpecs, interactionRequirements } = context;
     
-    // 安全なテンプレートファイル読み込み
-    const allowedTemplateDir = resolve(__dirname, 'templates');
-    const templatePath = resolve(allowedTemplateDir, 'landingPageTemplate.js');
-    
-    // パスが許可されたディレクトリ内にあることを確認
-    if (!templatePath.startsWith(allowedTemplateDir)) {
-      throw new Error('不正なテンプレートパスが指定されました');
-    }
+import { readFile } from 'fs/promises';
+import { realpathSync } from 'fs';
+
+// 安全なテンプレートファイル読み込み
+const normalizedTemplateDir = realpathSync(resolve(__dirname, 'templates'));
+const templatePath = realpathSync(resolve(normalizedTemplateDir, 'landingPageTemplate.js'));
+
+// パスが許可されたディレクトリ内にあることを確認
+if (!templatePath.startsWith(normalizedTemplateDir)) {
+  throw new Error('不正なテンプレートパスが指定されました');
+}
     
     let mainTemplate;
     
@@ -108,14 +111,14 @@ class HeroComponent {
     if (!titleElement) return;
 
     const text = titleElement.textContent;
-    titleElement.textContent = '';
-    
-    let i = 0;
     const typing = setInterval(() => {
       titleElement.textContent += text.charAt(i);
       i++;
-      if (i > text.length) {
+      if (i >= text.length) {
         clearInterval(typing);
+      }
+    }, 50);
+  }
       }
     }, 50);
   }
@@ -524,13 +527,13 @@ async function minifyJS(code: string): Promise<string> {
   }
 }
 
-// フォールバック用の簡易圧縮関数
 function fallbackMinifyJS(code: string): string {
   return code
-    .replace(/\/\*[\s\S]*?\*\//g, '') // コメント削除
-    .replace(/\/\/.*$/gm, '') // 行コメント削除
-    .replace(/^\s+|\s+$/gm, '') // 行頭・行末の空白削除
-    .replace(/\n\s*\n/g, '\n') // 空行削除
-    .replace(/\s+/g, ' ') // 複数の空白を1つに
+    // URLを保護しながらコメントを削除
+    .replace(/\/\*[\s\S]*?\*\//g, '')                // ブロックコメント削除
+    .replace(/([^:])\/\/.*$/gm, '$1')               // 行コメント削除（:// は除外）
+    .replace(/^\s+|\s+$/gm, '')                     // 行頭・行末の空白削除
+    .replace(/\n\s*\n/g, '\n')                      // 空行削除
+    .replace(/\s+/g, ' ')                           // 複数の空白を1つに
     .trim();
 }

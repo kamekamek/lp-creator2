@@ -2,6 +2,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Enhanced Real-time Editing System Integration Tests', () => {
   test.beforeEach(async ({ page }) => {
+    // Set up console error listener at the beginning of each test
+    const errors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        errors.push(msg.text());
+      }
+    });
+    
     await page.goto('/');
     
     // Generate a test LP
@@ -11,8 +19,9 @@ test.describe('Enhanced Real-time Editing System Integration Tests', () => {
     await input.fill('テスト用ランディングページ - 高度な編集機能テスト');
     await submitButton.click();
     
-    // Wait for LP generation with longer timeout for complex content
-    await page.waitForTimeout(8000);
+    // Wait for LP generation completion
+    await page.waitForSelector('iframe[title*="LP Preview"]', { timeout: 30000 });
+    await page.waitForLoadState('networkidle');
     
     // Enable edit mode
     const editModeButton = page.locator('button').filter({ hasText: /編集モード/ });
@@ -244,13 +253,7 @@ test.describe('Enhanced Real-time Editing System Integration Tests', () => {
       }
     }
     
-    // Check for JavaScript errors
-    const errors: string[] = [];
-    page.on('console', msg => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
-      }
-    });
+    // Check for JavaScript errors (errors array is already set up in beforeEach)
     
     await page.waitForTimeout(1000);
     
@@ -353,7 +356,8 @@ test.describe('Enhanced Real-time Editing System Integration Tests', () => {
       // Verify content preservation after all interactions
       const finalContent = await iframe.locator('body').textContent();
       expect(finalContent).toBeTruthy();
-      expect(finalContent!.length).toBeGreaterThan(100);
+      expect(finalContent).not.toBeNull();
+      expect(finalContent?.length ?? 0).toBeGreaterThan(100);
       
       // Verify no broken elements
       const brokenElements = iframe.locator('[data-editable-id]:empty');
