@@ -158,6 +158,21 @@ const result = batchUpdateElements(document, updates);
 console.log(`Updated ${result.success} elements, ${result.failed} failed`);
 ```
 
+### AI Suggestion Application
+```typescript
+import { SuggestionApplierClient } from '@/utils/suggestion-applier-client';
+
+// Apply AI suggestions to content with improved serialization
+const result = SuggestionApplierClient.applySuggestionToContent(
+  htmlContent,
+  cssContent,
+  suggestion
+);
+
+// The improved serialization ensures consistent HTML output across browsers
+console.log('Applied suggestion:', result.htmlContent);
+```
+
 ## Configuration Options
 
 ### Element Detection Options
@@ -334,6 +349,24 @@ const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 This ensures compatibility across different JavaScript environments and prevents TypeScript errors in browser-only contexts.
 
+### HTML Serialization Improvements
+The AI suggestion application system uses improved HTML serialization for better browser compatibility:
+```typescript
+// Improved serialization method using documentElement.outerHTML
+private static serializeDocument(document: Document): string {
+  return document.documentElement.outerHTML;
+}
+
+// Instead of XMLSerializer (which may have compatibility issues)
+// return new XMLSerializer().serializeToString(document);
+```
+
+This approach provides:
+- Better cross-browser compatibility
+- More consistent HTML output
+- Improved performance for large documents
+- Proper handling of HTML5 elements and attributes
+
 ## Troubleshooting
 
 ### Common Issues
@@ -372,6 +405,20 @@ if (timeoutRef.current) {
   clearTimeout(timeoutRef.current);
   timeoutRef.current = null;
 }
+```
+
+#### 5. HTML Serialization Issues
+```typescript
+// Use improved serialization method for consistent output
+const result = SuggestionApplierClient.applySuggestionToContent(
+  htmlContent,
+  cssContent,
+  suggestion
+);
+
+// Check serialization output
+console.log('Serialized HTML length:', result.htmlContent.length);
+console.log('Contains DOCTYPE:', result.htmlContent.includes('<!DOCTYPE'));
 ```
 
 ### Debug Mode

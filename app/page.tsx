@@ -24,6 +24,7 @@ import { StructuredWorkflowPanel } from '../src/components/StructuredWorkflowPan
 import { VariantSelector } from '../src/components/VariantSelector';
 import { AISuggestionPanel } from '../src/components/AISuggestionPanel';
 import { AISuggestionGenerator } from '../src/utils/ai-suggestion-generator';
+import { SuggestionApplierClient } from '../src/utils/suggestion-applier-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 // --- Prop Types ---
@@ -215,20 +216,27 @@ const MainView = ({
   };
 
   const handleApplyAISuggestion = async (suggestion: any) => {
-    // AI提案の適用ロジック
     console.log('Applying AI suggestion:', suggestion);
     
-    // 簡単な実装例（実際にはより複雑な処理が必要）
-    if (suggestion.action.type === 'replace' && lpToolState.htmlContent) {
-      const updatedContent = lpToolState.htmlContent.replace(
-        suggestion.action.target,
-        suggestion.action.value
+    try {
+      // SuggestionApplierClientを使用して提案を適用
+      const result = SuggestionApplierClient.applySuggestionToContent(
+        lpToolState.htmlContent,
+        lpToolState.cssContent,
+        suggestion
       );
       
       setLpToolState(prev => ({
         ...prev,
-        htmlContent: updatedContent
+        htmlContent: result.htmlContent,
+        cssContent: result.cssContent
       }));
+      
+      console.log('AI suggestion applied successfully:', suggestion.title);
+    } catch (error) {
+      console.error('Failed to apply AI suggestion:', error);
+      // ユーザーへのエラー通知（実際のアプリではtoastライブラリなどを使用）
+      alert(`提案の適用に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
