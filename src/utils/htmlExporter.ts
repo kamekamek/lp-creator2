@@ -217,6 +217,26 @@ export function validateHTMLForExport(htmlContent: string): {
     warnings.push('External resources detected - may not work offline');
   }
 
+  // Check for malformed HTML tags
+  const openTags = (htmlContent.match(/</g) || []).length;
+  const closeTags = (htmlContent.match(/>/g) || []).length;
+  if (openTags !== closeTags) {
+    warnings.push('Potentially malformed HTML tags detected');
+  }
+
+  // Check for missing alt attributes on images
+  const imgTags = htmlContent.match(/<img[^>]*>/gi) || [];
+  const imagesWithoutAlt = imgTags.filter(tag => !tag.includes('alt='));
+  if (imagesWithoutAlt.length > 0) {
+    warnings.push(`${imagesWithoutAlt.length} image(s) missing alt attributes`);
+  }
+
+  // Check file size estimation
+  const estimatedSize = new Blob([htmlContent]).size;
+  if (estimatedSize > 1024 * 1024) { // 1MB
+    warnings.push('Large file size detected - may be slow to download');
+  }
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -264,4 +284,112 @@ export function extractCSSFromHTML(htmlContent: string): string {
  */
 export function removeCSSFromHTML(htmlContent: string): string {
   return htmlContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+}
+
+/**
+ * Verifies the integrity of exported HTML file
+ */
+export function verifyExportIntegrity(exportResult: ExportResult): {
+  isValid: boolean;
+  checks: {
+    hasDoctype: boolean;
+    hasTitle: boolean;
+    hasBody: boolean;
+    hasValidStructure: boolean;
+    sizeMatches: boolean;
+  };
+  issues: string[];
+} {
+  const { htmlContent, size } = exportResult;
+  const issues: string[] = [];
+
+  // Check for DOCTYPE
+  const hasDoctype = htmlContent.includes('<!DOCTYPE html>');
+  if (!hasDoctype) {
+    issues.push('Missing DOCTYPE declaration');
+  }
+
+  // Check for title tag
+  const hasTitle = /<title[^>]*>.*<\/title>/i.test(htmlContent);
+  if (!hasTitle) {
+    issues.push('Missing or empty title tag');
+  }
+
+  // Check for body tag
+  const hasBody = /<body[^>]*>[\s\S]*<\/body>/i.test(htmlContent);
+  if (!hasBody) {
+    issues.push('Missing body tag');
+  }
+
+  // Check for valid HTML structure
+  const hasValidStructure = htmlContent.includes('<html') && htmlContent.includes('</html>');
+  if (!hasValidStructure) {
+    issues.push('Invalid HTML structure - missing html tags');
+  }
+
+  // Verify size matches content
+  const actualSize = new Blob([htmlContent]).size;
+  const sizeMatches = Math.abs(actualSize - size) < 100; // Allow small variance
+  if (!sizeMatches) {
+    issues.push(`Size mismatch: expected ${size}, actual ${actualSize}`);
+  }
+
+  return {
+    isValid: issues.length === 0,
+    checks: {
+      hasDoctype,
+      hasTitle,
+      hasBody,
+      hasValidStructure,
+      sizeMatches
+    },
+    issues
+  };
+}
+
+/**
+ * Enhanced export with integrity verification
+ */
+export function exportHTMLWithVerification(
+  htmlContent: string,
+  cssContent: string = '',
+  title: string = 'Generated Landing Page',
+  options: ExportOptions = {}
+): ExportResult & { integrity: ReturnType<typeof verifyExportIntegrity> } {
+  // Perform standard export
+  const exportResult = downloadHTML(htmlContent, cssContent, title, options);
+  
+  // Verify integrity
+  const integrity = verifyExportIntegrity(exportResult);
+  
+  return {
+    ...exportResult,
+    integrity
+  };
+}
+
+/**
+ * Batch export multiple variations
+ */
+export function exportMultipleVariations(
+  variations: Array<{
+    htmlContent: string;
+    cssContent?: string;
+    title: string;
+    suffix?: string;
+  }>,
+  options: ExportOptions = {}
+): ExportResult[] {
+  return variations.map((variation, index) => {
+    const title = variation.suffix 
+      ? `${variation.title}_${variation.suffix}`
+      : `${variation.title}_variant_${index + 1}`;
+    
+    return downloadHTML(
+      variation.htmlContent,
+      variation.cssContent || '',
+      title,
+      options
+    );
+  });
 }

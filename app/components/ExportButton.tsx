@@ -2,7 +2,13 @@
 
 import React, { useState } from 'react';
 import { Download, FileText, AlertCircle, CheckCircle } from 'lucide-react';
-import { downloadHTML, validateHTMLForExport, type ExportOptions } from '../../src/utils/htmlExporter';
+import { 
+  downloadHTML, 
+  validateHTMLForExport, 
+  exportHTMLWithVerification,
+  verifyExportIntegrity,
+  type ExportOptions 
+} from '../../src/utils/htmlExporter';
 
 interface ExportButtonProps {
   htmlContent: string;
@@ -12,8 +18,9 @@ interface ExportButtonProps {
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   options?: ExportOptions;
+  enableVerification?: boolean;
   onExportStart?: () => void;
-  onExportComplete?: (result: { filename: string; size: number }) => void;
+  onExportComplete?: (result: { filename: string; size: number; integrity?: any }) => void;
   onExportError?: (error: Error) => void;
 }
 
@@ -30,6 +37,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     addMetaTags: true,
     responsive: true
   },
+  enableVerification = true,
   onExportStart,
   onExportComplete,
   onExportError
@@ -63,17 +71,27 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         }
       }
 
-      // Perform export
-      const result = downloadHTML(htmlContent, cssContent, title, options);
+      // Perform export with optional verification
+      const result = enableVerification 
+        ? exportHTMLWithVerification(htmlContent, cssContent, title, options)
+        : downloadHTML(htmlContent, cssContent, title, options);
 
       setLastExport({
         filename: result.filename,
         timestamp: result.timestamp
       });
 
+      // Show integrity warnings if verification is enabled
+      if (enableVerification && 'integrity' in result && !result.integrity.isValid) {
+        const proceed = confirm(
+          `整合性チェックで問題が検出されました:\n${result.integrity.issues.join('\n')}\n\nエクスポートは完了しましたが、ファイルに問題がある可能性があります。`
+        );
+      }
+
       onExportComplete?.({
         filename: result.filename,
-        size: result.size
+        size: result.size,
+        integrity: 'integrity' in result ? result.integrity : undefined
       });
 
       console.log('Export successful:', {
