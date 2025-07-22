@@ -11,7 +11,7 @@ An AI-powered SaaS platform for automatically generating and editing high-qualit
 - **Interactive Workflow**: Step-by-step client confirmation process with concept proposals
 - **Enhanced Inline Editing**: Advanced element detection with smart prioritization and real-time DOM updates
 - **AI-Powered Suggestions**: Context-aware content and design improvement recommendations
-- **Export Functionality**: Download complete HTML files with integrated styles
+- **Export Functionality**: Download complete HTML files with integrated styles and unique timestamped filenames
 - **Advanced Security**: Multi-layer security with DOMPurify sanitization and CSP headers
 - **Marketing Psychology**: Built-in PASONA formula and 4U principles for conversion optimization
 - **Smart Element Detection**: Advanced element detection with priority scoring and accessibility features

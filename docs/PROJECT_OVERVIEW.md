@@ -38,6 +38,7 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 8. **AI改善提案** → `AISuggestionPanel` がコンテンツ分析し、改善提案を生成・表示
 9. **セキュリティ処理** → `sanitizeHTMLServer()` で DOMPurify 適用、CSP ヘッダー生成
 10. **プレビュー** → `LPViewer` iframe で安全に表示（sandbox="allow-scripts allow-same-origin allow-forms"）
+11. **エクスポート** → `htmlExporter` が完全なHTMLファイルを生成、一意のファイル名で自動ダウンロード
 
 <div align="center"><sub>※ 詳細シーケンス図は今後追加</sub></div>
 
@@ -61,6 +62,23 @@ Next.js + React19 + TailwindCSS をベースに、**自律型 AI** が高速に�
 2. 各バリエーションの多角的スコアリング
 3. ユーザー設定（コンバージョン重視等）による重み付け調整
 4. 最適バリエーションの自動選択と理由説明
+
+## 📤 Export System
+
+### ファイル生成機能
+- **完全なHTMLファイル**: CSS統合、メタタグ自動追加、レスポンシブ対応
+- **一意ファイル名生成**: タイトルベース + タイムスタンプ（形式: `title_YYYYMMDDTHHMMSS.html`）
+- **品質検証**: エクスポート前の自動バリデーション（構造チェック、アクセシビリティ確認）
+- **サイズ最適化**: 不要な空白削除、CSS最適化
+
+### エクスポートオプション
+| オプション | 説明 | デフォルト |
+|-----------|------|-----------|
+| `includeInlineCSS` | CSS をインライン化 | `true` |
+| `includeExternalCSS` | 外部CSS参照を含める | `true` |
+| `addMetaTags` | SEO・レスポンシブメタタグ追加 | `true` |
+| `responsive` | レスポンシブデザイン要素追加 | `true` |
+| `minifyHTML` | HTML圧縮 | `false` |
 
 ## 🤖 AI Suggestion System
 

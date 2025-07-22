@@ -172,7 +172,7 @@ export class SuggestionApplierClient {
    * H1タグを追加
    */
   private static addH1Tag(document: Document, suggestion: AISuggestion): void {
-    let body = document.body;
+    let body: HTMLElement | null = document.body;
     
     // bodyが見つからない場合、querySelector で探す
     if (!body) {

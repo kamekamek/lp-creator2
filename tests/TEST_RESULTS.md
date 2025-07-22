@@ -33,6 +33,11 @@ tests/e2e/
 3. **Long Processing Time** - AIツール実行に時間がかかる
 4. **Error Handling** - エラー状態の検証が不完全
 
+### ✅ Recently Fixed Issues
+1. **Export Filename Format** - テストの正規表現パターンを修正（`t` → `T`）
+   - ファイル名形式: `title_YYYYMMDDTHHMMSS.html`
+   - ISO文字列のタイムスタンプ形式に合わせて大文字'T'を使用
+
 ### 🎯 Test Coverage Areas
 
 #### Core MVP Functions

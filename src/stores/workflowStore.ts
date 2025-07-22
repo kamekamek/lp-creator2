@@ -23,29 +23,50 @@ export interface HearingData {
   };
 }
 
+interface TargetPersona {
+  name: string;
+  demographics: string;
+  painPoints: string[];
+  goals: string[];
+  behaviors: string[];
+  preferredTone: string;
+  decisionFactors?: string[];
+}
+
+interface ValueProposition {
+  headline: string;
+  subheadline: string;
+  keyBenefits: string[];
+  proofPoints: string[];
+  riskReversal?: string;
+}
+
+interface DesignDirection {
+  tone: string;
+  colorScheme: string;
+  style: string;
+  visualStyle?: string;
+  typography?: string;
+}
+
+interface ExpectedOutcome {
+  primaryGoal: string;
+  metrics: string[];
+  timeline?: string;
+}
+
 export interface ConceptData {
   id: string;
   title: string;
   overview: string;
-  targetPersona: {
-    age: string;
-    gender: string;
-    occupation: string;
-    painPoints: string[];
-  };
-  valueProposition: {
-    mainBenefit: string;
-    subBenefits: string[];
-  };
-  designDirection: {
-    tone: string;
-    colorScheme: string;
-    style: string;
-  };
-  expectedOutcome: {
-    kpi: string;
-    metrics: string[];
-  };
+  targetPersona: TargetPersona;
+  valueProposition: ValueProposition;
+  contentStrategy?: any;
+  designDirection: DesignDirection;
+  conversionStrategy?: any;
+  uniqueElements?: string[];
+  expectedOutcome: ExpectedOutcome;
+  nextSteps?: string[];
   createdAt: string;
   approvedAt?: string;
 }

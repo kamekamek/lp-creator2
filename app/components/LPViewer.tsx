@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Maximize2, Minimize2, Shield, AlertTriangle } from 'lucide-react';
+import { Maximize2, Minimize2, Shield, AlertTriangle, Smartphone, Tablet, Monitor } from 'lucide-react';
 import { useEditMode } from '../contexts/EditModeContext';
 import { InlineTextEditor } from './InlineTextEditor';
 import { SmartHoverMenu } from './SmartHoverMenu';
@@ -45,6 +45,8 @@ interface LPViewerProps {
   enableSecurityChecks?: boolean;
   title?: string;
   onExport?: (result: { filename: string; size: number }) => void;
+  enableDevicePreview?: boolean;
+  defaultDevice?: 'mobile' | 'tablet' | 'desktop';
 }
 
 interface SecurityViolation {
@@ -52,6 +54,38 @@ interface SecurityViolation {
   message: string;
   timestamp: Date;
 }
+
+interface DevicePreset {
+  name: string;
+  width: number;
+  height: number;
+  icon: React.ComponentType<{ size?: number }>;
+  className: string;
+}
+
+const DEVICE_PRESETS: Record<string, DevicePreset> = {
+  mobile: {
+    name: 'Mobile',
+    width: 375,
+    height: 667,
+    icon: Smartphone,
+    className: 'max-w-[375px]'
+  },
+  tablet: {
+    name: 'Tablet',
+    width: 768,
+    height: 1024,
+    icon: Tablet,
+    className: 'max-w-[768px]'
+  },
+  desktop: {
+    name: 'Desktop',
+    width: 1200,
+    height: 800,
+    icon: Monitor,
+    className: 'max-w-none'
+  }
+};
 
 export const LPViewer: React.FC<LPViewerProps> = ({ 
   htmlContent, 
@@ -64,7 +98,9 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   isModalOpen = false,
   enableSecurityChecks = true,
   title = 'Generated Landing Page',
-  onExport
+  onExport,
+  enableDevicePreview = true,
+  defaultDevice = 'desktop'
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +113,10 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
   const [editableElementsCache, setEditableElementsCache] = useState<EditableElementInfo[]>([]);
   const [realTimeUpdateEnabled, setRealTimeUpdateEnabled] = useState(true);
+  
+  // Device preview states
+  const [currentDevice, setCurrentDevice] = useState<keyof typeof DEVICE_PRESETS>(defaultDevice);
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   
   // Security state
   const [securityViolations, setSecurityViolations] = useState<SecurityViolation[]>([]);
@@ -1151,6 +1191,34 @@ useEffect(() => {
   }
 }, [isEditMode, selectedElementId, inlineEditingId]); // 🔧 [CRITICAL FIX] 不要な依存削除で連鎖的再描画を防止
 
+const getIframeClasses = useCallback(() => {
+  const baseClasses = "w-full h-full border-0 transition-all duration-300 mx-auto";
+  
+  if (isFullscreen) {
+    return baseClasses;
+  }
+  
+  if (!enableDevicePreview || currentDevice === 'desktop') {
+    return baseClasses;
+  }
+  
+  const device = DEVICE_PRESETS[currentDevice];
+  return `${baseClasses} ${device.className} shadow-lg border border-gray-300`;
+}, [isFullscreen, enableDevicePreview, currentDevice]);
+
+const getIframeStyles = useCallback(() => {
+  if (isFullscreen || !enableDevicePreview || currentDevice === 'desktop') {
+    return {};
+  }
+  
+  const device = DEVICE_PRESETS[currentDevice];
+  return {
+    width: `${device.width}px`,
+    maxHeight: `${device.height}px`,
+    aspectRatio: `${device.width} / ${device.height}`
+  };
+}, [isFullscreen, enableDevicePreview, currentDevice]);
+
 return (
   <div ref={containerRef} className="relative w-full h-full" style={{ width: isFullscreen ? '100vw' : width, height: isFullscreen ? '100vh' : height }}>
     {/* Security Warning Banner */}
@@ -1170,8 +1238,32 @@ return (
       </div>
     )}
     
+    {/* Device Preview Controls */}
+    {enableDevicePreview && !isFullscreen && (
+      <div className="absolute top-2 left-2 z-50 flex items-center gap-1 bg-white rounded-lg shadow-md p-1">
+        {Object.entries(DEVICE_PRESETS).map(([key, device]) => {
+          const IconComponent = device.icon;
+          return (
+            <button
+              key={key}
+              onClick={() => setCurrentDevice(key as keyof typeof DEVICE_PRESETS)}
+              className={`p-2 rounded transition-colors touch-manipulation ${
+                currentDevice === key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              title={device.name}
+              aria-label={`Switch to ${device.name} view`}
+            >
+              <IconComponent size={14} />
+            </button>
+          );
+        })}
+      </div>
+    )}
+    
     {/* Security Status Indicator */}
-    <div className="absolute top-2 left-2 z-40">
+    <div className={`absolute top-2 z-40 ${enableDevicePreview && !isFullscreen ? 'left-32' : 'left-2'}`}>
       <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
         isContentSecure 
           ? 'bg-green-100 text-green-800' 
@@ -1182,15 +1274,18 @@ return (
       </div>
     </div>
 
-    <iframe
-      ref={iframeRef}
-      title="LP Preview - Secure Sandbox"
-      className={`w-full h-full border-0 ${showSecurityWarning ? 'mt-10' : ''}`}
-      sandbox={SANDBOX_ATTRIBUTES.join(' ')}
-      allow="same-origin"
-      referrerPolicy="strict-origin-when-cross-origin"
-      loading="lazy"
-    />
+    <div className={`flex-1 flex items-center justify-center p-4 ${showSecurityWarning ? 'mt-10' : ''} ${currentDevice !== 'desktop' && enableDevicePreview ? 'bg-gray-100' : ''}`}>
+      <iframe
+        ref={iframeRef}
+        title={`LP Preview - ${DEVICE_PRESETS[currentDevice]?.name || 'Desktop'} - Secure Sandbox`}
+        className={getIframeClasses()}
+        style={getIframeStyles()}
+        sandbox={SANDBOX_ATTRIBUTES.join(' ')}
+        allow="same-origin"
+        referrerPolicy="strict-origin-when-cross-origin"
+        loading="lazy"
+      />
+    </div>
     {enableFullscreen && (
       <button
         onClick={toggleFullscreen}

@@ -134,4 +134,3 @@ describe('Performance Monitoring', () => {
     expect(result.isWithinThreshold(100)).toBe(false);
   });
 });
-});

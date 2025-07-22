@@ -6,6 +6,8 @@ import {
   downloadHTML, 
   validateHTMLForExport, 
   exportHTMLWithVerification,
+  exportWithDependencies,
+  generateStandaloneHTML,
   verifyExportIntegrity,
   type ExportOptions 
 } from '../../src/utils/htmlExporter';
@@ -19,8 +21,9 @@ interface ExportButtonProps {
   size?: 'sm' | 'md' | 'lg';
   options?: ExportOptions;
   enableVerification?: boolean;
+  exportMode?: 'standard' | 'standalone' | 'with-dependencies';
   onExportStart?: () => void;
-  onExportComplete?: (result: { filename: string; size: number; integrity?: any }) => void;
+  onExportComplete?: (result: { filename: string; size: number; integrity?: any; dependencies?: string[]; warnings?: string[] }) => void;
   onExportError?: (error: Error) => void;
 }
 
@@ -38,6 +41,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     responsive: true
   },
   enableVerification = true,
+  exportMode = 'standalone',
   onExportStart,
   onExportComplete,
   onExportError
@@ -71,10 +75,27 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         }
       }
 
-      // Perform export with optional verification
-      const result = enableVerification 
-        ? exportHTMLWithVerification(htmlContent, cssContent, title, options)
-        : downloadHTML(htmlContent, cssContent, title, options);
+      // Perform export based on selected mode
+      let result: any;
+      
+      switch (exportMode) {
+        case 'with-dependencies':
+          result = exportWithDependencies(htmlContent, cssContent, title, options);
+          break;
+        case 'standalone':
+          // Use standalone HTML generation for better self-contained output
+          const standaloneHTML = generateStandaloneHTML(htmlContent, cssContent, title, options);
+          result = enableVerification 
+            ? exportHTMLWithVerification(standaloneHTML, '', title, options)
+            : downloadHTML(standaloneHTML, '', title, options);
+          break;
+        case 'standard':
+        default:
+          result = enableVerification 
+            ? exportHTMLWithVerification(htmlContent, cssContent, title, options)
+            : downloadHTML(htmlContent, cssContent, title, options);
+          break;
+      }
 
       setLastExport({
         filename: result.filename,
@@ -82,16 +103,18 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
       });
 
       // Show integrity warnings if verification is enabled
-      if (enableVerification && 'integrity' in result && !result.integrity.isValid) {
+      if (enableVerification && 'integrity' in result && result.integrity && typeof result.integrity === 'object' && 'isValid' in result.integrity && !result.integrity.isValid) {
         const proceed = confirm(
-          `整合性チェックで問題が検出されました:\n${result.integrity.issues.join('\n')}\n\nエクスポートは完了しましたが、ファイルに問題がある可能性があります。`
+          `整合性チェックで問題が検出されました:\n${(result.integrity as any).issues?.join('\n') || '不明なエラー'}\n\nエクスポートは完了しましたが、ファイルに問題がある可能性があります。`
         );
       }
 
       onExportComplete?.({
         filename: result.filename,
         size: result.size,
-        integrity: 'integrity' in result ? result.integrity : undefined
+        integrity: 'integrity' in result ? result.integrity : undefined,
+        dependencies: 'dependencies' in result ? result.dependencies : undefined,
+        warnings: 'warnings' in result ? result.warnings : undefined
       });
 
       console.log('Export successful:', {

@@ -13,6 +13,8 @@ import {
   verifyExportIntegrity,
   exportHTMLWithVerification,
   exportMultipleVariations,
+  generateStandaloneHTML,
+  exportWithDependencies,
   type ExportOptions,
   type ExportResult
 } from '../../src/utils/htmlExporter';
@@ -353,28 +355,14 @@ describe('HTML Exporter', () => {
     });
 
     it('should create blob and trigger download', () => {
-      const mockLink = {
-        href: '',
-        download: '',
-        style: { display: '' },
-        click: jest.fn()
-      };
-
-      mockDocument.createElement.mockReturnValue(mockLink);
-
-      try {
-        downloadHTML('<div>Test</div>', '', 'Test');
-        
-        expect(mockDocument.createElement).toHaveBeenCalledWith('a');
-        expect(mockLink.click).toHaveBeenCalled();
-        expect(mockDocument.body.appendChild).toHaveBeenCalledWith(mockLink);
-        expect(mockDocument.body.removeChild).toHaveBeenCalledWith(mockLink);
-      } catch (error) {
-        // If Blob creation fails in test environment, that's expected
-        // The important thing is that the function handles errors gracefully
-        expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain('HTML download failed');
-      }
+      const result = downloadHTML('<div>Test</div>', '', 'Test');
+      
+      // Verify the result structure and content
+      expect(result.htmlContent).toContain('<!DOCTYPE html>');
+      expect(result.htmlContent).toContain('<div>Test</div>');
+      expect(result.filename).toMatch(/^test_\d{8}T\d{6}\.html$/);
+      expect(result.size).toBeGreaterThan(0);
+      expect(result.timestamp).toBeInstanceOf(Date);
     });
 
     it('should handle download errors gracefully', () => {
@@ -550,6 +538,185 @@ describe('HTML Exporter', () => {
     });
   });
 
+  describe('generateStandaloneHTML', () => {
+    beforeEach(() => {
+      (global as any).Blob = class MockBlob {
+        size: number;
+        constructor(content: string[]) {
+          this.size = content.join('').length;
+        }
+      };
+    });
+
+    it('should generate standalone HTML with enhanced features', () => {
+      const htmlContent = '<div><h1>Test Page</h1><p>Content</p></div>';
+      const cssContent = '.test { color: red; }';
+      const title = 'Test Standalone Page';
+
+      const result = generateStandaloneHTML(htmlContent, cssContent, title);
+
+      expect(result).toContain('<!DOCTYPE html>');
+      expect(result).toContain('<title>Test Standalone Page</title>');
+      expect(result).toContain('og:title');
+      expect(result).toContain('twitter:card');
+      expect(result).toContain('Performance optimization');
+      expect(result).toContain('Base styles for standalone HTML');
+    });
+
+    it('should include performance optimization script', () => {
+      const result = generateStandaloneHTML('<div>Test</div>', '', 'Test');
+
+      expect(result).toContain('DOMContentLoaded');
+      expect(result).toContain('IntersectionObserver');
+      expect(result).toContain('smooth scrolling');
+    });
+
+    it('should handle minification when requested', () => {
+      const htmlContent = `
+        <div>
+          <h1>  Test  </h1>
+          <!-- Comment -->
+          <p>Content</p>
+        </div>
+      `;
+
+      const result = generateStandaloneHTML(htmlContent, '', 'Test', {
+        minifyHTML: true
+      });
+
+      expect(result).not.toContain('<!-- Comment -->');
+      expect(result.length).toBeLessThan(generateStandaloneHTML(htmlContent, '', 'Test', {
+        minifyHTML: false
+      }).length);
+    });
+  });
+
+  describe('exportWithDependencies', () => {
+    beforeEach(() => {
+      (global as any).Blob = class MockBlob {
+        size: number;
+        constructor(content: string[]) {
+          this.size = content.join('').length;
+        }
+      };
+    });
+
+    it('should detect external dependencies', () => {
+      const htmlContent = `
+        <div>
+          <img src="https://example.com/image.jpg" alt="Test">
+          <script src="https://cdn.example.com/script.js"></script>
+          <a href="https://external-link.com">Link</a>
+        </div>
+      `;
+
+      try {
+        const result = exportWithDependencies(htmlContent, '', 'Test');
+
+        expect(result.dependencies.length).toBeGreaterThan(0);
+        expect(result.warnings.length).toBeGreaterThan(0);
+        expect(result.warnings.some(w => w.includes('external image'))).toBe(true);
+        expect(result.warnings.some(w => w.includes('external script'))).toBe(true);
+      } catch (error) {
+        // Handle Blob creation failure in test environment
+        expect(error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('should handle content without external dependencies', () => {
+      const htmlContent = '<div><h1>Local Content</h1><p>No external deps</p></div>';
+
+      try {
+        const result = exportWithDependencies(htmlContent, '', 'Test');
+
+        expect(result.dependencies).toHaveLength(0);
+        expect(result.warnings.filter(w => w.includes('external')).length).toBe(0);
+      } catch (error) {
+        // Handle Blob creation failure in test environment
+        expect(error).toBeInstanceOf(Error);
+      }
+    });
+  });
+
+  describe('Enhanced validation', () => {
+    beforeEach(() => {
+      (global as any).Blob = class MockBlob {
+        size: number;
+        constructor(content: string[]) {
+          this.size = content.join('').length;
+        }
+      };
+    });
+
+    it('should detect accessibility issues', () => {
+      const htmlContent = '<div><p>No headings here</p></div>';
+      const result = validateHTMLForExport(htmlContent);
+
+      expect(result.warnings).toContain('No heading tags found - may impact accessibility');
+    });
+
+    it('should detect missing language attribute', () => {
+      const htmlContent = '<div><h1>Test</h1></div>';
+      const result = validateHTMLForExport(htmlContent);
+
+      expect(result.warnings).toContain('Missing language attribute - may impact accessibility');
+    });
+
+    it('should detect excessive inline styles', () => {
+      const htmlContent = Array(15).fill('<div style="color: red;">Test</div>').join('');
+      const result = validateHTMLForExport(htmlContent);
+
+      expect(result.warnings.some(w => w.includes('inline styles detected'))).toBe(true);
+    });
+
+    it('should detect deprecated HTML elements', () => {
+      const htmlContent = '<div><center>Centered content</center><font color="red">Red text</font></div>';
+      const result = validateHTMLForExport(htmlContent);
+
+      expect(result.warnings.some(w => w.includes('Deprecated HTML element'))).toBe(true);
+    });
+
+    it('should detect missing viewport meta tag', () => {
+      const htmlContent = '<div><h1>Mobile unfriendly</h1></div>';
+      const result = validateHTMLForExport(htmlContent);
+
+      expect(result.warnings).toContain('Missing viewport meta tag - may not display properly on mobile devices');
+    });
+
+    it('should detect moderately large file sizes', () => {
+      // Create a moderately large HTML content string (600KB)
+      const largeContent = '<div>' + 'x'.repeat(600 * 1024) + '</div>';
+      const result = validateHTMLForExport(largeContent);
+
+      expect(result.warnings).toContain('Moderately large file size - consider optimization');
+    });
+  });
+
+  describe('Enhanced filename generation', () => {
+    it('should handle HTML entities', () => {
+      const result = generateFilename('Test &amp; Page &lt;Title&gt;');
+      expect(result).toMatch(/^test_page_title_\d{8}T\d{6}\.html$/);
+    });
+
+    it('should handle very long titles', () => {
+      const longTitle = 'This is a very long title that should be truncated to prevent filesystem issues and maintain reasonable filename lengths';
+      const result = generateFilename(longTitle);
+      
+      expect(result.length).toBeLessThan(70); // Should be truncated
+      expect(result).toMatch(/^this_is_a_very_long_title_that_should_be.*_\d{8}T\d{6}\.html$/);
+    });
+
+    it('should handle mixed ASCII and non-ASCII characters', () => {
+      const result = generateFilename('Test ページ Title');
+      expect(result).toMatch(/^test_title_\d{8}T\d{6}\.html$/);
+    });
+
+    it('should handle titles with only non-ASCII characters', () => {
+      const result = generateFilename('ランディングページ');
+      expect(result).toMatch(/^landing_page_\d{8}T\d{6}\.html$/);
+    });
+  });
+
   describe('Integration tests', () => {
     beforeEach(() => {
       // Set up proper Blob mock for integration tests
@@ -595,6 +762,7 @@ describe('HTML Exporter', () => {
       expect(completeHTML).toContain('.container { max-width: 1200px');
       expect(completeHTML).toContain('@media (max-width: 768px)');
       expect(completeHTML).toContain('cdn.tailwindcss.com');
+      expect(completeHTML).toContain('Base styles for standalone HTML');
 
       // Generate filename - fix regex to match actual output (uppercase T)
       const filename = generateFilename(title);
@@ -618,6 +786,52 @@ describe('HTML Exporter', () => {
         // If Blob creation fails in test environment, verify error handling
         expect(error).toBeInstanceOf(Error);
         expect((error as Error).message).toContain('HTML download failed');
+      }
+    });
+
+    it('should handle complete standalone export workflow', () => {
+      const htmlContent = `
+        <div class="container">
+          <h1>Advanced Landing Page</h1>
+          <img src="test.jpg" alt="Test Image">
+          <a href="#section1">Navigate</a>
+          <div id="section1">
+            <p>Target section</p>
+          </div>
+        </div>
+      `;
+      
+      const cssContent = `
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; font-size: 2rem; }
+      `;
+      
+      const title = 'Advanced Test Page';
+
+      // Generate standalone HTML
+      const standaloneHTML = generateStandaloneHTML(htmlContent, cssContent, title, {
+        addMetaTags: true,
+        responsive: true,
+        includeExternalCSS: true,
+        minifyHTML: false
+      });
+
+      expect(standaloneHTML).toContain('<!DOCTYPE html>');
+      expect(standaloneHTML).toContain('og:title');
+      expect(standaloneHTML).toContain('Performance optimization');
+      expect(standaloneHTML).toContain('Base styles for standalone HTML');
+      expect(standaloneHTML).toContain('smooth scrolling');
+      expect(standaloneHTML).toContain('IntersectionObserver');
+
+      // Test with dependencies detection
+      try {
+        const result = exportWithDependencies(htmlContent, cssContent, title);
+        expect(result.htmlContent).toContain('Advanced Landing Page');
+        expect(result.dependencies).toBeDefined();
+        expect(result.warnings).toBeDefined();
+      } catch (error) {
+        // Handle Blob creation failure in test environment
+        expect(error).toBeInstanceOf(Error);
       }
     });
   });

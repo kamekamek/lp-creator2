@@ -54,13 +54,13 @@ interface MainViewProps {
 // --- Standalone Components ---
 
 const InitialView = ({ input, handleInputChange, handleSubmit }: InitialViewProps) => (
-  <div className="flex flex-col items-center justify-center h-full bg-gray-50">
-    <div className="w-full max-w-2xl p-8 text-center">
-      <h1 className="text-4xl font-bold text-gray-800 mb-4">今日は何をデザインしますか？</h1>
-            <p className="text-lg text-gray-800 mb-8">作成したいページについて、スタイル、機能、目的などを詳しく教えてください。</p>
-      <form onSubmit={handleSubmit} className="w-full flex">
+  <div className="flex flex-col items-center justify-center h-full bg-gray-50 px-4">
+    <div className="w-full max-w-2xl p-4 sm:p-8 text-center">
+      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">今日は何をデザインしますか？</h1>
+      <p className="text-base sm:text-lg text-gray-800 mb-6 sm:mb-8">作成したいページについて、スタイル、機能、目的などを詳しく教えてください。</p>
+      <form onSubmit={handleSubmit} className="w-full flex flex-col sm:flex-row gap-2 sm:gap-0">
         <input
-          className="flex-grow p-4 border border-gray-300 rounded-l-lg text-black text-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+          className="flex-grow p-3 sm:p-4 border border-gray-300 rounded-lg sm:rounded-l-lg sm:rounded-r-none text-black text-base sm:text-lg focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
           placeholder="例：AI写真編集アプリのランディングページ..."
           value={input}
           onChange={handleInputChange}
@@ -68,7 +68,7 @@ const InitialView = ({ input, handleInputChange, handleSubmit }: InitialViewProp
         />
         <button
           type="submit"
-          className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400"
+          className="px-6 sm:px-8 py-3 sm:py-4 bg-blue-600 text-white font-semibold rounded-lg sm:rounded-r-lg sm:rounded-l-none hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400 touch-manipulation"
           disabled={!input.trim()}
         >
           生成
@@ -412,9 +412,9 @@ const MainView = ({
   // プレビュー判定はもう使用しない（レガシーコードを削除）
 
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* 左側: チャットエリア */}
-      <main className="w-1/2 flex flex-col overflow-hidden bg-white border-r border-gray-200">
+    <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+      {/* チャットエリア - モバイルでは上部、デスクトップでは左側 */}
+      <main className="w-full lg:w-1/2 flex flex-col overflow-hidden bg-white border-b lg:border-r lg:border-b-0 border-gray-200">
         {/* LPツールがアクティブで、HTMLコンテンツがない場合のみ表示 */}
         {lpToolState.isActive && !lpToolState.htmlContent && (
           <LPTool 
@@ -430,9 +430,9 @@ const MainView = ({
           />
         )}
 
-        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold text-gray-800">LPクリエーター</h1>
+        <div className="flex-shrink-0 p-3 lg:p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-800">LPクリエーター</h1>
             <button
               onClick={() => {
                 console.log('🔍 [DEBUG] Edit mode toggle clicked - current state:', isEditMode);
@@ -452,16 +452,17 @@ const MainView = ({
                   console.log('🔍 [THEME] After toggle - Body classes:', document.body.className);
                 }, 10);
               }}
-              className={`px-3 py-1.5 rounded-md text-sm font-semibold text-white transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-sm font-semibold text-white transition-colors touch-manipulation ${
                 isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'
               }`}
             >
-              {isEditMode ? '編集モード: ON' : '編集モード: OFF'}
+              <span className="hidden sm:inline">{isEditMode ? '編集モード: ON' : '編集モード: OFF'}</span>
+              <span className="sm:hidden">{isEditMode ? '編集ON' : '編集OFF'}</span>
             </button>
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-4">
           {/* ローディング表示とエラー表示 */} 
           {propsIsLoading && (
             <div className="flex items-center justify-center p-4 my-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -574,51 +575,53 @@ const MainView = ({
           )}
         </div>
         
-        <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex-shrink-0 p-3 lg:p-4 border-t border-gray-200 bg-gray-50">
           <form onSubmit={handleSubmit} className="space-y-3">
             {selectedElementId && isEditMode && (
-              <div className="p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex justify-between items-center">
-                <span>編集中: <strong className="font-mono">{selectedElementId}</strong></span>
-                <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800">&times;</button>
+              <div className="p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm text-blue-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                <span className="break-words">編集中: <strong className="font-mono text-xs sm:text-sm">{selectedElementId}</strong></span>
+                <button type="button" onClick={() => selectElement(null)} className="font-bold text-xl text-blue-600 hover:text-blue-800 touch-manipulation self-end sm:self-center">&times;</button>
               </div>
             )}
-            <input
-              className="w-full p-3 border border-gray-300 rounded-l-lg text-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder={propsIsLoading ? 'AIが応答中です...' : getPlaceholder()}
-              value={input}
-              onChange={handleInputChange}
-              disabled={isEditMode || propsIsLoading} // propsIsLoading時も無効化
-            />
-            <button
-              type="submit"
-              className="px-6 py-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
-              style={{ minWidth: '100px' }} // ボタン幅を確保
-              disabled={!input.trim() || isEditMode || propsIsLoading} // propsIsLoading時も無効化
-            >
-              {propsIsLoading ? (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                '送信'
-              )}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+              <input
+                className="flex-grow p-3 border border-gray-300 rounded-lg sm:rounded-l-lg sm:rounded-r-none text-base sm:text-lg text-black focus:ring-2 focus:ring-blue-500 outline-none transition-shadow disabled:bg-gray-100 disabled:cursor-not-allowed"
+                placeholder={propsIsLoading ? 'AIが応答中です...' : getPlaceholder()}
+                value={input}
+                onChange={handleInputChange}
+                disabled={isEditMode || propsIsLoading} // propsIsLoading時も無効化
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 sm:py-4 bg-blue-600 text-white font-semibold rounded-lg sm:rounded-r-lg sm:rounded-l-none hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center touch-manipulation"
+                style={{ minWidth: '100px' }} // ボタン幅を確保
+                disabled={!input.trim() || isEditMode || propsIsLoading} // propsIsLoading時も無効化
+              >
+                {propsIsLoading ? (
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  '送信'
+                )}
+              </button>
+            </div>
             {/* デバッグ情報 */}
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 mt-1 hidden lg:block">
               Debug: EditMode={isEditMode ? 'ON' : 'OFF'}, SelectedElement={selectedElementId || 'none'}, Disabled={isEditMode && !selectedElementId ? 'YES' : 'NO'}
             </div>
           </form>
         </div>
       </main>
       
-      {/* 右側: LPプレビューエリア */}
-      <div className="w-1/2 flex flex-col bg-white">
-        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
+      {/* プレビューエリア - モバイルでは下部、デスクトップでは右側 */}
+      <div className="w-full lg:w-1/2 flex flex-col bg-white min-h-0">
+        <div className="flex-shrink-0 p-3 lg:p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800">プレビュー</h2>
             {lpToolState.isActive && lpToolState.htmlContent && (
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap gap-2 items-center">
                 <ExportButton
                   htmlContent={lpToolState.htmlContent}
                   cssContent={lpToolState.cssContent}
@@ -638,9 +641,10 @@ const MainView = ({
                 {variants.length > 0 && (
                   <button
                     onClick={() => setShowVariantSelector(true)}
-                    className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
+                    className="px-2 sm:px-3 py-1 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700 transition-colors touch-manipulation"
                   >
-                    バリエーション ({variants.length})
+                    <span className="hidden sm:inline">バリエーション ({variants.length})</span>
+                    <span className="sm:hidden">バリ ({variants.length})</span>
                   </button>
                 )}
 
@@ -650,9 +654,10 @@ const MainView = ({
                     console.log('🔍 [DEBUG] AI改善提案ボタンがクリックされました');
                     generateAISuggestions();
                   }}
-                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                  className="px-2 sm:px-3 py-1 bg-green-600 text-white text-xs sm:text-sm rounded hover:bg-green-700 transition-colors touch-manipulation"
                 >
-                  AI改善提案
+                  <span className="hidden sm:inline">AI改善提案</span>
+                  <span className="sm:hidden">AI改善</span>
                 </button>
 
                 {/* Export info */}
@@ -881,12 +886,18 @@ export default function Page() {
     <div className="h-screen bg-gray-50">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
         {/* タブヘッダー */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
           <div className="max-w-6xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">LP Creator</h1>
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="structured">構造化ワークフロー</TabsTrigger>
-              <TabsTrigger value="quick">クイック作成</TabsTrigger>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">LP Creator</h1>
+            <TabsList className="grid w-full max-w-xs sm:max-w-md grid-cols-2">
+              <TabsTrigger value="structured" className="text-xs sm:text-sm px-2 sm:px-4">
+                <span className="hidden sm:inline">構造化ワークフロー</span>
+                <span className="sm:hidden">構造化</span>
+              </TabsTrigger>
+              <TabsTrigger value="quick" className="text-xs sm:text-sm px-2 sm:px-4">
+                <span className="hidden sm:inline">クイック作成</span>
+                <span className="sm:hidden">クイック</span>
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>

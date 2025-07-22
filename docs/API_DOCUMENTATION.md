@@ -101,6 +101,107 @@ Fixes common HTML issues that could cause security problems.
 - Adds security attributes to external links
 - Fixes broken SVG paths
 
+## Export API
+
+### HTML Export
+
+#### `generateCompleteHTML(htmlContent, cssContent, title, options): string`
+
+Generates a complete standalone HTML file with integrated CSS.
+
+**Parameters:**
+- `htmlContent` (string): The main HTML content
+- `cssContent` (string, optional): CSS styles to include
+- `title` (string, optional): Page title (default: 'Generated Landing Page')
+- `options` (ExportOptions, optional): Export configuration
+
+**Returns:**
+- `string`: Complete HTML document with integrated styles
+
+**Example:**
+```typescript
+import { generateCompleteHTML } from '@/utils/htmlExporter';
+
+const completeHTML = generateCompleteHTML(
+  htmlContent,
+  cssContent,
+  'My Landing Page',
+  {
+    includeInlineCSS: true,
+    addMetaTags: true,
+    responsive: true
+  }
+);
+```
+
+#### `generateFilename(title): string`
+
+Generates a unique filename based on the page title with timestamp.
+
+**Parameters:**
+- `title` (string): Page title to use for filename
+
+**Returns:**
+- `string`: Sanitized filename with timestamp (format: `title_YYYYMMDDTHHMMSS.html`)
+
+**Example:**
+```typescript
+import { generateFilename } from '@/utils/htmlExporter';
+
+const filename = generateFilename('My Awesome Landing Page');
+// Returns: "my_awesome_landing_page_20240115T123456.html"
+```
+
+#### `downloadHTML(htmlContent, cssContent, title, options): ExportResult`
+
+Downloads the HTML content as a file with integrated CSS.
+
+**Parameters:**
+- `htmlContent` (string): The main HTML content
+- `cssContent` (string, optional): CSS styles to include
+- `title` (string, optional): Page title
+- `options` (ExportOptions, optional): Export configuration
+
+**Returns:**
+```typescript
+interface ExportResult {
+  htmlContent: string;
+  filename: string;
+  size: number;
+  timestamp: Date;
+}
+```
+
+**Example:**
+```typescript
+import { downloadHTML } from '@/utils/htmlExporter';
+
+const result = downloadHTML(htmlContent, cssContent, 'My Landing Page');
+console.log(`Downloaded ${result.filename} (${result.size} bytes)`);
+```
+
+#### `validateHTMLForExport(html): ValidationResult`
+
+Validates HTML content before export to ensure quality and completeness.
+
+**Parameters:**
+- `html` (string): HTML content to validate
+
+**Returns:**
+```typescript
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+```
+
+**Features:**
+- Checks for required HTML structure
+- Validates meta tags and title
+- Ensures responsive design elements
+- Detects potential accessibility issues
+
 ## AI Generation API
 
 ### Interactive Hearing System

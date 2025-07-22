@@ -14,7 +14,15 @@ import {
   RefreshCw,
   Star,
   AlertTriangle,
-  Zap
+  Zap,
+  BarChart3,
+  Target,
+  Clock,
+  Users,
+  Lightbulb,
+  Award,
+  Palette,
+  TrendingUp
 } from 'lucide-react';
 import { ConceptOverviewTab } from './ConceptOverviewTab';
 import { ConceptPersonaTab } from './ConceptPersonaTab';

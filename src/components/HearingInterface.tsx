@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, CheckCircle, Clock, Target, Send, Lightbulb, AlertCircle, Bookmark, HelpCircle } from 'lucide-react';
+import { MessageCircle, CheckCircle, Clock, Target, Send, Lightbulb, AlertCircle, Bookmark, HelpCircle, Users, Navigation } from 'lucide-react';
 
 interface HearingData {
   essentialInfo?: {

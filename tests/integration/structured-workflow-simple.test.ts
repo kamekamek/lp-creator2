@@ -105,7 +105,7 @@ describe('Structured Workflow Integration Test', () => {
       hearingData = {
         essentialInfo: {
           serviceContent: 'SaaS型顧客管理システム',
-          targetCustomerPain: '顧客情報の管理が煩雑で営業効率が悪い',
+          uniqueValueProposition: '顧客情報の管理が煩雑で営業効率が悪い',
           desiredConversion: '無料トライアル申し込み'
         }
       };
@@ -118,7 +118,7 @@ describe('Structured Workflow Integration Test', () => {
       hearingData = {
         essentialInfo: {
           serviceContent: 'SaaS型顧客管理システム',
-          targetCustomerPain: '顧客情報の管理が煩雑で営業効率が悪い',
+          uniqueValueProposition: '顧客情報の管理が煩雑で営業効率が悪い',
           desiredConversion: '無料トライアル申し込み'
         },
         strategyInfo: {
@@ -299,7 +299,7 @@ describe('Structured Workflow Integration Test', () => {
       const mockHearingData = {
         essentialInfo: {
           serviceContent: 'SaaS型顧客管理システム',
-          targetCustomerPain: '顧客情報の管理が煩雑で営業効率が悪い',
+          uniqueValueProposition: '顧客情報の管理が煩雑で営業効率が悪い',
           desiredConversion: '無料トライアル申し込み'
         },
         strategyInfo: {
