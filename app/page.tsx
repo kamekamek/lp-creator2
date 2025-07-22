@@ -21,10 +21,43 @@ import { EditModal } from './components/EditModal';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 // ProHPWorkflowPanel deleted - using only structured workflow and quick creation
 import { StructuredWorkflowPanel } from '../src/components/StructuredWorkflowPanel';
-import { VariantSelector } from '../src/components/VariantSelector';
-import { AISuggestionPanel } from '../src/components/AISuggestionPanel';
+import dynamic from 'next/dynamic';
+
+// 重いコンポーネントを動的インポートでコード分割
+const VariantSelector = dynamic(() => import('../src/components/VariantSelector').then(mod => ({ default: mod.VariantSelector })), {
+  loading: () => (
+    <div className="flex items-center justify-center p-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <span className="ml-2 text-gray-600">バリエーションを読み込み中...</span>
+    </div>
+  ),
+  ssr: false
+});
+
+const AISuggestionPanel = dynamic(() => import('../src/components/AISuggestionPanel').then(mod => ({ default: mod.AISuggestionPanel })), {
+  loading: () => (
+    <div className="flex items-center justify-center p-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      <span className="ml-2 text-gray-600">AI提案を読み込み中...</span>
+    </div>
+  ),
+  ssr: false
+});
+
+// ResponsivePreviewも動的インポート対象に追加
+const ResponsivePreview = dynamic(() => import('./components/ResponsivePreview'), {
+  loading: () => (
+    <div className="flex items-center justify-center p-8 h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <span className="ml-2 text-gray-600">レスポンシブプレビューを読み込み中...</span>
+    </div>
+  ),
+  ssr: false
+});
+
 import { AISuggestionGenerator } from '../src/utils/ai-suggestion-generator';
 import { SuggestionApplierClient } from '../src/utils/suggestion-applier-client';
+import { memoryManager } from '../src/utils/memoryManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { ExportButton, ExportInfo } from './components/ExportButton';
 
@@ -144,6 +177,41 @@ const MainView = ({
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
 
+  // メモリ管理とクリーンアップ
+  useEffect(() => {
+    const cleanupAppState = () => {
+      // バリエーションの数を制限
+      if (variants.length > 5) {
+        setVariants(prev => prev.slice(0, 5));
+        console.log('🧹 [Memory] Cleaned up variants');
+      }
+      
+      // AI提案の数を制限
+      if (aiSuggestions.length > 10) {
+        setAiSuggestions(prev => prev.slice(0, 10));
+        console.log('🧹 [Memory] Cleaned up AI suggestions');
+      }
+      
+      // メッセージの数を制限
+      if (messages.length > 50) {
+        console.log('🧹 [Memory] Message cleanup needed - consider implementing message pruning');
+      }
+    };
+
+    // メモリクリーンアップのコールバックを設定
+    memoryManager.startAutoCleanup((stats) => {
+      const usageRatio = stats.usedJSHeapSize / stats.jsHeapSizeLimit;
+      if (usageRatio > 0.7) {
+        console.log('⚠️ [Memory] High memory usage detected, performing cleanup');
+        cleanupAppState();
+      }
+    });
+
+    return () => {
+      memoryManager.stopAutoCleanup();
+    };
+  }, [variants.length, aiSuggestions.length, messages.length]);
+
   // 選択された要素からテキストを抽出
   const extractTextFromElement = (elementId: string): string => {
     if (!lpToolState.htmlContent) return '';
@@ -206,6 +274,13 @@ const MainView = ({
   const handleSelectVariant = (variant: any) => {
     console.log('🔍 [DEBUG] handleSelectVariant called:', variant?.title);
     setSelectedVariant(variant);
+    
+    // メモリ使用量をチェックしてから更新
+    const processedHTML = memoryManager.processLargeHTML(variant.htmlContent || '');
+    if (processedHTML.needsChunking) {
+      console.log('⚠️ [Memory] Large HTML content detected, applying memory optimization');
+    }
+    
     setLpToolState(prev => ({
       ...prev,
       htmlContent: variant.htmlContent,
