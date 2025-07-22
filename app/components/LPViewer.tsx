@@ -12,6 +12,7 @@ import {
   fixCommonSecurityIssues,
   SANDBOX_ATTRIBUTES 
 } from '../../src/utils/htmlSanitizer';
+import { downloadHTML, validateHTMLForExport } from '../../src/utils/htmlExporter';
 import { generateCSPWithNonces } from '../../src/utils/secureCSP';
 import { 
   detectEditableElements, 
@@ -42,6 +43,8 @@ interface LPViewerProps {
   onAIImprove?: (elementId: string, currentText: string) => void;
   isModalOpen?: boolean;
   enableSecurityChecks?: boolean;
+  title?: string;
+  onExport?: (result: { filename: string; size: number }) => void;
 }
 
 interface SecurityViolation {
@@ -59,7 +62,9 @@ export const LPViewer: React.FC<LPViewerProps> = ({
   onTextUpdate,
   onAIImprove,
   isModalOpen = false,
-  enableSecurityChecks = true
+  enableSecurityChecks = true,
+  title = 'Generated Landing Page',
+  onExport
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,6 +171,57 @@ export const LPViewer: React.FC<LPViewerProps> = ({
     }
     setHoverMenuVisible(false);
   }, [extractTextFromElement, onAIImprove]);
+
+  // Export functionality
+  const handleExportHTML = useCallback(async () => {
+    try {
+      // Validate content before export
+      const validation = validateHTMLForExport(htmlContent);
+      
+      if (!validation.isValid) {
+        console.error('Export validation failed:', validation.errors);
+        alert(`エクスポートできません: ${validation.errors.join(', ')}`);
+        return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        const proceed = confirm(
+          `警告があります:\n${validation.warnings.join('\n')}\n\nエクスポートを続行しますか？`
+        );
+        if (!proceed) return;
+      }
+
+      // Perform export
+      const result = downloadHTML(htmlContent, cssContent, title, {
+        includeInlineCSS: true,
+        includeExternalCSS: true,
+        addMetaTags: true,
+        responsive: true
+      });
+
+      console.log('Export successful:', {
+        filename: result.filename,
+        size: result.size,
+        timestamp: result.timestamp
+      });
+
+      // Notify parent component
+      if (onExport) {
+        onExport({
+          filename: result.filename,
+          size: result.size
+        });
+      }
+
+      // Show success message
+      alert(`エクスポート完了: ${result.filename} (${Math.round(result.size / 1024)}KB)`);
+
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`エクスポートに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    }
+  }, [htmlContent, cssContent, title, onExport]);
 
   // Real-time update handler for immediate DOM updates
   const handleRealTimeUpdate = useCallback((elementId: string, newText: string) => {

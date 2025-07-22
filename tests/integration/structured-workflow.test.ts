@@ -5,18 +5,18 @@ import type { HearingData, ConceptData, StructureData } from '../../src/stores/w
 
 // 統合テスト用のモックデータ
 const mockHearingData: HearingData = {
-  必須情報: {
-    商材サービス内容: 'SaaS型顧客管理システム',
-    独自価値UVP: 'AIを活用した自動分析機能',
-    ターゲット顧客の悩み: '顧客情報の管理が煩雑で営業効率が悪い',
-    希望コンバージョン: '無料トライアル申し込み',
-    予算感覚と緊急度: '月額10万円以下、3ヶ月以内に導入'
+  essentialInfo: {
+    serviceContent: 'SaaS型顧客管理システム',
+    uniqueValueProposition: 'AIを活用した自動分析機能',
+    targetCustomerPain: '顧客情報の管理が煩雑で営業効率が悪い',
+    desiredConversion: '無料トライアル申し込み',
+    budgetAndUrgency: '月額10万円以下、3ヶ月以内に導入'
   },
-  戦略情報: {
-    競合他社: ['Salesforce', 'HubSpot'],
-    現在の集客チャネル: 'Web広告、セミナー',
-    ブランドイメージ: '革新的で信頼性の高いソリューション',
-    成功指標: '月次トライアル申し込み数100件'
+  strategyInfo: {
+    competitors: ['Salesforce', 'HubSpot'],
+    currentChannels: 'Web広告、セミナー',
+    brandImage: '革新的で信頼性の高いソリューション',
+    successMetrics: '月次トライアル申し込み数100件'
   }
 };
 
@@ -137,10 +137,10 @@ describe('構造化ワークフロープロセス統合テスト', () => {
     it('ヒアリングデータ更新時に進捗率が正しく計算される', () => {
       act(() => {
         store.updateHearingData({
-          必須情報: {
-            商材サービス内容: 'テストサービス',
-            ターゲット顧客の悩み: 'テスト課題',
-            希望コンバージョン: 'テストコンバージョン'
+          essentialInfo: {
+            serviceContent: 'テストサービス',
+            targetCustomerPain: 'テスト課題',
+            desiredConversion: 'テストコンバージョン'
           }
         });
       });
@@ -384,6 +384,244 @@ describe('構造化ワークフロープロセス統合テスト', () => {
       // 最終的な進捗確認
       expect(store.completionRate).toBeGreaterThan(70);
       expect(store.getStageHistory()).toEqual(['hearing', 'concept', 'structure', 'generation']);
+    });
+
+    it('ワークフロー完了まで全段階を実行できる', async () => {
+      // 全データを設定
+      act(() => {
+        store.updateHearingData(mockHearingData);
+        store.setConceptData(mockConceptData);
+        store.setStructureData({
+          sections: [
+            {
+              id: 'hero',
+              name: 'ヒーローセクション',
+              description: 'メインビジュアルとキャッチコピー',
+              priority: 'high',
+              contentType: 'hero'
+            },
+            {
+              id: 'features',
+              name: '機能紹介',
+              description: '主要機能の説明',
+              priority: 'high',
+              contentType: 'features'
+            }
+          ],
+          approvedAt: new Date().toISOString()
+        });
+        store.setGenerationResult({
+          htmlContent: '<html><body><h1>Generated LP</h1></body></html>',
+          cssContent: 'body { font-family: Arial; }',
+          title: 'Generated Landing Page',
+          metadata: { version: '1.0' },
+          generatedAt: new Date().toISOString()
+        });
+      });
+
+      // 完了段階まで進む
+      act(() => {
+        store.setStage('complete');
+      });
+
+      expect(store.currentStage).toBe('complete');
+      expect(store.completionRate).toBe(100);
+      expect(store.getStageHistory()).toContain('complete');
+    });
+  });
+
+  describe('インタラクティブヒアリング機能', () => {
+    it('段階的なヒアリングプロセスが正常に動作する', () => {
+      // 初期段階でのヒアリングデータ
+      const initialHearingData = {
+        essentialInfo: {
+          serviceContent: 'SaaS型顧客管理システム'
+        }
+      };
+
+      act(() => {
+        store.updateHearingData(initialHearingData);
+      });
+
+      // 部分的な進捗が反映される
+      expect(store.getStageProgress('hearing')).toBeGreaterThan(0);
+      expect(store.getStageProgress('hearing')).toBeLessThan(100);
+
+      // 追加情報を段階的に追加
+      act(() => {
+        store.updateHearingData({
+          essentialInfo: {
+            ...initialHearingData.essentialInfo,
+            targetCustomerPain: '顧客情報の管理が煩雑',
+            desiredConversion: '無料トライアル申し込み'
+          }
+        });
+      });
+
+      // 進捗が向上する
+      const progressAfterUpdate = store.getStageProgress('hearing');
+      expect(progressAfterUpdate).toBeGreaterThan(50);
+    });
+
+    it('ヒアリング完了条件が正しく判定される', () => {
+      // 不完全なデータでは次に進めない
+      act(() => {
+        store.updateHearingData({
+          essentialInfo: {
+            serviceContent: 'テストサービス'
+          }
+        });
+      });
+
+      expect(store.canProceedToNext()).toBe(false);
+
+      // 完全なデータで次に進める
+      act(() => {
+        store.updateHearingData(mockHearingData);
+      });
+
+      expect(store.canProceedToNext()).toBe(true);
+    });
+  });
+
+  describe('コンセプト提案と確認ワークフロー', () => {
+    beforeEach(() => {
+      act(() => {
+        store.updateHearingData(mockHearingData);
+        store.setStage('concept');
+      });
+    });
+
+    it('コンセプト提案後の確認プロセスが正常に動作する', () => {
+      expect(store.currentStage).toBe('concept');
+      expect(store.canProceedToNext()).toBe(false);
+
+      // コンセプトデータを設定
+      act(() => {
+        store.setConceptData(mockConceptData);
+      });
+
+      expect(store.canProceedToNext()).toBe(true);
+      expect(store.getStageProgress('concept')).toBe(100);
+    });
+
+    it('コンセプト修正要求が正しく処理される', () => {
+      act(() => {
+        store.setConceptData(mockConceptData);
+      });
+
+      // 修正されたコンセプトデータ
+      const modifiedConcept = {
+        ...mockConceptData,
+        title: '修正されたコンセプトタイトル',
+        overview: '修正されたコンセプト概要'
+      };
+
+      act(() => {
+        store.setConceptData(modifiedConcept);
+      });
+
+      expect(store.conceptData?.title).toBe('修正されたコンセプトタイトル');
+      expect(store.conceptData?.overview).toBe('修正されたコンセプト概要');
+    });
+  });
+
+  describe('後方ナビゲーション機能', () => {
+    it('任意の段階から前の段階に戻ることができる', () => {
+      // 複数段階を進む
+      act(() => {
+        store.updateHearingData(mockHearingData);
+        store.setConceptData(mockConceptData);
+        store.setStage('structure');
+      });
+
+      expect(store.currentStage).toBe('structure');
+      expect(store.canGoBack()).toBe(true);
+
+      // concept段階に戻る
+      act(() => {
+        store.previousStage();
+      });
+
+      expect(store.currentStage).toBe('concept');
+
+      // hearing段階に戻る
+      act(() => {
+        store.previousStage();
+      });
+
+      expect(store.currentStage).toBe('hearing');
+      expect(store.canGoBack()).toBe(false);
+    });
+
+    it('特定の段階に直接ジャンプできる', () => {
+      // データを設定して複数段階を有効化
+      act(() => {
+        store.updateHearingData(mockHearingData);
+        store.setConceptData(mockConceptData);
+        store.setStage('structure');
+      });
+
+      // concept段階に直接ジャンプ
+      act(() => {
+        store.goToStage('concept');
+      });
+
+      expect(store.currentStage).toBe('concept');
+      expect(store.getStageHistory()).toContain('concept');
+      expect(store.getStageHistory()).toContain('structure');
+    });
+
+    it('アクセス不可能な段階にはジャンプできない', () => {
+      // 初期状態（hearingのみアクセス可能）
+      expect(store.currentStage).toBe('hearing');
+
+      // generation段階に直接ジャンプを試行（失敗するはず）
+      act(() => {
+        store.goToStage('generation');
+      });
+
+      // 段階は変わらない
+      expect(store.currentStage).toBe('hearing');
+    });
+  });
+
+  describe('ワークフロー状態の永続化', () => {
+    it('ワークフロー状態をエクスポート・インポートできる', () => {
+      // 複雑な状態を作成
+      act(() => {
+        store.updateHearingData(mockHearingData);
+        store.setConceptData(mockConceptData);
+        store.setStage('concept');
+        store.setProcessing(false);
+        store.setError(null);
+      });
+
+      // エクスポート
+      const exportedData = store.exportWorkflowData();
+
+      expect(exportedData).toHaveProperty('sessionId');
+      expect(exportedData).toHaveProperty('currentStage', 'concept');
+      expect(exportedData).toHaveProperty('hearingData');
+      expect(exportedData).toHaveProperty('conceptData');
+      expect(exportedData).toHaveProperty('exportedAt');
+
+      // リセット
+      act(() => {
+        store.resetWorkflow();
+      });
+
+      expect(store.currentStage).toBe('hearing');
+      expect(store.conceptData).toBeNull();
+
+      // インポート
+      act(() => {
+        store.importWorkflowData(exportedData);
+      });
+
+      expect(store.currentStage).toBe('concept');
+      expect(store.hearingData).toEqual(mockHearingData);
+      expect(store.conceptData).toEqual(mockConceptData);
     });
   });
 

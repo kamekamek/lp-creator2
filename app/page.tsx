@@ -26,6 +26,7 @@ import { AISuggestionPanel } from '../src/components/AISuggestionPanel';
 import { AISuggestionGenerator } from '../src/utils/ai-suggestion-generator';
 import { SuggestionApplierClient } from '../src/utils/suggestion-applier-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
+import { ExportButton, ExportInfo } from './components/ExportButton';
 
 // --- Prop Types ---
 interface InitialViewProps {
@@ -617,21 +618,21 @@ const MainView = ({
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-800">プレビュー</h2>
             {lpToolState.isActive && lpToolState.htmlContent && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    const blob = new Blob([lpToolState.htmlContent], { type: 'text/html' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `${lpToolState.title.replace(/[^a-z0-9]/gi, '_')}.html`;
-                    link.click();
-                    URL.revokeObjectURL(url);
+              <div className="flex gap-2 items-center">
+                <ExportButton
+                  htmlContent={lpToolState.htmlContent}
+                  cssContent={lpToolState.cssContent}
+                  title={lpToolState.title}
+                  size="sm"
+                  onExportComplete={(result) => {
+                    console.log('Export completed:', result);
+                    // You could show a toast notification here
                   }}
-                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-                >
-                  HTMLダウンロード
-                </button>
+                  onExportError={(error) => {
+                    console.error('Export error:', error);
+                    // You could show an error toast here
+                  }}
+                />
 
                 {/* バリエーション表示ボタン */}
                 {variants.length > 0 && (
@@ -653,6 +654,13 @@ const MainView = ({
                 >
                   AI改善提案
                 </button>
+
+                {/* Export info */}
+                <ExportInfo
+                  htmlContent={lpToolState.htmlContent}
+                  cssContent={lpToolState.cssContent}
+                  className="ml-2"
+                />
               </div>
             )}
           </div>
@@ -663,10 +671,15 @@ const MainView = ({
             <LPViewer 
               htmlContent={lpToolState.htmlContent || ''} // 空文字でフォールバック
               cssContent={lpToolState.cssContent || ''}
+              title={lpToolState.title}
               onTextUpdate={handleTextUpdate}
               onAIImprove={(elementId, currentText) => {
                 const prompt = `要素「${elementId}」のテキスト「${currentText}」をAIで改善してください。`;
                 sendPrompt(prompt);
+              }}
+              onExport={(result) => {
+                console.log('Export completed from LPViewer:', result);
+                // You could show a toast notification here
               }}
               isModalOpen={isEditModalOpen}
             />
